@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'admin_login.dart';
+import 'home_router.dart';
 import 'register.dart';
 
 class LoginPage extends StatefulWidget {
@@ -27,34 +29,66 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _signIn() async {
     FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      if (!mounted) return;
+      final user = credential.user;
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'missing-user',
+          message: 'No user returned from sign-in.',
+        );
+      }
 
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final data = doc.data();
+      final role = (data?['role'] as String?)?.toLowerCase() ?? '';
+
+      if (role == 'admin') {
+        // Capture the navigator state BEFORE the async operation drops the context string
+        final navigator = Navigator.of(context);
+
+        await FirebaseAuth.instance.signOut();
+
+        if (!mounted) return;
+
+        _showError('Admin accounts must sign in via the Admin Login page.');
+
+        // Push the screen safely using our pre-captured navigator instance
+        navigator.push(
+          MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+        );
+        return;
+      }
+
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Signed in successfully.')));
+      _openHome();
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_authErrorMessage(error))));
+      _showError(_authErrorMessage(error));
+    } on FirebaseException catch (error) {
+      if (!mounted) return;
+      _showError(
+        '${error.plugin}/${error.code}: ${error.message ?? 'Please try again.'}',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showError('Could not sign in: $error');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -71,18 +105,13 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset email sent.')),
       );
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_authErrorMessage(error))));
+      _showError(_authErrorMessage(error));
     }
   }
 
@@ -96,17 +125,32 @@ class _LoginPageState extends State<LoginPage> {
         return 'Invalid email or password.';
       case 'user-disabled':
         return 'This account has been disabled.';
+      case 'configuration-not-found':
+        return 'Firebase Auth is not configured. Enable Email/Password sign-in in Firebase Console.';
       case 'too-many-requests':
         return 'Too many attempts. Please try again later.';
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
       default:
-        return error.message ?? 'Something went wrong. Please try again.';
+        return '${error.code}: ${error.message ?? 'Please try again.'}';
     }
   }
 
   bool _isValidEmail(String value) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+  }
+
+  void _openHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const HomeRouter()),
+      (route) => false,
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -194,12 +238,9 @@ class _LoginPageState extends State<LoginPage> {
               autofillHints: const [AutofillHints.email],
               validator: (value) {
                 final email = value?.trim() ?? '';
-                if (email.isEmpty) {
-                  return 'Email address is required.';
-                }
-                if (!_isValidEmail(email)) {
+                if (email.isEmpty) return 'Email address is required.';
+                if (!_isValidEmail(email))
                   return 'Enter a valid email address.';
-                }
                 return null;
               },
               decoration: _fieldDecoration(
@@ -219,12 +260,10 @@ class _LoginPageState extends State<LoginPage> {
               autofillHints: const [AutofillHints.password],
               onFieldSubmitted: (_) => _isLoading ? null : _signIn(),
               validator: (value) {
-                if (value == null || value.isEmpty) {
+                if (value == null || value.isEmpty)
                   return 'Password is required.';
-                }
-                if (value.length < 6) {
+                if (value.length < 6)
                   return 'Password must be at least 6 characters.';
-                }
                 return null;
               },
               decoration:
@@ -237,9 +276,8 @@ class _LoginPageState extends State<LoginPage> {
                       tooltip: _obscurePassword
                           ? 'Show password'
                           : 'Hide password',
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                       icon: Icon(
                         _obscurePassword
                             ? Icons.visibility_off_outlined
@@ -368,11 +406,12 @@ class _LoginHeader extends StatelessWidget {
       child: Column(
         children: [
           Image.asset(
-            'assets/logo 2.png',
+            'assets/logo_2.png', // Targets the updated clean string name layout match
             width: logoSize,
             height: logoSize,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
+              // This acts as a protective shield. Even if asset files break, your code will safely continue executing without crashing.
               return Container(
                 width: logoSize,
                 height: logoSize,

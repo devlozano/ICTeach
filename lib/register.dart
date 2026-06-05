@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'home_router.dart';
+
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -53,51 +55,60 @@ class _RegisterPageState extends State<RegisterPage> {
           );
 
       final user = credential.user;
-      if (user != null) {
-        final firstName = _firstNameController.text.trim();
-        final middleName = _middleNameController.text.trim();
-        final lastName = _lastNameController.text.trim();
-        final extension = _extensionController.text.trim();
-        final displayName = _displayName(
-          firstName: firstName,
-          middleName: middleName,
-          lastName: lastName,
-          extension: extension,
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'missing-user',
+          message: 'Account was created, but user data was not returned.',
         );
-
-        await user.updateDisplayName(displayName);
-
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'uid': user.uid,
-          'firstName': firstName,
-          'middleName': middleName,
-          'lastName': lastName,
-          'extension': extension,
-          'name': displayName,
-          'email': _emailController.text.trim(),
-          'role': _selectedRole.toLowerCase(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
       }
+
+      final firstName = _firstNameController.text.trim();
+      final middleName = _middleNameController.text.trim();
+      final lastName = _lastNameController.text.trim();
+      final extension = _extensionController.text.trim();
+      final displayName = _displayName(
+        firstName: firstName,
+        middleName: middleName,
+        lastName: lastName,
+        extension: extension,
+      );
+
+      await user.updateDisplayName(displayName);
+      final profileSaved = await _saveStudentProfile(
+        uid: user.uid,
+        firstName: firstName,
+        middleName: middleName,
+        lastName: lastName,
+        extension: extension,
+        displayName: displayName,
+      );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created successfully.')),
-      );
-      Navigator.of(context).pop();
+      if (profileSaved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Account created, but profile was not saved.'),
+          ),
+        );
+      }
+      _openHome();
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(_authErrorMessage(error))));
-    } catch (_) {
+      _showError(_authErrorMessage(error));
+    } on FirebaseException catch (error) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not create account. Try again.')),
-      );
+      _showError(_firebaseErrorMessage(error));
+    } catch (error) {
+      if (!mounted) return;
+
+      _showError('Could not create account: $error');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -113,12 +124,27 @@ class _RegisterPageState extends State<RegisterPage> {
         return 'Please enter a valid email address.';
       case 'operation-not-allowed':
         return 'Email registration is not enabled.';
+      case 'configuration-not-found':
+        return 'Firebase Auth is not configured. Enable Email/Password sign-in in Firebase Console.';
       case 'weak-password':
         return 'Password is too weak.';
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
+      case 'missing-user':
+        return error.message ?? 'Account could not be completed.';
       default:
-        return error.message ?? 'Something went wrong. Please try again.';
+        return '${error.code}: ${error.message ?? 'Please try again.'}';
+    }
+  }
+
+  String _firebaseErrorMessage(FirebaseException error) {
+    switch (error.code) {
+      case 'permission-denied':
+        return 'Account created, but Firestore rules blocked saving the profile.';
+      case 'unavailable':
+        return 'Firebase is unavailable right now. Please try again.';
+      default:
+        return '${error.plugin}/${error.code}: ${error.message ?? 'Please try again.'}';
     }
   }
 
@@ -140,6 +166,50 @@ class _RegisterPageState extends State<RegisterPage> {
     ];
 
     return names.join(' ');
+  }
+
+  void _openHome() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const HomeRouter()),
+      (route) => false,
+    );
+  }
+
+  Future<bool> _saveStudentProfile({
+    required String uid,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String extension,
+    required String displayName,
+  }) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'uid': uid,
+        'firstName': firstName,
+        'middleName': middleName,
+        'lastName': lastName,
+        'extension': extension,
+        'name': displayName,
+        'email': _emailController.text.trim(),
+        'role': _selectedRole.toLowerCase(),
+        'course': 'CSS NC II - Computer System Servicing',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return true;
+    } on FirebaseException catch (error) {
+      debugPrint(
+        'Firestore profile save failed: ${_firebaseErrorMessage(error)}',
+      );
+      return false;
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

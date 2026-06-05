@@ -23,5 +23,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Asset folder (put logo 2.png here)
+  # The asset keyword must have exactly 2 spaces of indentation
   assets:
+    - assets/logo 2.png

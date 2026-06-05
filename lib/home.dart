@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -7,45 +8,91 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName?.trim();
-    final name = displayName == null || displayName.isEmpty
-        ? 'Juan Dela Cruz'
-        : displayName;
+    if (user == null) {
+      return const Scaffold(body: Center(child: Text('No student signed in.')));
+    }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            _HomeHeader(name: name, photoUrl: user?.photoURL),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _WelcomeSection(),
-                    const SizedBox(height: 18),
-                    const _ProgressCard(),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Quick Access',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final profile = snapshot.data?.data();
+        final name = _studentName(profile, user);
+        final course =
+            profile?['course'] as String? ??
+            'CSS NC II - Computer System Servicing';
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                _HomeHeader(name: name, photoUrl: user.photoURL),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _WelcomeSection(course: course),
+                        const SizedBox(height: 18),
+                        const _ProgressCard(),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Quick Access',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 8),
+                        const _QuickAccessGrid(),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    const _QuickAccessGrid(),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: const _BottomNavBar(),
+          ),
+          bottomNavigationBar: const _BottomNavBar(),
+        );
+      },
     );
+  }
+
+  String _studentName(Map<String, dynamic>? profile, User user) {
+    final firstName = (profile?['firstName'] as String?)?.trim() ?? '';
+    final middleName = (profile?['middleName'] as String?)?.trim() ?? '';
+    final lastName = (profile?['lastName'] as String?)?.trim() ?? '';
+    final extension = (profile?['extension'] as String?)?.trim() ?? '';
+    final separatedName = [
+      firstName,
+      if (middleName.isNotEmpty) _middleInitial(middleName),
+      lastName,
+      if (extension.isNotEmpty) extension,
+    ].where((part) => part.isNotEmpty).join(' ');
+
+    if (separatedName.isNotEmpty) {
+      return separatedName;
+    }
+
+    final savedName = profile?['name'] as String?;
+    if (savedName != null && savedName.trim().isNotEmpty) {
+      return savedName.trim();
+    }
+
+    final displayName = user.displayName?.trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      return displayName;
+    }
+
+    return 'Student';
+  }
+
+  String _middleInitial(String middleName) {
+    final firstLetter = middleName.trim().characters.first.toUpperCase();
+    return '$firstLetter.';
   }
 }
 
@@ -120,7 +167,9 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _WelcomeSection extends StatelessWidget {
-  const _WelcomeSection();
+  const _WelcomeSection({required this.course});
+
+  final String course;
 
   @override
   Widget build(BuildContext context) {
@@ -144,9 +193,11 @@ class _WelcomeSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'CSS NC II - Computer System Servicing',
-                  style: TextStyle(
+                Text(
+                  course,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     color: Color(0xFF4F4F4F),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
