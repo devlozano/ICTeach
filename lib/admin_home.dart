@@ -1,10 +1,17 @@
-// ...existing code...
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class AdminHomePage extends StatelessWidget {
+class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
+
+  @override
+  State<AdminHomePage> createState() => _AdminHomePageState();
+}
+
+class _AdminHomePageState extends State<AdminHomePage> {
+  // Track the currently active panel screen view state string value
+  String _currentSelectedLabel = 'Dashboard';
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +38,12 @@ class AdminHomePage extends StatelessWidget {
                 child: Row(
                   children: [
                     if (isWide)
-                      const _SideNav(), // permanent left nav for wide screens
+                      _SideNav(
+                        currentSelection: _currentSelectedLabel,
+                        onSelected: (label) {
+                          setState(() => _currentSelectedLabel = label);
+                        },
+                      ), // permanent left nav for wide screens
                     Expanded(
                       child: Column(
                         children: [
@@ -48,7 +60,7 @@ class AdminHomePage extends StatelessWidget {
                                   children: [
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Dashboard',
+                                      _currentSelectedLabel,
                                       style: Theme.of(context)
                                           .textTheme
                                           .headlineSmall
@@ -59,7 +71,9 @@ class AdminHomePage extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      'Welcome back to ICTeach',
+                                      _currentSelectedLabel == 'Dashboard'
+                                          ? 'Welcome back to ICTeach'
+                                          : 'Manage your ICTeach $_currentSelectedLabel infrastructure configurations',
                                       style: Theme.of(context)
                                           .textTheme
                                           .bodyMedium
@@ -70,25 +84,54 @@ class AdminHomePage extends StatelessWidget {
                                           ),
                                     ),
                                     const SizedBox(height: 18),
-                                    _SummaryRow(),
-                                    const SizedBox(height: 18),
-                                    _QuarterOverviewGrid(),
-                                    const SizedBox(height: 18),
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: const [
-                                        Expanded(
-                                          flex: 3,
-                                          child: _RecentActivityCard(),
+
+                                    // Render core views dynamically based on side menu tracker variables
+                                    if (_currentSelectedLabel ==
+                                        'Dashboard') ...[
+                                      const _SummaryRow(),
+                                      const SizedBox(height: 18),
+                                      _QuarterOverviewGrid(),
+                                      const SizedBox(height: 18),
+                                      const Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            flex: 3,
+                                            child: _RecentActivityCard(),
+                                          ),
+                                          SizedBox(width: 16),
+                                          Expanded(
+                                            flex: 1,
+                                            child: _QuickActionsCard(),
+                                          ),
+                                        ],
+                                      ),
+                                    ] else ...[
+                                      // Secondary Fallback views placeholder container
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(40),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFECECEC),
+                                          ),
                                         ),
-                                        SizedBox(width: 16),
-                                        Expanded(
-                                          flex: 1,
-                                          child: _QuickActionsCard(),
+                                        child: Center(
+                                          child: Text(
+                                            '$_currentSelectedLabel Sub-Panel Management View Coming Soon.',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black45,
+                                            ),
+                                          ),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 40),
                                   ],
                                 ),
@@ -103,7 +146,17 @@ class AdminHomePage extends StatelessWidget {
               ),
               drawer: isWide
                   ? null
-                  : const Drawer(child: _SideNav()), // mobile drawer
+                  : Drawer(
+                      child: _SideNav(
+                        currentSelection: _currentSelectedLabel,
+                        onSelected: (label) {
+                          setState(() => _currentSelectedLabel = label);
+                          Navigator.of(
+                            context,
+                          ).pop(); // Close drawer on mobile click selection
+                        },
+                      ),
+                    ), // mobile drawer
             );
           },
         );
@@ -127,8 +180,9 @@ class AdminHomePage extends StatelessWidget {
     if (separatedName.isNotEmpty) return separatedName;
 
     final savedName = profile?['name'] as String?;
-    if (savedName != null && savedName.trim().isNotEmpty)
+    if (savedName != null && savedName.trim().isNotEmpty) {
       return savedName.trim();
+    }
 
     final displayName = user.displayName?.trim();
     if (displayName != null && displayName.isNotEmpty) return displayName;
@@ -138,12 +192,14 @@ class AdminHomePage extends StatelessWidget {
 }
 
 class _SideNav extends StatelessWidget {
-  const _SideNav();
+  const _SideNav({required this.currentSelection, required this.onSelected});
+
+  final String currentSelection;
+  final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
     const navColor = Color(0xFF0B2B4A);
-    const accent = Color(0xFF1EA4FF);
     return Container(
       width: 240,
       color: navColor,
@@ -152,8 +208,8 @@ class _SideNav extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          Row(
-            children: const [
+          const Row(
+            children: [
               SizedBox(width: 12),
               CircleAvatar(
                 backgroundColor: Colors.white,
@@ -176,25 +232,80 @@ class _SideNav extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 28),
-          _NavTile(
-            icon: Icons.dashboard_rounded,
-            label: 'Dashboard',
-            selected: true,
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _NavTile(
+                  icon: Icons.dashboard_rounded,
+                  label: 'Dashboard',
+                  selected: currentSelection == 'Dashboard',
+                  onTap: () => onSelected('Dashboard'),
+                ),
+                _NavTile(
+                  icon: Icons.book_rounded,
+                  label: 'Courses',
+                  selected: currentSelection == 'Courses',
+                  onTap: () => onSelected('Courses'),
+                ),
+                _NavTile(
+                  icon: Icons.menu_book_rounded,
+                  label: 'Learning Modules',
+                  selected: currentSelection == 'Learning Modules',
+                  onTap: () => onSelected('Learning Modules'),
+                ),
+                _NavTile(
+                  icon: Icons.play_circle_fill_rounded,
+                  label: 'Instructional Videos',
+                  selected: currentSelection == 'Instructional Videos',
+                  onTap: () => onSelected('Instructional Videos'),
+                ),
+                _NavTile(
+                  icon: Icons.quiz_rounded,
+                  label: 'Quizzes',
+                  selected: currentSelection == 'Quizzes',
+                  onTap: () => onSelected('Quizzes'),
+                ),
+                _NavTile(
+                  icon: Icons.assignment_rounded,
+                  label: 'Assignments',
+                  selected: currentSelection == 'Assignments',
+                  onTap: () => onSelected('Assignments'),
+                ),
+                _NavTile(
+                  icon: Icons.memory_rounded,
+                  label: 'Simulations',
+                  selected: currentSelection == 'Simulations',
+                  onTap: () => onSelected('Simulations'),
+                ),
+                _NavTile(
+                  icon: Icons.forum_rounded,
+                  label: 'Discussion Forum',
+                  selected: currentSelection == 'Discussion Forum',
+                  onTap: () => onSelected('Discussion Forum'),
+                ),
+                _NavTile(
+                  icon: Icons.show_chart_rounded,
+                  label: 'Student Progress',
+                  selected: currentSelection == 'Student Progress',
+                  onTap: () => onSelected('Student Progress'),
+                ),
+                _NavTile(
+                  icon: Icons.report_rounded,
+                  label: 'Reports',
+                  selected: currentSelection == 'Reports',
+                  onTap: () => onSelected('Reports'),
+                ),
+              ],
+            ),
           ),
-          _NavTile(icon: Icons.book_rounded, label: 'Courses'),
-          _NavTile(icon: Icons.menu_book_rounded, label: 'Learning Modules'),
+          const Divider(color: Colors.white24, height: 20),
           _NavTile(
-            icon: Icons.play_circle_fill_rounded,
-            label: 'Instructional Videos',
+            icon: Icons.settings_rounded,
+            label: 'Settings',
+            selected: currentSelection == 'Settings',
+            onTap: () => onSelected('Settings'),
           ),
-          _NavTile(icon: Icons.quiz_rounded, label: 'Quizzes'),
-          _NavTile(icon: Icons.assignment_rounded, label: 'Assignments'),
-          _NavTile(icon: Icons.memory_rounded, label: 'Simulations'),
-          _NavTile(icon: Icons.forum_rounded, label: 'Discussion Forum'),
-          _NavTile(icon: Icons.show_chart_rounded, label: 'Student Progress'),
-          _NavTile(icon: Icons.report_rounded, label: 'Reports'),
-          const Spacer(),
-          _NavTile(icon: Icons.settings_rounded, label: 'Settings'),
           const SizedBox(height: 8),
         ],
       ),
@@ -206,36 +317,53 @@ class _NavTile extends StatelessWidget {
   const _NavTile({
     required this.icon,
     required this.label,
+    required this.onTap,
     this.selected = false,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = selected ? const Color(0xFF00A0FF) : Colors.white70;
+    final activeColor = selected ? const Color(0xFF1EA4FF) : Colors.white70;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            alignment: Alignment.center,
-            child: Icon(icon, color: activeColor, size: 20),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: activeColor,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-              ),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: selected ? Colors.white.withOpacity(0.08) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          hoverColor: Colors.white.withOpacity(0.04),
+          splashColor: Colors.white.withOpacity(0.1),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  alignment: Alignment.center, // center aligns nicely
+                  child: Icon(icon, color: activeColor, size: 20),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: activeColor,
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -318,14 +446,26 @@ class _SummaryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = [
-      _SmallStat(title: 'Total Students', value: '8', subtitle: '7 active'),
-      _SmallStat(title: 'Active Courses', value: '4', subtitle: '5 total'),
-      _SmallStat(
+      const _SmallStat(
+        title: 'Total Students',
+        value: '8',
+        subtitle: '7 active',
+      ),
+      const _SmallStat(
+        title: 'Active Courses',
+        value: '4',
+        subtitle: '5 total',
+      ),
+      const _SmallStat(
         title: 'Completed Assignments',
         value: '2',
         subtitle: 'of 6 total',
       ),
-      _SmallStat(title: 'Avg Quiz Score', value: '58%', subtitle: '4 quizzes'),
+      const _SmallStat(
+        title: 'Avg Quiz Score',
+        value: '58%',
+        subtitle: '4 quizzes',
+      ),
     ];
 
     return SizedBox(
@@ -527,9 +667,9 @@ class _QuarterCard extends StatelessWidget {
               minHeight: 6,
             ),
             const SizedBox(height: 8),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.end,
-              children: const [
+              children: [
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 16,
@@ -550,22 +690,22 @@ class _RecentActivityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _ActivityItem(
+      const _ActivityItem(
         title: 'PC Disassembly and Reassembly Lab Report',
         subtitle: 'Maria Santos - graded',
         date: 'April 26',
       ),
-      _ActivityItem(
+      const _ActivityItem(
         title: 'PC Disassembly and Reassembly Lab Report',
         subtitle: 'Juan Dela Cruz - graded',
         date: 'April 26',
       ),
-      _ActivityItem(
+      const _ActivityItem(
         title: 'PC Disassembly and Reassembly Lab Report',
         subtitle: 'Carlos Garcia - graded',
         date: 'April 26',
       ),
-      _ActivityItem(
+      const _ActivityItem(
         title: 'Computer Hardware Identification Quiz',
         subtitle: '33 submissions',
         date: 'April 26',
@@ -659,9 +799,12 @@ class _QuickActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      _ActionItem(label: 'Add CSS NC II Module', icon: Icons.add),
-      _ActionItem(label: 'Add Lab Simulation', icon: Icons.add_circle_outline),
-      _ActionItem(label: 'Create Assessment', icon: Icons.add_task),
+      const _ActionItem(label: 'Add CSS NC II Module', icon: Icons.add),
+      const _ActionItem(
+        label: 'Add Lab Simulation',
+        icon: Icons.add_circle_outline,
+      ),
+      const _ActionItem(label: 'Create Assessment', icon: Icons.add_task),
     ];
 
     return Container(
@@ -703,28 +846,35 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () {},
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8F6FF),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(action.icon, color: const Color(0xFF168D92)),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F6FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(action.icon, color: const Color(0xFF168D92)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  action.label,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFFBDBDBD)),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              action.label,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-          ),
-          const Icon(Icons.chevron_right, color: Color(0xFFBDBDBD)),
-        ],
+        ),
       ),
     );
   }

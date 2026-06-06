@@ -1,7 +1,7 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'admin_login.dart';
 import 'home_router.dart';
 import 'register.dart';
 
@@ -55,19 +55,16 @@ class _LoginPageState extends State<LoginPage> {
       final role = (data?['role'] as String?)?.toLowerCase() ?? '';
 
       if (role == 'admin') {
-        // Capture the navigator state BEFORE the async operation drops the context string
-        final navigator = Navigator.of(context);
-
         await FirebaseAuth.instance.signOut();
 
         if (!mounted) return;
 
-        _showError('Admin accounts must sign in via the Admin Login page.');
-
-        // Push the screen safely using our pre-captured navigator instance
-        navigator.push(
-          MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Opening Admin Portal...')),
         );
+
+        await _openAdminPortal();
+
         return;
       }
 
@@ -389,6 +386,16 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+
+  Future<void> _openAdminPortal() async {
+    final uri = Uri.parse(
+      'https://admin.icteach.com', // CHANGE THIS
+    );
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      throw Exception('Could not launch admin portal');
+    }
+  }
 }
 
 class _LoginHeader extends StatelessWidget {
@@ -406,7 +413,7 @@ class _LoginHeader extends StatelessWidget {
       child: Column(
         children: [
           Image.asset(
-            'assets/logo_2.png', // Targets the updated clean string name layout match
+            'assets/logo 2.png', // Targets the updated clean string name layout match
             width: logoSize,
             height: logoSize,
             fit: BoxFit.contain,

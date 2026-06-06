@@ -21,7 +21,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  String _selectedRole = 'Student';
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -173,37 +172,6 @@ class _RegisterPageState extends State<RegisterPage> {
       MaterialPageRoute(builder: (context) => const HomeRouter()),
       (route) => false,
     );
-  }
-
-  Future<bool> _saveStudentProfile({
-    required String uid,
-    required String firstName,
-    required String middleName,
-    required String lastName,
-    required String extension,
-    required String displayName,
-  }) async {
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'uid': uid,
-        'firstName': firstName,
-        'middleName': middleName,
-        'lastName': lastName,
-        'extension': extension,
-        'name': displayName,
-        'email': _emailController.text.trim(),
-        'role': _selectedRole.toLowerCase(),
-        'course': 'CSS NC II - Computer System Servicing',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-      return true;
-    } on FirebaseException catch (error) {
-      debugPrint(
-        'Firestore profile save failed: ${_firebaseErrorMessage(error)}',
-      );
-      return false;
-    }
   }
 
   void _showError(String message) {
@@ -406,30 +374,6 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 18),
           _LabeledField(
-            label: 'Role',
-            child: DropdownButtonFormField<String>(
-              initialValue: _selectedRole,
-              icon: const Icon(Icons.expand_more_rounded),
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Select role',
-                icon: Icons.badge_outlined,
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Student', child: Text('Student')),
-                DropdownMenuItem(value: 'Teacher', child: Text('Teacher')),
-              ],
-              onChanged: _isLoading
-                  ? null
-                  : (value) {
-                      if (value != null) {
-                        setState(() => _selectedRole = value);
-                      }
-                    },
-            ),
-          ),
-          const SizedBox(height: 18),
-          _LabeledField(
             label: 'Password',
             child: TextFormField(
               controller: _passwordController,
@@ -581,6 +525,29 @@ class _RegisterPageState extends State<RegisterPage> {
         borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
       ),
     );
+  }
+
+  Future<bool> _saveStudentProfile({
+    required String uid,
+    required String firstName,
+    required String middleName,
+    required String lastName,
+    required String extension,
+    required String displayName,
+  }) async {
+    final data = <String, dynamic>{
+      'uid': uid,
+      'firstName': firstName,
+      'middleName': middleName,
+      'lastName': lastName,
+      'extension': extension,
+      'displayName': displayName,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+
+    // Save profile document to "students" collection using uid as document id
+    await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
+    return true;
   }
 }
 
