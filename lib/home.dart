@@ -2,8 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  // Tracks the active bottom navigation panel index for the student
+  int _currentTabIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +30,7 @@ class HomePage extends StatelessWidget {
         final name = _studentName(profile, user);
         final course =
             profile?['course'] as String? ??
-            'CSS NC II - Computer System Servicing';
+            'CSS NC II - Computer Systems Servicing';
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -32,30 +40,65 @@ class HomePage extends StatelessWidget {
               children: [
                 _HomeHeader(name: name, photoUrl: user.photoURL),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _WelcomeSection(course: course),
-                        const SizedBox(height: 18),
-                        const _ProgressCard(),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Quick Access',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                  child: IndexedStack(
+                    index: _currentTabIndex,
+                    children: [
+                      // TAB 0: Core Student Dashboard Hub
+                      WidgetTransitions(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _WelcomeSection(course: course),
+                              const SizedBox(height: 18),
+                              const _ProgressCard(),
+                              const SizedBox(height: 20),
+                              Text(
+                                'Quick Access',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 8),
+                              const _QuickAccessGrid(),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        const _QuickAccessGrid(),
-                      ],
-                    ),
+                      ),
+                      // TAB 1: Course Modules view (Use Case: Access modules)
+                      const Center(
+                        child: Text(
+                          'Learning Modules Content (Use Case: Access modules)',
+                        ),
+                      ),
+                      // TAB 2: Discussion Forum View (Use Case: Interacts in forums)
+                      const Center(
+                        child: Text(
+                          'Discussion Forums (Use Case: Interacts in forums)',
+                        ),
+                      ),
+                      // TAB 3: Tracking performance dashboard (Use Case: Tracks progress)
+                      const Center(
+                        child: Text(
+                          'Performance & Grade Tracking (Use Case: Tracks progress)',
+                        ),
+                      ),
+                      // TAB 4: Student Profile Settings
+                      const Center(child: Text('Student Profile Settings')),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          bottomNavigationBar: const _BottomNavBar(),
+          bottomNavigationBar: _BottomNavBar(
+            currentIndex: _currentTabIndex,
+            onTabChanged: (index) {
+              setState(() {
+                _currentTabIndex = index;
+              });
+            },
+          ),
         );
       },
     );
@@ -96,9 +139,22 @@ class HomePage extends StatelessWidget {
   }
 }
 
+// Wrapper utility component for structured template fading animations
+class WidgetTransitions extends StatelessWidget {
+  const WidgetTransitions({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: child,
+    );
+  }
+}
+
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({required this.name, required this.photoUrl});
-
   final String name;
   final String? photoUrl;
 
@@ -132,7 +188,7 @@ class _HomeHeader extends StatelessWidget {
                 Text(
                   'Good Morning,',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.82),
+                    color: Colors.white.withOpacity(0.82),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -168,7 +224,6 @@ class _HomeHeader extends StatelessWidget {
 
 class _WelcomeSection extends StatelessWidget {
   const _WelcomeSection({required this.course});
-
   final String course;
 
   @override
@@ -227,7 +282,7 @@ class _ProgressCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE0E0E0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
+            color: Colors.black.withOpacity(0.22),
             offset: const Offset(0, 4),
             blurRadius: 5,
           ),
@@ -237,7 +292,7 @@ class _ProgressCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Progress....',
+            'Progress Tracking',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
@@ -245,7 +300,7 @@ class _ProgressCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             child: LinearProgressIndicator(
               minHeight: 13,
-              value: 0.45,
+              value: 0.20,
               color: const Color(0xFF0868D8),
               backgroundColor: Colors.grey.shade300,
             ),
@@ -255,12 +310,16 @@ class _ProgressCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '1 of 5 modules completed',
+                '1 of 5 modules completed (Use Case: Tracks progress)',
                 style: TextStyle(color: Color(0xFF7A7A7A), fontSize: 11),
               ),
               Text(
-                'Keep going!',
-                style: TextStyle(color: Color(0xFF7A7A7A), fontSize: 11),
+                '20%',
+                style: TextStyle(
+                  color: Color(0xFF7A7A7A),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -275,48 +334,49 @@ class _QuickAccessGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Aligned elements strictly according to Group 1.png Student capabilities
     const cards = [
       _QuickAccessItem(
-        title: 'Learning\nModules',
-        subtitle: '5 modules',
+        title: 'Access Modules',
+        subtitle: '5 modules listed',
         icon: Icons.menu_book_rounded,
         iconColor: Color(0xFF4F6DB8),
         iconBackground: Color(0xFFDCE6FF),
       ),
       _QuickAccessItem(
-        title: 'Quizzes',
-        subtitle: '3 Available',
+        title: 'Take Quizzes',
+        subtitle: '3 tests active',
         icon: Icons.quiz_outlined,
         iconColor: Color(0xFF9C4FA1),
         iconBackground: Color(0xFFE9C4EB),
       ),
       _QuickAccessItem(
-        title: 'Assignments',
-        subtitle: '2 Pending',
+        title: 'Submit Assignments',
+        subtitle: '2 deliverables due',
         icon: Icons.assignment_outlined,
         iconColor: Color(0xFFE76C31),
         iconBackground: Color(0xFFFFA06C),
       ),
       _QuickAccessItem(
-        title: 'Simulations',
-        subtitle: '5 Labs',
-        icon: Icons.gamepad_outlined,
+        title: 'Enroll in Classes',
+        subtitle: 'Join a section roster',
+        icon: Icons.add_business_outlined,
         iconColor: Color(0xFF249A38),
-        iconBackground: Color(0xFF6FD879),
+        iconBackground: Color(0xFFC9F2CE),
       ),
       _QuickAccessItem(
-        title: 'Instructional\nVideos',
-        subtitle: '2 New',
-        icon: Icons.play_circle_outline_rounded,
-        iconColor: Color(0xFFD97847),
-        iconBackground: Color(0xFFFFCFB1),
-      ),
-      _QuickAccessItem(
-        title: 'Discussion\nForums',
-        subtitle: 'Ask & Discuss',
+        title: 'Discussion Forums',
+        subtitle: 'Peer conversation hubs',
         icon: Icons.forum_rounded,
         iconColor: Color(0xFF168D92),
         iconBackground: Color(0xFFA6F4F5),
+      ),
+      _QuickAccessItem(
+        title: 'Track Performance',
+        subtitle: 'Review personal stats',
+        icon: Icons.bar_chart_rounded,
+        iconColor: Color(0xFFD97847),
+        iconBackground: Color(0xFFFFCFB1),
       ),
     ];
 
@@ -362,12 +422,12 @@ class _QuickAccessItem extends StatelessWidget {
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
       elevation: 3,
-      shadowColor: Colors.black.withValues(alpha: 0.35),
+      shadowColor: Colors.black.withOpacity(0.35),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {},
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -383,7 +443,7 @@ class _QuickAccessItem extends StatelessWidget {
                       ),
                       child: Icon(icon, color: iconColor, size: 25),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -395,7 +455,7 @@ class _QuickAccessItem extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Colors.black,
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w900,
                               height: 1.05,
                             ),
@@ -407,7 +467,7 @@ class _QuickAccessItem extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               color: Color(0xFF666666),
-                              fontSize: 11,
+                              fontSize: 10,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -432,7 +492,10 @@ class _QuickAccessItem extends StatelessWidget {
 }
 
 class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar();
+  const _BottomNavBar({required this.currentIndex, required this.onTabChanged});
+
+  final int currentIndex;
+  final ValueChanged<int> onTabChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -442,20 +505,45 @@ class _BottomNavBar extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withOpacity(0.08),
             offset: const Offset(0, -2),
             blurRadius: 8,
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _NavItem(label: 'Home', icon: Icons.home_outlined, isSelected: true),
-          _NavItem(label: 'Course', icon: Icons.menu_book_outlined),
-          _NavItem(label: 'Forum', icon: Icons.forum_outlined),
-          _NavItem(label: 'Progress', icon: Icons.bar_chart_rounded),
-          _NavItem(label: 'Profile', icon: Icons.person_outline_rounded),
+          _NavItem(
+            label: 'Home',
+            icon: Icons.home_outlined,
+            isSelected: currentIndex == 0,
+            onTap: () => onTabChanged(0),
+          ),
+          _NavItem(
+            label: 'Modules',
+            icon: Icons.menu_book_outlined,
+            isSelected: currentIndex == 1,
+            onTap: () => onTabChanged(1),
+          ),
+          _NavItem(
+            label: 'Forum',
+            icon: Icons.forum_outlined,
+            isSelected: currentIndex == 2,
+            onTap: () => onTabChanged(2),
+          ),
+          _NavItem(
+            label: 'Progress',
+            icon: Icons.bar_chart_rounded,
+            isSelected: currentIndex == 3,
+            onTap: () => onTabChanged(3),
+          ),
+          _NavItem(
+            label: 'Profile',
+            icon: Icons.person_outline_rounded,
+            isSelected: currentIndex == 4,
+            onTap: () => onTabChanged(4),
+          ),
         ],
       ),
     );
@@ -466,44 +554,51 @@ class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.label,
     required this.icon,
+    required this.onTap,
     this.isSelected = false,
   });
 
   final String label;
   final IconData icon;
   final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = isSelected ? const Color(0xFF0868D8) : Colors.black54;
 
-    return SizedBox(
-      width: 70,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 25),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        width: 70,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 25),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF0868D8) : Colors.transparent,
-              shape: BoxShape.circle,
+            const SizedBox(height: 4),
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? const Color(0xFF0868D8)
+                    : Colors.transparent,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -511,7 +606,6 @@ class _NavItem extends StatelessWidget {
 
 class _HeartMascot extends StatelessWidget {
   const _HeartMascot({required this.size});
-
   final double size;
 
   @override

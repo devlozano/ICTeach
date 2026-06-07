@@ -56,7 +56,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
         return;
       }
 
-      // Check if widget is still in the widget tree before navigating/showing UI elements
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).clearSnackBars();
@@ -80,7 +79,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
   }
 
   void _showError(String message) {
-    if (!mounted) return; // Guard clause for safety
+    if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(message)));
@@ -95,7 +94,6 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
     const inputBorder = Color(0xFFC7D3EA);
     const signInGreen = Color(0xFF12A150);
 
-    // Shared border style to clean up the code and handle focus cleanly
     final outlineInputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(10),
       borderSide: const BorderSide(color: inputBorder, width: 2),
@@ -117,12 +115,12 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                   children: [
                     Text(
                       'Administrator Sign In',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Colors
-                            .white, // Changed to white for high contrast over blue background
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -142,8 +140,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         ),
                         hintText: 'admin@domain.com',
                         enabledBorder: outlineInputBorder,
-                        focusedBorder:
-                            outlineInputBorder, // Fixes missing focus style color
+                        focusedBorder: outlineInputBorder,
                         filled: true,
                         fillColor: Colors.white,
                       ),
@@ -169,8 +166,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                         ),
                         hintText: 'Enter admin password',
                         enabledBorder: outlineInputBorder,
-                        focusedBorder:
-                            outlineInputBorder, // Fixes missing focus style color
+                        focusedBorder: outlineInputBorder,
                         filled: true,
                         fillColor: Colors.white,
                         suffixIcon: IconButton(
@@ -214,7 +210,7 @@ class _AdminLoginPageState extends State<AdminLoginPage> {
                           : () => Navigator.of(context).pop(),
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white,
-                      ), // Better text visibility
+                      ),
                       child: const Text('Back to regular sign in'),
                     ),
                   ],

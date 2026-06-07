@@ -34,6 +34,21 @@ class _AdminHomePageState extends State<AdminHomePage> {
             final isWide = constraints.maxWidth >= 1000;
             return Scaffold(
               backgroundColor: const Color(0xFFF5F6FA),
+              // Setup a GlobalKey or use context directly if needing to control the drawer.
+              // Scaffold automatically hooks up the menu button when a drawer is present.
+              drawer: isWide
+                  ? null
+                  : Drawer(
+                      child: _SideNav(
+                        currentSelection: _currentSelectedLabel,
+                        onSelected: (label) {
+                          setState(() => _currentSelectedLabel = label);
+                          Navigator.of(
+                            context,
+                          ).pop(); // Close drawer on selection
+                        },
+                      ),
+                    ),
               body: SafeArea(
                 child: Row(
                   children: [
@@ -47,7 +62,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     Expanded(
                       child: Column(
                         children: [
-                          _TopBar(name: name),
+                          // Pass isWide flag so the TopBar can show/hide the drawer menu button
+                          _TopBar(name: name, showMenuButton: !isWide),
                           Expanded(
                             child: SingleChildScrollView(
                               padding: const EdgeInsets.all(24),
@@ -78,60 +94,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                           .textTheme
                                           .bodyMedium
                                           ?.copyWith(
-                                            color: Colors.black.withOpacity(
-                                              0.6,
+                                            color: Colors.black.withValues(
+                                              alpha: 0.6,
                                             ),
                                           ),
                                     ),
                                     const SizedBox(height: 18),
 
-                                    // Render core views dynamically based on side menu tracker variables
-                                    if (_currentSelectedLabel ==
-                                        'Dashboard') ...[
-                                      const _SummaryRow(),
-                                      const SizedBox(height: 18),
-                                      _QuarterOverviewGrid(),
-                                      const SizedBox(height: 18),
-                                      const Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            flex: 3,
-                                            child: _RecentActivityCard(),
-                                          ),
-                                          SizedBox(width: 16),
-                                          Expanded(
-                                            flex: 1,
-                                            child: _QuickActionsCard(),
-                                          ),
-                                        ],
-                                      ),
-                                    ] else ...[
-                                      // Secondary Fallback views placeholder container
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(40),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFFECECEC),
-                                          ),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            '$_currentSelectedLabel Sub-Panel Management View Coming Soon.',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.black45,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                    // ALIGNED: Render panel views dynamically using helper
+                                    _buildActivePanelContent(),
+
                                     const SizedBox(height: 40),
                                   ],
                                 ),
@@ -144,23 +116,53 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   ],
                 ),
               ),
-              drawer: isWide
-                  ? null
-                  : Drawer(
-                      child: _SideNav(
-                        currentSelection: _currentSelectedLabel,
-                        onSelected: (label) {
-                          setState(() => _currentSelectedLabel = label);
-                          Navigator.of(
-                            context,
-                          ).pop(); // Close drawer on mobile click selection
-                        },
-                      ),
-                    ), // mobile drawer
             );
           },
         );
       },
+    );
+  }
+
+  /// Helper to route layouts depending on navigation state selection
+  Widget _buildActivePanelContent() {
+    if (_currentSelectedLabel == 'Dashboard') {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SummaryRow(),
+          SizedBox(height: 18),
+          _QuarterOverviewGrid(),
+          SizedBox(height: 18),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: _RecentActivityCard()),
+              SizedBox(width: 16),
+              Expanded(flex: 1, child: _QuickActionsCard()),
+            ],
+          ),
+        ],
+      );
+    }
+
+    // Secondary Management View Dynamic Call Fallbacks
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFECECEC)),
+      ),
+      child: Center(
+        child: Text(
+          '$_currentSelectedLabel Sub-Panel Management View Coming Soon.',
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black45,
+          ),
+        ),
+      ),
     );
   }
 
@@ -333,20 +335,22 @@ class _NavTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: selected ? Colors.white.withOpacity(0.08) : Colors.transparent,
+        color: selected
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          hoverColor: Colors.white.withOpacity(0.04),
-          splashColor: Colors.white.withOpacity(0.1),
+          hoverColor: Colors.white.withValues(alpha: 0.04),
+          splashColor: Colors.white.withValues(alpha: 0.1),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(
               children: [
                 Container(
                   width: 32,
-                  alignment: Alignment.center, // center aligns nicely
+                  alignment: Alignment.center,
                   child: Icon(icon, color: activeColor, size: 20),
                 ),
                 const SizedBox(width: 8),
@@ -370,8 +374,9 @@ class _NavTile extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.name});
+  const _TopBar({required this.name, required this.showMenuButton});
   final String name;
+  final bool showMenuButton;
 
   @override
   Widget build(BuildContext context) {
@@ -381,6 +386,14 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18),
       child: Row(
         children: [
+          // ALIGNED: Added mobile trigger support icon button
+          if (showMenuButton) ...[
+            IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Color(0xFF0B2B4A)),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+            const SizedBox(width: 8),
+          ],
           Text(
             'Admin Panel',
             style: Theme.of(
@@ -502,7 +515,7 @@ class _SmallStat extends StatelessWidget {
         border: Border.all(color: const Color(0xFFECECEC)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -540,7 +553,7 @@ class _SmallStat extends StatelessWidget {
 }
 
 class _QuarterOverviewGrid extends StatelessWidget {
-  _QuarterOverviewGrid({super.key});
+  const _QuarterOverviewGrid();
 
   final List<_QuarterCardData> quarters = const [
     _QuarterCardData(
