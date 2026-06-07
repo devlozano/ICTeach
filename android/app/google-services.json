@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "4824580226",
+    "project_id": "icteach-free",
+    "storage_bucket": "icteach-free.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:4824580226:android:a8e7dfaeb48c02f741f49b",
+        "android_client_info": {
+          "package_name": "com.example.icteach"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-pADzXbDBOOYZGEX0cwPXJaXZOw3T19E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

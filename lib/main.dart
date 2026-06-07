@@ -1,4 +1,8 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'splash.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +20,36 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: _AppEntry(),
+    );
+  }
+}
+
+class _AppEntry extends StatelessWidget {
+  _AppEntry();
+
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      key: _navKey,
+      onGenerateRoute: (_) {
+        return MaterialPageRoute<void>(
+          builder: (context) {
+            return SplashPage(
+              onFinished: () {
+                _navKey.currentState?.pushReplacement(
+                  MaterialPageRoute<void>(
+                    builder: (context) =>
+                        const MyHomePage(title: 'Flutter Demo Home Page'),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -47,7 +80,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: Center(
         child: Column(
-          // FIXED: Added MainAxisAlignment prefix
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text('You have pushed the button this many times:'),
