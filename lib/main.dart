@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'
-    show kIsWeb; // Needed for platform checking
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// Your screen imports
+// Official ICTeach Platform Screen Imports
 import 'splash.dart';
-import 'login.dart'; // Mobile Entry (Student, Trainer, Teacher)
-import 'admin_login.dart'; // Web Entry Only
-import 'admin_home.dart';
-import 'teacher_home.dart';
-import 'home.dart';
+import 'admin_login.dart'; // Web Platform Gateway
+import 'login.dart'; // Mobile Platform Gateway (Handles Student, Teacher, Trainer)
+import 'admin_home.dart'; // Admin Dashboard (Management & Report Generation)
+import 'teacher_home.dart'; // Teacher Dashboard (Lessons & Monitoring)
+import 'home.dart'; // Student & Trainer Interface (Simulations & Tasks)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   if (kIsWeb) {
-    // Web Configuration Setup mapped to your icteach-free credentials
+    // Web Configuration Setup for the Admin Portal (icteach-free)
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyDCnNrIz2g2Ovq5XnocJVBVl5S065vOB2g",
@@ -25,11 +24,12 @@ void main() async {
         storageBucket: "icteach-free.firebasestorage.app",
         messagingSenderId: "4824580226",
         appId: "1:4824580226:web:e28624a19f13361241f49b",
-        measurementId: "G-S77WYVMF0N", // Included your measurement id tracking
+        measurementId: "G-S77WYVMF0N",
       ),
     );
   } else {
-    // Mobile Configuration Setup (Reads google-services.json natively)
+    // Mobile Configuration Setup for Students, Teachers, and Trainers
+    // This reads the localized google-services.json configuration file
     await Firebase.initializeApp();
   }
 
@@ -42,9 +42,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ICTeach Platform',
+      title: 'ICTeach',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // FIXED: Added ColorScheme prefix
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
 }
 
 class _AppEntry extends StatelessWidget {
-  _AppEntry(); // Removed const because _navKey is not a compile-time constant
+  _AppEntry({super.key});
 
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 
@@ -67,16 +67,16 @@ class _AppEntry extends StatelessWidget {
           builder: (context) {
             return SplashPage(
               onFinished: () {
-                // Device Hardware Check Routing Gate
+                // Device Hardware Check Routing Gate (Aligned with Panel Scope)
                 if (kIsWeb) {
-                  // Direct to Admin Web Interface
+                  // Web Browser -> Routes exclusively to Admin Management System
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const AdminLoginPage(),
                     ),
                   );
                 } else {
-                  // Direct to Mobile App Interface
+                  // Mobile Devices -> Routes to unified Student, Trainer, & Teacher Login
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const LoginPage(),

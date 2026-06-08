@@ -244,56 +244,30 @@ class _SideNav extends StatelessWidget {
                   selected: currentSelection == 'Dashboard',
                   onTap: () => onSelected('Dashboard'),
                 ),
+
                 _NavTile(
-                  icon: Icons.book_rounded,
-                  label: 'Courses',
-                  selected: currentSelection == 'Courses',
-                  onTap: () => onSelected('Courses'),
+                  icon: Icons.people_alt_rounded,
+                  label: 'Manage Users',
+                  selected: currentSelection == 'Manage Users',
+                  onTap: () => onSelected('Manage Users'),
                 ),
+
                 _NavTile(
-                  icon: Icons.menu_book_rounded,
-                  label: 'Learning Modules',
-                  selected: currentSelection == 'Learning Modules',
-                  onTap: () => onSelected('Learning Modules'),
+                  icon: Icons.class_rounded,
+                  label: 'Manage Classes',
+                  selected: currentSelection == 'Manage Classes',
+                  onTap: () => onSelected('Manage Classes'),
                 ),
+
                 _NavTile(
-                  icon: Icons.play_circle_fill_rounded,
-                  label: 'Instructional Videos',
-                  selected: currentSelection == 'Instructional Videos',
-                  onTap: () => onSelected('Instructional Videos'),
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Performance',
+                  selected: currentSelection == 'Performance',
+                  onTap: () => onSelected('Performance'),
                 ),
+
                 _NavTile(
-                  icon: Icons.quiz_rounded,
-                  label: 'Quizzes',
-                  selected: currentSelection == 'Quizzes',
-                  onTap: () => onSelected('Quizzes'),
-                ),
-                _NavTile(
-                  icon: Icons.assignment_rounded,
-                  label: 'Assignments',
-                  selected: currentSelection == 'Assignments',
-                  onTap: () => onSelected('Assignments'),
-                ),
-                _NavTile(
-                  icon: Icons.memory_rounded,
-                  label: 'Simulations',
-                  selected: currentSelection == 'Simulations',
-                  onTap: () => onSelected('Simulations'),
-                ),
-                _NavTile(
-                  icon: Icons.forum_rounded,
-                  label: 'Discussion Forum',
-                  selected: currentSelection == 'Discussion Forum',
-                  onTap: () => onSelected('Discussion Forum'),
-                ),
-                _NavTile(
-                  icon: Icons.show_chart_rounded,
-                  label: 'Student Progress',
-                  selected: currentSelection == 'Student Progress',
-                  onTap: () => onSelected('Student Progress'),
-                ),
-                _NavTile(
-                  icon: Icons.report_rounded,
+                  icon: Icons.assessment_rounded,
                   label: 'Reports',
                   selected: currentSelection == 'Reports',
                   onTap: () => onSelected('Reports'),
@@ -460,24 +434,27 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       const _SmallStat(
-        title: 'Total Students',
-        value: '8',
-        subtitle: '7 active',
+        title: 'Total Users',
+        value: '120',
+        subtitle: 'All registered accounts',
       ),
+
       const _SmallStat(
-        title: 'Active Courses',
-        value: '4',
-        subtitle: '5 total',
+        title: 'Teachers',
+        value: '10',
+        subtitle: 'Active teachers',
       ),
+
       const _SmallStat(
-        title: 'Completed Assignments',
-        value: '2',
-        subtitle: 'of 6 total',
+        title: 'Trainers',
+        value: '5',
+        subtitle: 'Industry trainers',
       ),
+
       const _SmallStat(
-        title: 'Avg Quiz Score',
-        value: '58%',
-        subtitle: '4 quizzes',
+        title: 'Students',
+        value: '105',
+        subtitle: 'Currently enrolled',
       ),
     ];
 
@@ -704,25 +681,17 @@ class _RecentActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       const _ActivityItem(
-        title: 'PC Disassembly and Reassembly Lab Report',
-        subtitle: 'Maria Santos - graded',
-        date: 'April 26',
+        title: 'Teacher Account Created',
+        subtitle: '',
+        date: '',
       ),
       const _ActivityItem(
-        title: 'PC Disassembly and Reassembly Lab Report',
-        subtitle: 'Juan Dela Cruz - graded',
-        date: 'April 26',
+        title: 'Trainer Assigned to Class',
+        subtitle: '',
+        date: '',
       ),
-      const _ActivityItem(
-        title: 'PC Disassembly and Reassembly Lab Report',
-        subtitle: 'Carlos Garcia - graded',
-        date: 'April 26',
-      ),
-      const _ActivityItem(
-        title: 'Computer Hardware Identification Quiz',
-        subtitle: '33 submissions',
-        date: 'April 26',
-      ),
+      const _ActivityItem(title: 'Student Enrolled', subtitle: '', date: ''),
+      const _ActivityItem(title: 'Report Generated', subtitle: '', date: ''),
     ];
 
     return Container(
@@ -812,12 +781,16 @@ class _QuickActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      const _ActionItem(label: 'Add CSS NC II Module', icon: Icons.add),
       const _ActionItem(
-        label: 'Add Lab Simulation',
-        icon: Icons.add_circle_outline,
+        label: 'Create Teacher Account',
+        icon: Icons.person_add,
       ),
-      const _ActionItem(label: 'Create Assessment', icon: Icons.add_task),
+      const _ActionItem(
+        label: 'Create Trainer Account',
+        icon: Icons.person_add_alt_1,
+      ),
+      const _ActionItem(label: 'Create Class', icon: Icons.class_rounded),
+      const _ActionItem(label: 'Generate Report', icon: Icons.insert_chart),
     ];
 
     return Container(
