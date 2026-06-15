@@ -236,8 +236,9 @@ class _LoginPageState extends State<LoginPage> {
               validator: (value) {
                 final email = value?.trim() ?? '';
                 if (email.isEmpty) return 'Email address is required.';
-                if (!_isValidEmail(email))
+                if (!_isValidEmail(email)) {
                   return 'Enter a valid email address.';
+                }
                 return null;
               },
               decoration: _fieldDecoration(
@@ -257,10 +258,12 @@ class _LoginPageState extends State<LoginPage> {
               autofillHints: const [AutofillHints.password],
               onFieldSubmitted: (_) => _isLoading ? null : _signIn(),
               validator: (value) {
-                if (value == null || value.isEmpty)
+                if (value == null || value.isEmpty) {
                   return 'Password is required.';
-                if (value.length < 6)
+                }
+                if (value.length < 6) {
                   return 'Password must be at least 6 characters.';
+                }
                 return null;
               },
               decoration:

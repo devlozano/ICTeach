@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 // Official ICTeach Platform Screen Imports
 import 'splash.dart';
 import 'admin_login.dart'; // Web Platform Gateway
 import 'login.dart'; // Mobile Platform Gateway (Handles Student, Teacher, Trainer)
-import 'admin_home.dart'; // Admin Dashboard (Management & Report Generation)
-import 'teacher_home.dart'; // Teacher Dashboard (Lessons & Monitoring)
-import 'home.dart'; // Student & Trainer Interface (Simulations & Tasks)
+// Admin Dashboard (Management & Report Generation)
+// Teacher Dashboard (Lessons & Monitoring)
+// Student & Trainer Interface (Simulations & Tasks)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,7 +53,7 @@ class MyApp extends StatelessWidget {
 }
 
 class _AppEntry extends StatelessWidget {
-  _AppEntry({super.key});
+  _AppEntry();
 
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 

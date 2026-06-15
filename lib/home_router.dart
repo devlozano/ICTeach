@@ -6,6 +6,7 @@ import 'admin_home.dart';
 import 'home.dart';
 import 'login.dart';
 import 'teacher_home.dart';
+import 'trainer_home.dart';
 
 class HomeRouter extends StatelessWidget {
   const HomeRouter({super.key});
@@ -13,6 +14,7 @@ class HomeRouter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+
     if (user == null) {
       return const LoginPage();
     }
@@ -22,6 +24,7 @@ class HomeRouter extends StatelessWidget {
           .collection('users')
           .doc(user.uid)
           .snapshots(),
+
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -29,15 +32,26 @@ class HomeRouter extends StatelessWidget {
           );
         }
 
-        final role = snapshot.data?.data()?['role'] as String?;
-        if (role == 'admin') {
-          return const AdminHomePage();
-        }
-        if (role == 'teacher') {
-          return const TeacherHomePage();
-        }
+        final data = snapshot.data?.data();
 
-        return const HomePage();
+        final role = (data?['role'] as String?)?.toLowerCase().trim();
+
+        print("CURRENT USER ROLE: $role");
+
+        switch (role) {
+          case 'admin':
+            return const AdminHomePage();
+
+          case 'teacher':
+            return const TeacherHomePage();
+
+          case 'trainer':
+            return const TrainerHomePage();
+
+          case 'student':
+          default:
+            return const HomePage();
+        }
       },
     );
   }

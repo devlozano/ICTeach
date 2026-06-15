@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'admin/create_staff_page.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -463,7 +464,7 @@ class _SummaryRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cards.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, index) =>
             SizedBox(width: 260, child: cards[index]),
       ),
@@ -778,39 +779,63 @@ class _ActivityRow extends StatelessWidget {
 class _QuickActionsCard extends StatelessWidget {
   const _QuickActionsCard();
 
+  void _openCreateStaff(BuildContext context, String role) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CreateStaffPage(selectedRole: role)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final actions = [
-      const _ActionItem(
+      _ActionItem(
         label: 'Create Teacher Account',
         icon: Icons.person_add,
+        onTap: () {
+          _openCreateStaff(context, 'teacher');
+        },
       ),
-      const _ActionItem(
+
+      _ActionItem(
         label: 'Create Trainer Account',
         icon: Icons.person_add_alt_1,
+        onTap: () {
+          _openCreateStaff(context, 'trainer');
+        },
       ),
+
       const _ActionItem(label: 'Create Class', icon: Icons.class_rounded),
+
       const _ActionItem(label: 'Generate Report', icon: Icons.insert_chart),
     ];
 
     return Container(
       padding: const EdgeInsets.all(16),
+
       decoration: BoxDecoration(
         color: Colors.white,
+
         borderRadius: BorderRadius.circular(12),
+
         border: Border.all(color: const Color(0xFFECECEC)),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
           const Text(
             'Quick Actions',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
           ),
+
           const SizedBox(height: 12),
+
           ...actions.map(
             (a) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
+
               child: _ActionRow(action: a),
             ),
           ),
@@ -823,7 +848,9 @@ class _QuickActionsCard extends StatelessWidget {
 class _ActionItem {
   final String label;
   final IconData icon;
-  const _ActionItem({required this.label, required this.icon});
+  final VoidCallback? onTap;
+
+  const _ActionItem({required this.label, required this.icon, this.onTap});
 }
 
 class _ActionRow extends StatelessWidget {
@@ -835,7 +862,7 @@ class _ActionRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
+        onTap: action.onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
