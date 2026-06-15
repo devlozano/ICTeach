@@ -8,12 +8,11 @@ class TrainerHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Trainer Dashboard"),
+        title: const Text("ICTeach Trainer"),
 
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
             },
@@ -28,42 +27,38 @@ class TrainerHomePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
 
           children: [
+            // HEADER
             const Text(
-              "TESDA Trainer Portal",
+              "Welcome, TESDA Trainer",
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 8),
 
             const Text(
-              "Manage training content, assessments, and trainee competency progress.",
+              "Monitor trainee performance, validate competencies, "
+              "and support Computer Systems Servicing NC II training.",
               style: TextStyle(color: Colors.black54),
             ),
 
             const SizedBox(height: 25),
 
-            _sectionTitle("Training Management"),
+            _sectionTitle("Learning Management"),
 
             _trainerCard(
               context,
-              title: "Create Training Module",
-              subtitle: "Create lessons, topics, and learning materials.",
+              title: "Training Modules",
+              subtitle: "View and manage CSS NC II learning materials.",
               icon: Icons.menu_book,
-              onTap: () {
-                // TODO:
-                // Navigate to create module page
-              },
+              onTap: () {},
             ),
 
             _trainerCard(
               context,
-              title: "Manage Simulations",
-              subtitle: "Create hands-on ICT activities and simulations.",
-              icon: Icons.computer,
-              onTap: () {
-                // TODO:
-                // Navigate simulation builder
-              },
+              title: "Instructional Videos",
+              subtitle: "Manage practical demonstrations and training videos.",
+              icon: Icons.video_library,
+              onTap: () {},
             ),
 
             const SizedBox(height: 20),
@@ -72,50 +67,38 @@ class TrainerHomePage extends StatelessWidget {
 
             _trainerCard(
               context,
-              title: "Create Quiz",
-              subtitle: "Build quizzes and knowledge assessments.",
+              title: "Quizzes and Assessments",
+              subtitle: "Create and review knowledge assessments.",
               icon: Icons.quiz,
-              onTap: () {
-                // TODO:
-                // Quiz builder
-              },
+              onTap: () {},
             ),
 
             _trainerCard(
               context,
-              title: "Create Assignment",
-              subtitle: "Create tasks and performance activities.",
+              title: "Performance Activities",
+              subtitle: "Create and review hands-on CSS activities.",
               icon: Icons.assignment,
-              onTap: () {
-                // TODO:
-                // Assignment creation
-              },
+              onTap: () {},
             ),
 
             const SizedBox(height: 20),
 
-            _sectionTitle("Trainee Monitoring"),
+            _sectionTitle("Competency Monitoring"),
 
             _trainerCard(
               context,
-              title: "Student Progress",
-              subtitle: "Monitor learning progress and completion.",
+              title: "Trainee Progress",
+              subtitle: "Monitor student learning progress and completion.",
               icon: Icons.analytics,
-              onTap: () {
-                // TODO:
-                // Progress monitoring
-              },
+              onTap: () {},
             ),
 
             _trainerCard(
               context,
               title: "Competency Validation",
-              subtitle: "Validate TESDA skills and competencies.",
+              subtitle: "Evaluate trainee readiness for CSS NC II assessment.",
               icon: Icons.verified,
-              onTap: () {
-                // TODO:
-                // Competency validation
-              },
+              onTap: () {},
             ),
 
             const SizedBox(height: 20),
@@ -124,13 +107,10 @@ class TrainerHomePage extends StatelessWidget {
 
             _trainerCard(
               context,
-              title: "Training Forum",
-              subtitle: "Interact with trainees and answer discussions.",
+              title: "Discussion Forum",
+              subtitle: "Communicate with teachers and students.",
               icon: Icons.forum,
-              onTap: () {
-                // TODO:
-                // Forum page
-              },
+              onTap: () {},
             ),
           ],
         ),
