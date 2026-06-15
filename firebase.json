@@ -1,1 +1,42 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"icteach-free","appId":"1:4824580226:android:a8e7dfaeb48c02f741f49b","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"icteach-free","configurations":{"android":"1:4824580226:android:a8e7dfaeb48c02f741f49b","ios":"1:4824580226:ios:75985b00acc5b26a41f49b","macos":"1:4824580226:ios:75985b00acc5b26a41f49b","web":"1:4824580226:web:e28624a19f13361241f49b","windows":"1:4824580226:web:8ff0c068b6e8dec841f49b"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "icteach-free",
+          "appId": "1:4824580226:android:a8e7dfaeb48c02f741f49b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "icteach-free",
+          "configurations": {
+            "android": "1:4824580226:android:a8e7dfaeb48c02f741f49b",
+            "ios": "1:4824580226:ios:75985b00acc5b26a41f49b",
+            "macos": "1:4824580226:ios:75985b00acc5b26a41f49b",
+            "web": "1:4824580226:web:e28624a19f13361241f49b",
+            "windows": "1:4824580226:web:8ff0c068b6e8dec841f49b"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}

@@ -1,32 +1,110 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+const functions = require("firebase-functions");
+const nodemailer = require("nodemailer");
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+// Gmail configuration
+const transporter = nodemailer.createTransport({
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+  service: "gmail",
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  auth: {
+
+    user: "your.icteach.gmail@gmail.com",
+
+    pass: "YOUR_GMAIL_APP_PASSWORD"
+
+  }
+
+});
+
+
+// Send Teacher/Trainer credentials
+exports.sendStaffPasswordEmail =
+functions.https.onCall(async (data, context) => {
+
+
+  const email = data.email;
+  const name = data.name;
+  const password = data.password;
+  const role = data.role;
+
+
+
+  if (!email || !password) {
+
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Missing email or password"
+    );
+
+  }
+
+
+
+  await transporter.sendMail({
+
+    from:
+      `"ICTeach Admin" <your.icteach.gmail@gmail.com>`,
+
+    to:
+      email,
+
+
+    subject:
+      "ICTeach Staff Account Created",
+
+
+
+    html:
+
+    `
+
+    <h2>Welcome to ICTeach</h2>
+
+
+    <p>Hello <b>${name}</b>,</p>
+
+
+    <p>
+    Your ${role} account has been created by the ICTeach administrator.
+    </p>
+
+
+    <p>
+    Login Email:
+    <b>${email}</b>
+    </p>
+
+
+    <p>
+    Temporary Password:
+    <b>${password}</b>
+    </p>
+
+
+    <p>
+    Please change your password after your first login.
+    </p>
+
+
+    <br>
+
+
+    <p>
+    ICTeach Team
+    </p>
+
+    `
+
+  });
+
+
+
+  return {
+
+    success: true
+
+  };
+
+
+});
