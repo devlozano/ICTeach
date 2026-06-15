@@ -1,9 +1,9 @@
 import 'dart:math';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:icteach/emailjs_service.dart';
 
 class CreateStaffPage extends StatefulWidget {
   final String selectedRole;
@@ -15,21 +15,6 @@ class CreateStaffPage extends StatefulWidget {
 }
 
 class _CreateStaffPageState extends State<CreateStaffPage> {
-  @override
-  void initState() {
-    super.initState();
-
-    _selectedRole = widget.selectedRole;
-  }
-
-  String getMiddleInitial(String middleName) {
-    if (middleName.trim().isEmpty) {
-      return '';
-    }
-
-    return '${middleName.trim()[0].toUpperCase()}.';
-  }
-
   final _formKey = GlobalKey<FormState>();
 
   final _firstNameController = TextEditingController();
@@ -38,8 +23,14 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
   final _extensionController = TextEditingController();
   final _emailController = TextEditingController();
 
-  bool _isLoading = false;
   late String _selectedRole;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.selectedRole;
+  }
 
   @override
   void dispose() {
@@ -48,70 +39,81 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
     _lastNameController.dispose();
     _extensionController.dispose();
     _emailController.dispose();
-
     super.dispose();
   }
 
-  // Generates temporary password
+  String getMiddleInitial(String middleName) {
+    return middleName.trim().isEmpty
+        ? ''
+        : '${middleName.trim()[0].toUpperCase()}.';
+  }
+
   String generatePassword() {
     const chars =
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    final rand = Random.secure();
 
-    final random = Random();
-
-    return List.generate(10, (_) => chars[random.nextInt(chars.length)]).join();
+    return List.generate(12, (_) => chars[rand.nextInt(chars.length)]).join();
   }
 
-  // Creates staff account without logging out Admin
+  InputDecoration fieldDecoration({
+    required String hint,
+    required IconData icon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
+  bool _isValidEmail(String email) {
+    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
+  }
+
   Future<UserCredential> createStaffAccount({
     required String email,
     required String password,
   }) async {
-    FirebaseApp secondaryApp;
-
-    try {
-      secondaryApp = await Firebase.initializeApp(
-        name: 'StaffCreationApp',
-        options: Firebase.app().options,
-      );
-    } catch (e) {
-      secondaryApp = Firebase.app('StaffCreationApp');
-    }
-
-    FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
-
-    final credential = await secondaryAuth.createUserWithEmailAndPassword(
+    return await FirebaseAuth.instance.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
-
-    await secondaryApp.delete();
-
-    return credential;
   }
 
   Future<void> _createStaff() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final tempPassword = generatePassword();
-      final middleName = _middleNameController.text.trim();
-      final middleInitial = getMiddleInitial(middleName);
-      final extensionText = _extensionController.text.trim();
-      final displayName = [
-        _firstNameController.text.trim(),
-        middleInitial,
-        _lastNameController.text.trim(),
-        extensionText,
-      ].where((part) => part.isNotEmpty).join(' ');
 
-      // CREATE AUTH ACCOUNT
+      if (tempPassword.length < 6) {
+        throw Exception("Password too short for Firebase");
+      }
+
+      final first = _firstNameController.text.trim();
+      final middle = _middleNameController.text.trim();
+      final last = _lastNameController.text.trim();
+      final ext = _extensionController.text.trim();
+      final email = _emailController.text.trim();
+
+      if (email.isEmpty || !email.contains('@')) {
+        throw Exception("Invalid email address");
+      }
+
+      final middleInitial = getMiddleInitial(middle);
+
+      final displayName = [
+        first,
+        middleInitial,
+        last,
+        ext,
+      ].where((e) => e.isNotEmpty).join(' ');
+
       final credential = await createStaffAccount(
-        email: _emailController.text.trim(),
+        email: email,
         password: tempPassword,
       );
 
@@ -119,13 +121,13 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
 
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'uid': uid,
-        'firstName': _firstNameController.text.trim(),
-        'middleName': middleName,
+        'firstName': first,
+        'middleName': middle,
         'middleInitial': middleInitial,
-        'lastName': _lastNameController.text.trim(),
-        'extension': extensionText,
+        'lastName': last,
+        'extension': ext,
         'name': displayName,
-        'email': _emailController.text.trim(),
+        'email': email,
         'role': _selectedRole,
         'mustChangePassword': true,
         'isActive': true,
@@ -133,39 +135,30 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // SEND RESET EMAIL
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: _emailController.text.trim(),
+      await EmailJSService.sendStaffCredentials(
+        email: email,
+        name: displayName,
+        role: _selectedRole.toUpperCase(),
+        password: tempPassword,
       );
+
       if (!mounted) return;
 
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('Staff Created'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${_selectedRole.toUpperCase()} account created successfully.',
-              ),
-              const SizedBox(height: 15),
-              Text(
-                'Temporary Password:\n$tempPassword',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                'A password reset email has been sent.',
-                textAlign: TextAlign.center,
-              ),
-            ],
+          content: Text(
+            'Account created for ${_selectedRole.toUpperCase()}\n\n'
+            'Temporary password:\n$tempPassword\n\n'
+            'Credentials sent to email.',
+            textAlign: TextAlign.center,
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
+                _formKey.currentState!.reset();
                 _firstNameController.clear();
                 _middleNameController.clear();
                 _lastNameController.clear();
@@ -179,30 +172,15 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
       );
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Failed to create account.')),
+        SnackBar(content: Text(e.message ?? 'Auth error occurred')),
       );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  InputDecoration fieldDecoration({
-    required String hint,
-    required IconData icon,
-  }) {
-    return InputDecoration(
-      hintText: hint,
-      prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    );
   }
 
   @override
@@ -221,14 +199,10 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
                   hint: 'First Name',
                   icon: Icons.person,
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _middleNameController,
                 decoration: fieldDecoration(
@@ -236,21 +210,17 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
                   icon: Icons.person_outline,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _lastNameController,
                 decoration: fieldDecoration(
                   hint: 'Last Name',
                   icon: Icons.person_outline,
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _extensionController,
                 decoration: fieldDecoration(
@@ -258,22 +228,17 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
                   icon: Icons.badge_outlined,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
                 decoration: fieldDecoration(
                   hint: 'Email Address',
                   icon: Icons.email,
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Required';
-                  }
-                  return null;
-                },
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: _selectedRole,
                 decoration: fieldDecoration(hint: 'Role', icon: Icons.badge),
@@ -281,15 +246,11 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
                   DropdownMenuItem(value: 'teacher', child: Text('Teacher')),
                   DropdownMenuItem(value: 'trainer', child: Text('Trainer')),
                 ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedRole = value;
-                    });
-                  }
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedRole = v);
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 55,
