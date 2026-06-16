@@ -243,7 +243,7 @@ class _LoginPageState extends State<LoginPage> {
               },
               decoration: _fieldDecoration(
                 borderColor: inputBorder,
-                hintText: 'student@school.edu.ph',
+                hintText: 'Email',
                 icon: Icons.email_outlined,
               ),
             ),
@@ -269,7 +269,7 @@ class _LoginPageState extends State<LoginPage> {
               decoration:
                   _fieldDecoration(
                     borderColor: inputBorder,
-                    hintText: 'Enter your password',
+                    hintText: 'Password',
                     icon: Icons.lock_outline_rounded,
                   ).copyWith(
                     suffixIcon: IconButton(

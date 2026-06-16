@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:icteach/create_class.dart';
 
 class TeacherHomePage extends StatefulWidget {
   const TeacherHomePage({super.key});
@@ -26,74 +27,263 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
           .doc(user.uid)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final profile = snapshot.data?.data();
         final name = _teacherName(profile, user);
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFF),
-          body: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                _TeacherHeader(name: name),
-                Expanded(
-                  child: IndexedStack(
-                    index: _currentTabIndex,
-                    children: [
-                      // TAB 0: Core Homepage Dashboard Grid View
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _TeacherSummary(),
-                            const SizedBox(height: 22),
-                            Text(
-                              'Teacher Tools',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w900),
-                            ),
-                            const SizedBox(height: 10),
-                            const _TeacherToolGrid(),
-                          ],
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: teacherClassesStream(),
+          builder: (context, classesSnapshot) {
+            if (classesSnapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final classDocs = classesSnapshot.data?.docs ?? [];
+            final classes = classDocs
+                .map((doc) => _TeacherClassData.fromSnapshot(doc))
+                .toList();
+            final classCount = classes.length;
+            final studentCount = classes.fold<int>(
+              0,
+              (total, item) => total + item.enrolledStudentIds.length,
+            );
+            final pendingReviewCount = classes.fold<int>(
+              0,
+              (total, item) => total + (item.pendingReviews ?? 0),
+            );
+
+            return Scaffold(
+              backgroundColor: const Color(0xFFF8FAFF),
+              appBar: AppBar(
+                backgroundColor: Colors.white,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Create Class',
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreateClassPage(),
                         ),
-                      ),
-                      // TAB 1: Classes View Shell
-                      const Center(
-                        child: Text(
-                          'Classes Management Section (Use Case: Manage classes)',
-                        ),
-                      ),
-                      // TAB 2: Task Manager Shell
-                      const Center(
-                        child: Text(
-                          'Tasks Authoring Hub (Use Case: Creates modules, quizzes & assignments)',
-                        ),
-                      ),
-                      // TAB 3: Global Tracking Metrics Shell
-                      const Center(
-                        child: Text(
-                          'Student Progress Analytics (Use Case: Monitors students progress)',
-                        ),
-                      ),
-                      // TAB 4: Profile Shell
-                      const Center(
-                        child: Text('Teacher Profile Configurations'),
-                      ),
-                    ],
+                      );
+
+                      if (result == true && mounted) {
+                        setState(() {});
+                      }
+                    },
                   ),
+                ],
+              ),
+              body: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    _TeacherHeader(name: name),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _currentTabIndex,
+                        children: [
+                          // TAB 0: Core Homepage Dashboard Grid View
+                          SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _TeacherSummary(
+                                  classStream: teacherClassesStream(),
+                                  studentCount: studentCount,
+                                  pendingReviewCount: pendingReviewCount,
+                                ),
+                                const SizedBox(height: 22),
+                                Text(
+                                  'Teacher Tools',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w900),
+                                ),
+                                const SizedBox(height: 10),
+                                _TeacherToolGrid(
+                                  classCount: classCount,
+                                  onManageClasses: () {
+                                    setState(() {
+                                      _currentTabIndex = 1;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          buildClassesTab(),
+                          const Center(
+                            child: Text(
+                              'Tasks Authoring Hub (Use Case: Creates modules, quizzes & assignments)',
+                            ),
+                          ),
+                          const Center(
+                            child: Text(
+                              'Student Progress Analytics (Use Case: Monitors students progress)',
+                            ),
+                          ),
+                          const Center(
+                            child: Text('Teacher Profile Configurations'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+              bottomNavigationBar: _TeacherBottomNavBar(
+                currentIndex: _currentTabIndex,
+                onTabChanged: (index) {
+                  setState(() {
+                    _currentTabIndex = index;
+                  });
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> teacherClassesStream() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return FirebaseFirestore.instance
+        .collection('classes')
+        .where('teacherId', isEqualTo: user!.uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Widget buildClassesTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: teacherClassesStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Class Roster',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CreateClassPage(),
+                        ),
+                      );
+
+                      if (result == true && mounted) {
+                        setState(() {});
+                      }
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Class'),
+                  ),
+                ],
+              ),
             ),
-          ),
-          bottomNavigationBar: _TeacherBottomNavBar(
-            currentIndex: _currentTabIndex,
-            onTabChanged: (index) {
-              setState(() {
-                _currentTabIndex = index;
-              });
-            },
-          ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: classDocs.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Text(
+                          'You have no classes yet. Create a class and share the section code with students so they can join.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey.shade700),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      itemCount: classDocs.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 14),
+                      itemBuilder: (context, index) {
+                        final doc = classDocs[index];
+                        final data = doc.data() as Map<String, dynamic>? ?? {};
+                        final name =
+                            (data['name'] as String?)?.trim() ??
+                            'Unnamed Class';
+                        final description =
+                            (data['description'] as String?)?.trim() ?? '';
+                        final sectionCode =
+                            (data['sectionCode'] as String?)?.trim() ?? 'UNKN';
+                        final enrolledStudentIds = List<String>.from(
+                          data['enrolledStudentIds'] as List<dynamic>? ?? [],
+                        );
+
+                        return Material(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          elevation: 1.5,
+                          child: ListTile(
+                            title: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  description.isNotEmpty
+                                      ? description
+                                      : 'No description yet',
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: [
+                                    Chip(label: Text('Code: $sectionCode')),
+                                    Chip(
+                                      label: Text(
+                                        '${enrolledStudentIds.length} students',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () {},
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         );
       },
     );
@@ -127,6 +317,40 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     }
 
     return 'Teacher';
+  }
+}
+
+class _TeacherClassData {
+  _TeacherClassData({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.sectionCode,
+    required this.enrolledStudentIds,
+    required this.pendingReviews,
+  });
+
+  final String id;
+  final String name;
+  final String description;
+  final String sectionCode;
+  final List<String> enrolledStudentIds;
+  final int? pendingReviews;
+
+  factory _TeacherClassData.fromSnapshot(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data() ?? <String, dynamic>{};
+    return _TeacherClassData(
+      id: doc.id,
+      name: (data['name'] as String?)?.trim() ?? 'Unnamed Class',
+      description: (data['description'] as String?)?.trim() ?? '',
+      sectionCode: (data['sectionCode'] as String?)?.trim() ?? 'UNKN',
+      enrolledStudentIds: List<String>.from(
+        data['enrolledStudentIds'] as List<dynamic>? ?? [],
+      ),
+      pendingReviews: data['pendingReviews'] as int?,
+    );
   }
 }
 
@@ -207,7 +431,15 @@ class _TeacherHeader extends StatelessWidget {
 }
 
 class _TeacherSummary extends StatelessWidget {
-  const _TeacherSummary();
+  const _TeacherSummary({
+    required this.classStream,
+    required this.studentCount,
+    required this.pendingReviewCount,
+  });
+
+  final Stream<QuerySnapshot<Map<String, dynamic>>> classStream;
+  final int studentCount;
+  final int pendingReviewCount;
 
   @override
   Widget build(BuildContext context) {
@@ -226,13 +458,19 @@ class _TeacherSummary extends StatelessWidget {
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         children: [
-          _SummaryItem(label: 'My Classes', value: '3'),
-          _SummaryDivider(),
-          _SummaryItem(label: 'Students Active', value: '42'),
-          _SummaryDivider(),
-          _SummaryItem(label: 'Pending Reviews', value: '8'),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: classStream,
+            builder: (context, snapshot) {
+              final count = snapshot.data?.docs.length ?? 0;
+              return _SummaryItem(label: 'My Classes', value: '$count Classes');
+            },
+          ),
+          const _SummaryDivider(),
+          _SummaryItem(label: 'Students Active', value: '$studentCount'),
+          const _SummaryDivider(),
+          _SummaryItem(label: 'Pending Reviews', value: '$pendingReviewCount'),
         ],
       ),
     );
@@ -282,53 +520,59 @@ class _SummaryDivider extends StatelessWidget {
 }
 
 class _TeacherToolGrid extends StatelessWidget {
-  const _TeacherToolGrid();
+  const _TeacherToolGrid({
+    required this.classCount,
+    required this.onManageClasses,
+  });
+
+  final int classCount;
+  final VoidCallback onManageClasses;
 
   @override
   Widget build(BuildContext context) {
-    // Reconfigured elements array to completely bind with use case requirements
-    const tools = [
+    final tools = [
       _TeacherToolItem(
         title: 'Manage Classes',
-        subtitle: '3 sections assigned',
+        subtitle: '$classCount sections assigned',
         icon: Icons.groups_rounded,
-        color: Color(0xFF2F80ED),
-        background: Color(0xFFDCEBFF),
+        color: const Color(0xFF2F80ED),
+        background: const Color(0xFFDCEBFF),
+        onTap: onManageClasses,
       ),
       _TeacherToolItem(
         title: 'Curriculum Modules',
         subtitle: 'Construct lesson tracks',
         icon: Icons.menu_book_rounded,
-        color: Color(0xFF4F6DB8),
-        background: Color(0xFFDCE6FF),
+        color: const Color(0xFF4F6DB8),
+        background: const Color(0xFFDCE6FF),
       ),
       _TeacherToolItem(
         title: 'Provide Feedback',
-        subtitle: '8 pending appraisals',
+        subtitle: 'Review student submissions',
         icon: Icons.rate_review_rounded,
-        color: Color(0xFFE76C31),
-        background: Color(0xFFFFD7C2),
+        color: const Color(0xFFE76C31),
+        background: const Color(0xFFFFD7C2),
       ),
       _TeacherToolItem(
         title: 'Quizzes & Tests',
         subtitle: 'Formative design options',
         icon: Icons.quiz_outlined,
-        color: Color(0xFF9C4FA1),
-        background: Color(0xFFE9C4EB),
+        color: const Color(0xFF9C4FA1),
+        background: const Color(0xFFE9C4EB),
       ),
       _TeacherToolItem(
         title: 'Student Progress',
         subtitle: 'Monitor system pathways',
         icon: Icons.trending_up_rounded,
-        color: Color(0xFF249A38),
-        background: Color(0xFFC9F2CE),
+        color: const Color(0xFF249A38),
+        background: const Color(0xFFC9F2CE),
       ),
       _TeacherToolItem(
         title: 'Discussion Forums',
         subtitle: 'Interact in threads',
         icon: Icons.forum_rounded,
-        color: Color(0xFF168D92),
-        background: Color(0xFFA6F4F5),
+        color: const Color(0xFF168D92),
+        background: const Color(0xFFA6F4F5),
       ),
     ];
 
@@ -354,6 +598,7 @@ class _TeacherToolItem extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.background,
+    this.onTap,
   });
 
   final String title;
@@ -361,6 +606,7 @@ class _TeacherToolItem extends StatelessWidget {
   final IconData icon;
   final Color color;
   final Color background;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -371,7 +617,7 @@ class _TeacherToolItem extends StatelessWidget {
       shadowColor: Colors.black.withOpacity(0.24),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(17),
           child: Column(
