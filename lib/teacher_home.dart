@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/create_class.dart';
+import 'package:icteach/utils/app_navigation.dart';
+import 'class_roster.dart';
 
 class TeacherHomePage extends StatefulWidget {
   const TeacherHomePage({super.key});
@@ -55,6 +57,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             );
 
             return Scaffold(
+              backgroundColor: const Color(0xffF8FAFC),
               body: SafeArea(
                 top: false,
                 child: Column(
@@ -125,19 +128,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 heroTag: "createClass",
                 child: const Icon(Icons.add),
                 onPressed: () async {
-                  final result = await Navigator.push(
+                  final result = await AppNavigation.push(
                     context,
-                    PageRouteBuilder(
-                      pageBuilder: (_, animation, secondaryAnimation) =>
-                          const CreateClassPage(),
-                      transitionsBuilder:
-                          (_, animation, secondaryAnimation, child) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            );
-                          },
-                    ),
+                    const CreateClassPage(),
                   );
 
                   if (result == true && mounted) {
@@ -154,10 +147,12 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
 
   Stream<QuerySnapshot<Map<String, dynamic>>> teacherClassesStream() {
     final user = FirebaseAuth.instance.currentUser;
-
+    if (user == null) {
+      return Stream.empty();
+    }
     return FirebaseFirestore.instance
         .collection('classes')
-        .where('teacherId', isEqualTo: user!.uid)
+        .where('teacherId', isEqualTo: user.uid)
         .snapshots();
   }
 
@@ -182,19 +177,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final result = await Navigator.push(
+                      final result = await AppNavigation.push(
                         context,
-                        PageRouteBuilder(
-                          pageBuilder: (_, animation, secondaryAnimation) =>
-                              const CreateClassPage(),
-                          transitionsBuilder:
-                              (_, animation, secondaryAnimation, child) {
-                                return FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                );
-                              },
-                        ),
+                        const CreateClassPage(),
                       );
 
                       if (result == true && mounted) {
@@ -218,7 +203,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
                         child: Text(
-                          'You have no classes yet. Create a class and share the section code with students so they can join.',
+                          'You have no classes yet. Create a class and share the class code with students so they can join.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
@@ -231,6 +216,8 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                       itemBuilder: (context, index) {
                         final doc = classDocs[index];
                         final data = doc.data() as Map<String, dynamic>? ?? {};
+
+                        // ✅ FIX: Get name from 'name' field, not 'className'
                         final name =
                             (data['name'] as String?)?.trim() ??
                             'Unnamed Class';
@@ -238,6 +225,8 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                             (data['description'] as String?)?.trim() ?? '';
                         final sectionCode =
                             (data['sectionCode'] as String?)?.trim() ?? 'UNKN';
+                        final classCode =
+                            (data['classCode'] as String?)?.trim() ?? 'No Code';
                         final enrolledStudentIds = List<String>.from(
                           data['enrolledStudentIds'] as List<dynamic>? ?? [],
                         );
@@ -267,7 +256,10 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                                   spacing: 8,
                                   runSpacing: 6,
                                   children: [
-                                    Chip(label: Text('Code: $sectionCode')),
+                                    Chip(
+                                      label: Text('Code: $classCode'),
+                                      backgroundColor: Colors.amber.shade100,
+                                    ),
                                     Chip(
                                       label: Text(
                                         '${enrolledStudentIds.length} students',
@@ -278,7 +270,18 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                               ],
                             ),
                             trailing: const Icon(Icons.chevron_right_rounded),
-                            onTap: () {},
+                            onTap: () {
+                              // ✅ FIX: Pass the correct class name
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ClassRosterPage(
+                                    classId: doc.id,
+                                    className: name, // ✅ Use 'name' here
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         );
                       },

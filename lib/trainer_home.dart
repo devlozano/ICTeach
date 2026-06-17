@@ -39,7 +39,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         final trainerName = _trainerName(profile, user);
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade100,
+          backgroundColor: const Color(0xffF8FAFC),
           appBar: AppBar(
             backgroundColor: primaryColor,
             elevation: 0,

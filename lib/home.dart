@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'join_class.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,7 +11,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Tracks the active bottom navigation panel index for the student
   int _currentTabIndex = 0;
 
   @override
@@ -27,155 +27,70 @@ class _HomePageState extends State<HomePage> {
           .snapshots(),
       builder: (context, snapshot) {
         final profile = snapshot.data?.data();
-        final name = _studentName(profile, user);
+        final fullName = _getFullName(profile);
         final course =
             profile?['course'] as String? ??
-            'CSS NC II - Computer Systems Servicing';
+            'CSS NC II - Computer System Servicing';
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFFF5F7FA),
           body: SafeArea(
             top: false,
             child: Column(
               children: [
-                _HomeHeader(name: name, photoUrl: user.photoURL),
+                // Header
+                _buildHeader(fullName, user.photoURL),
                 Expanded(
                   child: IndexedStack(
                     index: _currentTabIndex,
                     children: [
-                      // TAB 0: Core Student Dashboard Hub
-                      WidgetTransitions(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _WelcomeSection(course: course),
-                              const SizedBox(height: 18),
-                              const _ProgressCard(),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Quick Access',
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 8),
-                              const _QuickAccessGrid(),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // TAB 1: Course Modules view (Use Case: Access modules)
-                      const Center(
-                        child: Text(
-                          'Learning Modules Content (Use Case: Access modules)',
-                        ),
-                      ),
-                      // TAB 2: Discussion Forum View (Use Case: Interacts in forums)
-                      const Center(
-                        child: Text(
-                          'Discussion Forums (Use Case: Interacts in forums)',
-                        ),
-                      ),
-                      // TAB 3: Tracking performance dashboard (Use Case: Tracks progress)
-                      const Center(
-                        child: Text(
-                          'Performance & Grade Tracking (Use Case: Tracks progress)',
-                        ),
-                      ),
-                      // TAB 4: Student Profile Settings
-                      const Center(child: Text('Student Profile Settings')),
+                      // Tab 0: Home
+                      _buildHomeContent(course),
+                      // Tab 1: Course
+                      const Center(child: Text('Course Content')),
+                      // Tab 2: Forum
+                      const Center(child: Text('Discussion Forums')),
+                      // Tab 3: Progress
+                      const Center(child: Text('Progress Tracking')),
+                      // Tab 4: Profile
+                      _buildProfileContent(profile, user),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          bottomNavigationBar: _BottomNavBar(
-            currentIndex: _currentTabIndex,
-            onTabChanged: (index) {
-              setState(() {
-                _currentTabIndex = index;
-              });
-            },
-          ),
+          bottomNavigationBar: _buildBottomNavBar(),
         );
       },
     );
   }
 
-  String _studentName(Map<String, dynamic>? profile, User user) {
-    final firstName = (profile?['firstName'] as String?)?.trim() ?? '';
-    final middleName = (profile?['middleName'] as String?)?.trim() ?? '';
-    final lastName = (profile?['lastName'] as String?)?.trim() ?? '';
-    final extension = (profile?['extension'] as String?)?.trim() ?? '';
-    final separatedName = [
-      firstName,
-      if (middleName.isNotEmpty) _middleInitial(middleName),
-      lastName,
-      if (extension.isNotEmpty) extension,
-    ].where((part) => part.isNotEmpty).join(' ');
-
-    if (separatedName.isNotEmpty) {
-      return separatedName;
+  Widget _buildHeader(String name, String? photoUrl) {
+    final timeOfDay = DateTime.now().hour;
+    String greeting = 'Good Morning';
+    if (timeOfDay >= 12 && timeOfDay < 17) {
+      greeting = 'Good Afternoon';
+    } else if (timeOfDay >= 17) {
+      greeting = 'Good Evening';
     }
 
-    final savedName = profile?['name'] as String?;
-    if (savedName != null && savedName.trim().isNotEmpty) {
-      return savedName.trim();
-    }
-
-    final displayName = user.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) {
-      return displayName;
-    }
-
-    return 'Student';
-  }
-
-  String _middleInitial(String middleName) {
-    final firstLetter = middleName.trim().characters.first.toUpperCase();
-    return '$firstLetter.';
-  }
-}
-
-// Wrapper utility component for structured template fading animations
-class WidgetTransitions extends StatelessWidget {
-  const WidgetTransitions({super.key, required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      child: child,
-    );
-  }
-}
-
-class _HomeHeader extends StatelessWidget {
-  const _HomeHeader({required this.name, required this.photoUrl});
-  final String name;
-  final String? photoUrl;
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      height: 149,
+      height: 130,
       width: double.infinity,
       color: const Color(0xFF428DEB),
-      padding: const EdgeInsets.fromLTRB(23, 43, 23, 22),
+      padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
       child: Row(
         children: [
           CircleAvatar(
-            radius: 31,
+            radius: 30,
             backgroundColor: Colors.white,
-            backgroundImage: photoUrl == null ? null : NetworkImage(photoUrl!),
+            backgroundImage: photoUrl == null ? null : NetworkImage(photoUrl),
             child: photoUrl == null
                 ? const Icon(
                     Icons.person_rounded,
                     color: Color(0xFF428DEB),
-                    size: 34,
+                    size: 32,
                   )
                 : null,
           ),
@@ -186,21 +101,21 @@ class _HomeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Good Morning,',
+                  '$greeting,',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.82),
-                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 1),
+                const SizedBox(height: 2),
                 Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 21,
+                    fontSize: 22,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -208,341 +123,684 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Notifications',
             onPressed: () {},
             icon: const Icon(
               Icons.notifications_none_rounded,
               color: Colors.white,
-              size: 28,
+              size: 26,
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _WelcomeSection extends StatelessWidget {
-  const _WelcomeSection({required this.course});
-  final String course;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: Stack(
-        clipBehavior: Clip.none,
+  Widget _buildHomeContent(String course) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
+          // Welcome Back Section
+          SizedBox(
+            height: 70,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
+                Positioned.fill(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'Welcome Back',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        course,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF6B7280),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: -8,
+                  top: -30,
+                  child: _buildHeartMascot(size: 85),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Progress Card
+          _buildProgressCard(),
+
+          const SizedBox(height: 24),
+
+          // Quick Access Title
+          const Text(
+            'Quick Access',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.black,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Quick Access Grid
+          _buildQuickAccessGrid(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressCard() {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseAuth.instance.currentUser != null
+          ? FirebaseFirestore.instance
+                .collection('users')
+                .doc(FirebaseAuth.instance.currentUser!.uid)
+                .collection('classes')
+                .get()
+          : null,
+      builder: (context, snapshot) {
+        final hasClass = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+        String className = 'No Class Joined';
+        if (hasClass) {
+          final doc = snapshot.data!.docs.first;
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data != null) {
+            className = data['className']?.toString() ?? 'Your Class';
+          } else {
+            className = 'Your Class';
+          }
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF428DEB).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.school_rounded,
+                          color: Color(0xFF428DEB),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hasClass ? 'Current Class' : 'Get Started',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                          Text(
+                            className,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (!hasClass)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        'Join Now',
+                        style: TextStyle(
+                          color: Colors.amber.shade900,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: LinearProgressIndicator(
+                  minHeight: 10,
+                  value: hasClass ? 0.20 : 0.0,
+                  color: const Color(0xFF428DEB),
+                  backgroundColor: const Color(0xFFE5E7EB),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    hasClass
+                        ? '1 of 5 modules completed'
+                        : 'Join a class to start learning',
+                    style: const TextStyle(
+                      color: Color(0xFF6B7280),
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (hasClass)
+                    TextButton(
+                      onPressed: () {},
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Keep going! →',
+                        style: TextStyle(
+                          color: Color(0xFF428DEB),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickAccessGrid() {
+    final items = [
+      _QuickAccessItem(
+        icon: Icons.menu_book_rounded,
+        title: 'Learning Modules',
+        subtitle: '5 modules',
+        color: const Color(0xFF4F6DB8),
+        bgColor: const Color(0xFFDCE6FF),
+      ),
+      _QuickAccessItem(
+        icon: Icons.quiz_rounded,
+        title: 'Quizzes',
+        subtitle: '3 Available',
+        color: const Color(0xFF9C4FA1),
+        bgColor: const Color(0xFFE9C4EB),
+      ),
+      _QuickAccessItem(
+        icon: Icons.assignment_rounded,
+        title: 'Assignments',
+        subtitle: '2 Pending',
+        color: const Color(0xFFE76C31),
+        bgColor: const Color(0xFFFFD7C2),
+      ),
+      _QuickAccessItem(
+        icon: Icons.science_rounded,
+        title: 'Simulations',
+        subtitle: '5 Labs',
+        color: const Color(0xFF168D92),
+        bgColor: const Color(0xFFA6F4F5),
+      ),
+      _QuickAccessItem(
+        icon: Icons.video_library_rounded,
+        title: 'Instructional Videos',
+        subtitle: '2 New',
+        color: const Color(0xFFD97847),
+        bgColor: const Color(0xFFFFCFB1),
+      ),
+      _QuickAccessItem(
+        icon: Icons.forum_rounded,
+        title: 'Discussion Forums',
+        subtitle: 'Ask & Discuss',
+        color: const Color(0xFF249A38),
+        bgColor: const Color(0xFFC9F2CE),
+      ),
+    ];
+
+    return GridView.builder(
+      itemCount: items.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.15,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+      ),
+      itemBuilder: (context, index) => items[index],
+    );
+  }
+
+  Widget _buildProfileContent(Map<String, dynamic>? profile, User user) {
+    final firstName = profile?['firstName']?.toString() ?? '';
+    final middleName = profile?['middleName']?.toString() ?? '';
+    final lastName = profile?['lastName']?.toString() ?? '';
+    final email = user.email ?? 'No email';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Profile Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: const Color(0xFF428DEB).withOpacity(0.1),
+                  backgroundImage: user.photoURL != null
+                      ? NetworkImage(user.photoURL!)
+                      : null,
+                  child: user.photoURL == null
+                      ? const Icon(
+                          Icons.person_rounded,
+                          size: 50,
+                          color: Color(0xFF428DEB),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 12),
                 Text(
-                  'Welcome Back',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: Colors.black,
-                    fontSize: 27,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
+                  _getFullName(profile),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  course,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  email,
                   style: const TextStyle(
-                    color: Color(0xFF4F4F4F),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF6B7280),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF428DEB).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Student',
+                    style: TextStyle(
+                      color: Color(0xFF428DEB),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          const Positioned(right: -3, top: -28, child: _HeartMascot(size: 94)),
-        ],
-      ),
-    );
-  }
-}
+          const SizedBox(height: 16),
 
-class _ProgressCard extends StatelessWidget {
-  const _ProgressCard();
+          // Joined Class Section
+          FutureBuilder<QuerySnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .collection('classes')
+                .get(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 15, 24, 19),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.22),
-            offset: const Offset(0, 4),
-            blurRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Progress Tracking',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              minHeight: 13,
-              value: 0.20,
-              color: const Color(0xFF0868D8),
-              backgroundColor: Colors.grey.shade300,
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '1 of 5 modules completed (Use Case: Tracks progress)',
-                style: TextStyle(color: Color(0xFF7A7A7A), fontSize: 11),
-              ),
-              Text(
-                '20%',
-                style: TextStyle(
-                  color: Color(0xFF7A7A7A),
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+              final hasClass =
+                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+              final classDoc = hasClass ? snapshot.data!.docs.first : null;
+              final classData = classDoc?.data() as Map<String, dynamic>? ?? {};
+              final className = classData['className']?.toString() ?? '';
+              final teacherName = classData['teacherName']?.toString() ?? '';
 
-class _QuickAccessGrid extends StatelessWidget {
-  const _QuickAccessGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    // Aligned elements strictly according to Group 1.png Student capabilities
-    const cards = [
-      _QuickAccessItem(
-        title: 'Access Modules',
-        subtitle: '5 modules listed',
-        icon: Icons.menu_book_rounded,
-        iconColor: Color(0xFF4F6DB8),
-        iconBackground: Color(0xFFDCE6FF),
-      ),
-      _QuickAccessItem(
-        title: 'Take Quizzes',
-        subtitle: '3 tests active',
-        icon: Icons.quiz_outlined,
-        iconColor: Color(0xFF9C4FA1),
-        iconBackground: Color(0xFFE9C4EB),
-      ),
-      _QuickAccessItem(
-        title: 'Submit Assignments',
-        subtitle: '2 deliverables due',
-        icon: Icons.assignment_outlined,
-        iconColor: Color(0xFFE76C31),
-        iconBackground: Color(0xFFFFA06C),
-      ),
-      _QuickAccessItem(
-        title: 'Enroll in Classes',
-        subtitle: 'Join a section roster',
-        icon: Icons.add_business_outlined,
-        iconColor: Color(0xFF249A38),
-        iconBackground: Color(0xFFC9F2CE),
-      ),
-      _QuickAccessItem(
-        title: 'Discussion Forums',
-        subtitle: 'Peer conversation hubs',
-        icon: Icons.forum_rounded,
-        iconColor: Color(0xFF168D92),
-        iconBackground: Color(0xFFA6F4F5),
-      ),
-      _QuickAccessItem(
-        title: 'Track Performance',
-        subtitle: 'Review personal stats',
-        icon: Icons.bar_chart_rounded,
-        iconColor: Color(0xFFD97847),
-        iconBackground: Color(0xFFFFCFB1),
-      ),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 6),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFEDEDED), width: 3),
-      ),
-      child: GridView.builder(
-        itemCount: cards.length,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 1.28,
-          crossAxisSpacing: 18,
-          mainAxisSpacing: 16,
-        ),
-        itemBuilder: (context, index) => cards[index],
-      ),
-    );
-  }
-}
-
-class _QuickAccessItem extends StatelessWidget {
-  const _QuickAccessItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBackground,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBackground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 3,
-      shadowColor: Colors.black.withOpacity(0.35),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {},
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    Container(
-                      width: 41,
-                      height: 41,
-                      decoration: BoxDecoration(
-                        color: iconBackground,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(icon, color: iconColor, size: 25),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w900,
-                              height: 1.05,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF666666),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                height: 2,
-                margin: const EdgeInsets.symmetric(horizontal: 6),
-                color: const Color(0xFFD9D9D9),
-              ),
-            ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF428DEB).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.class_rounded,
+                            color: Color(0xFF428DEB),
+                            size: 22,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'My Class',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (hasClass) ...[
+                      Text(
+                        className,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Teacher: $teacherName',
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 14,
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.amber.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'You haven\'t joined a class yet.',
+                                style: TextStyle(
+                                  color: Colors.amber.shade900,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const JoinClassPage(),
+                              ),
+                            );
+                            if (result == true && context.mounted) {
+                              // Refresh
+                            }
+                          },
+                          icon: const Icon(Icons.add_circle_outline, size: 18),
+                          label: const Text('Join a Class'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF428DEB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
-        ),
+        ],
       ),
     );
   }
-}
 
-class _BottomNavBar extends StatelessWidget {
-  const _BottomNavBar({required this.currentIndex, required this.onTabChanged});
+  Widget _buildBottomNavBar() {
+    final items = [
+      _NavItem(icon: Icons.home_outlined, label: 'Home', index: 0),
+      _NavItem(icon: Icons.menu_book_outlined, label: 'Course', index: 1),
+      _NavItem(icon: Icons.forum_outlined, label: 'Forum', index: 2),
+      _NavItem(icon: Icons.bar_chart_rounded, label: 'Progress', index: 3),
+      _NavItem(icon: Icons.person_outline_rounded, label: 'Profile', index: 4),
+    ];
 
-  final int currentIndex;
-  final ValueChanged<int> onTabChanged;
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      height: 75,
+      height: 70,
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            offset: const Offset(0, -2),
+            color: Colors.black.withOpacity(0.06),
             blurRadius: 8,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: items.map((item) {
+          final isSelected = _currentTabIndex == item.index;
+          return InkWell(
+            onTap: () => setState(() => _currentTabIndex = item.index),
+            child: SizedBox(
+              width: 60,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    item.icon,
+                    color: isSelected
+                        ? const Color(0xFF428DEB)
+                        : Colors.grey.shade600,
+                    size: 24,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.label,
+                    style: TextStyle(
+                      color: isSelected
+                          ? const Color(0xFF428DEB)
+                          : Colors.grey.shade600,
+                      fontSize: 11,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
+                    ),
+                  ),
+                  if (isSelected)
+                    Container(
+                      margin: const EdgeInsets.only(top: 2),
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF428DEB),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _getFullName(Map<String, dynamic>? profile) {
+    final firstName = profile?['firstName']?.toString().trim() ?? '';
+    final middleName = profile?['middleName']?.toString().trim() ?? '';
+    final lastName = profile?['lastName']?.toString().trim() ?? '';
+    final extension = profile?['extension']?.toString().trim() ?? '';
+
+    if (firstName.isEmpty && lastName.isEmpty) {
+      final user = FirebaseAuth.instance.currentUser;
+      return user?.displayName ?? 'Student';
+    }
+
+    String middleInitial = '';
+    if (middleName.isNotEmpty) {
+      middleInitial = '${middleName[0].toUpperCase()}.';
+    }
+
+    final parts = [firstName, middleInitial, lastName, extension];
+    return parts.where((p) => p.isNotEmpty).join(' ');
+  }
+
+  Widget _buildHeartMascot({required double size}) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(painter: _HeartMascotPainter()),
+    );
+  }
+}
+
+class _QuickAccessItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final Color bgColor;
+
+  const _QuickAccessItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.bgColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _NavItem(
-            label: 'Home',
-            icon: Icons.home_outlined,
-            isSelected: currentIndex == 0,
-            onTap: () => onTabChanged(0),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-          _NavItem(
-            label: 'Modules',
-            icon: Icons.menu_book_outlined,
-            isSelected: currentIndex == 1,
-            onTap: () => onTabChanged(1),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          _NavItem(
-            label: 'Forum',
-            icon: Icons.forum_outlined,
-            isSelected: currentIndex == 2,
-            onTap: () => onTabChanged(2),
-          ),
-          _NavItem(
-            label: 'Progress',
-            icon: Icons.bar_chart_rounded,
-            isSelected: currentIndex == 3,
-            onTap: () => onTabChanged(3),
-          ),
-          _NavItem(
-            label: 'Profile',
-            icon: Icons.person_outline_rounded,
-            isSelected: currentIndex == 4,
-            onTap: () => onTabChanged(4),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -550,80 +808,28 @@ class _BottomNavBar extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.isSelected = false,
-  });
-
-  final String label;
+class _NavItem {
   final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
+  final String label;
+  final int index;
 
-  @override
-  Widget build(BuildContext context) {
-    final color = isSelected ? const Color(0xFF0868D8) : Colors.black54;
-
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: 70,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 25),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: 7,
-              height: 7,
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? const Color(0xFF0868D8)
-                    : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HeartMascot extends StatelessWidget {
-  const _HeartMascot({required this.size});
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(size: Size(size, size), painter: _HeartMascotPainter());
-  }
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+  });
 }
 
 class _HeartMascotPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final scale = size.width / 94;
+    final scale = size.width / 85;
     canvas.scale(scale);
 
     final outline = Paint()
       ..color = Colors.black
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
+      ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
     final heartFill = Paint()
       ..color = const Color(0xFFFF2F69)
@@ -636,48 +842,48 @@ class _HeartMascotPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final heart = Path()
-      ..moveTo(47, 29)
-      ..cubicTo(41, 14, 18, 15, 17, 36)
-      ..cubicTo(16, 54, 35, 65, 47, 77)
-      ..cubicTo(59, 65, 78, 54, 77, 36)
-      ..cubicTo(76, 15, 53, 14, 47, 29)
+      ..moveTo(42, 26)
+      ..cubicTo(37, 13, 16, 14, 15, 33)
+      ..cubicTo(14, 49, 32, 59, 42, 70)
+      ..cubicTo(52, 59, 70, 49, 69, 33)
+      ..cubicTo(68, 14, 47, 13, 42, 26)
       ..close();
     canvas.drawPath(heart, heartFill);
     canvas.drawPath(heart, outline);
 
-    canvas.drawCircle(const Offset(38, 39), 11, whiteFill);
-    canvas.drawCircle(const Offset(56, 39), 11, whiteFill);
-    canvas.drawCircle(const Offset(40, 40), 4, Paint()..color = Colors.black);
-    canvas.drawCircle(const Offset(54, 40), 4, Paint()..color = Colors.black);
+    canvas.drawCircle(const Offset(34, 36), 10, whiteFill);
+    canvas.drawCircle(const Offset(50, 36), 10, whiteFill);
+    canvas.drawCircle(const Offset(36, 37), 3.5, Paint()..color = Colors.black);
+    canvas.drawCircle(const Offset(48, 37), 3.5, Paint()..color = Colors.black);
 
     final smile = Path()
-      ..moveTo(38, 54)
-      ..quadraticBezierTo(47, 61, 57, 54);
+      ..moveTo(34, 49)
+      ..quadraticBezierTo(42, 55, 50, 49);
     canvas.drawPath(smile, outline);
 
-    canvas.drawLine(const Offset(19, 48), const Offset(4, 36), outline);
-    canvas.drawLine(const Offset(75, 48), const Offset(88, 35), outline);
-    canvas.drawCircle(const Offset(4, 36), 4, whiteFill);
-    canvas.drawCircle(const Offset(88, 35), 4, whiteFill);
-    canvas.drawCircle(const Offset(4, 36), 4, outline);
-    canvas.drawCircle(const Offset(88, 35), 4, outline);
+    canvas.drawLine(const Offset(17, 43), const Offset(4, 33), outline);
+    canvas.drawLine(const Offset(67, 43), const Offset(80, 32), outline);
+    canvas.drawCircle(const Offset(4, 33), 3.5, whiteFill);
+    canvas.drawCircle(const Offset(80, 32), 3.5, whiteFill);
+    canvas.drawCircle(const Offset(4, 33), 3.5, outline);
+    canvas.drawCircle(const Offset(80, 32), 3.5, outline);
 
-    canvas.drawLine(const Offset(39, 74), const Offset(33, 88), outline);
-    canvas.drawLine(const Offset(55, 74), const Offset(63, 88), outline);
+    canvas.drawLine(const Offset(35, 67), const Offset(30, 80), outline);
+    canvas.drawLine(const Offset(49, 67), const Offset(56, 80), outline);
     canvas.drawOval(
-      Rect.fromCenter(center: const Offset(28, 89), width: 19, height: 7),
+      Rect.fromCenter(center: const Offset(25, 81), width: 17, height: 6),
       shoeFill,
     );
     canvas.drawOval(
-      Rect.fromCenter(center: const Offset(68, 89), width: 19, height: 7),
+      Rect.fromCenter(center: const Offset(61, 81), width: 17, height: 6),
       shoeFill,
     );
     canvas.drawOval(
-      Rect.fromCenter(center: const Offset(28, 89), width: 19, height: 7),
+      Rect.fromCenter(center: const Offset(25, 81), width: 17, height: 6),
       outline,
     );
     canvas.drawOval(
-      Rect.fromCenter(center: const Offset(68, 89), width: 19, height: 7),
+      Rect.fromCenter(center: const Offset(61, 81), width: 17, height: 6),
       outline,
     );
   }

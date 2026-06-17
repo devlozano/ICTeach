@@ -34,7 +34,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 1000;
             return Scaffold(
-              backgroundColor: const Color(0xFFF5F6FA),
+              backgroundColor: const Color(0xffF8FAFC),
               // Setup a GlobalKey or use context directly if needing to control the drawer.
               // Scaffold automatically hooks up the menu button when a drawer is present.
               drawer: isWide
