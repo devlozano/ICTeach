@@ -13,6 +13,13 @@ class TeacherHomePage extends StatefulWidget {
 class _TeacherHomePageState extends State<TeacherHomePage> {
   // Tracks the active bottom navigation panel index
   int _currentTabIndex = 0;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _classesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _classesStream = teacherClassesStream();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,24 +34,12 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
           .doc(user.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
         final profile = snapshot.data?.data();
         final name = _teacherName(profile, user);
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: teacherClassesStream(),
+          stream: _classesStream,
           builder: (context, classesSnapshot) {
-            if (classesSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-
             final classDocs = classesSnapshot.data?.docs ?? [];
             final classes = classDocs
                 .map((doc) => _TeacherClassData.fromSnapshot(doc))
@@ -60,29 +55,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             );
 
             return Scaffold(
-              backgroundColor: const Color(0xFFF8FAFF),
-              appBar: AppBar(
-                backgroundColor: Colors.white,
-                elevation: 0,
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Create Class',
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CreateClassPage(),
-                        ),
-                      );
-
-                      if (result == true && mounted) {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
-              ),
               body: SafeArea(
                 top: false,
                 child: Column(
@@ -99,7 +71,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _TeacherSummary(
-                                  classStream: teacherClassesStream(),
+                                  classStream: _classesStream,
                                   studentCount: studentCount,
                                   pendingReviewCount: pendingReviewCount,
                                 ),
@@ -149,6 +121,30 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                   });
                 },
               ),
+              floatingActionButton: FloatingActionButton(
+                heroTag: "createClass",
+                child: const Icon(Icons.add),
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (_, animation, secondaryAnimation) =>
+                          const CreateClassPage(),
+                      transitionsBuilder:
+                          (_, animation, secondaryAnimation, child) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                    ),
+                  );
+
+                  if (result == true && mounted) {
+                    setState(() {});
+                  }
+                },
+              ),
             );
           },
         );
@@ -162,20 +158,13 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     return FirebaseFirestore.instance
         .collection('classes')
         .where('teacherId', isEqualTo: user!.uid)
-        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
   Widget buildClassesTab() {
     return StreamBuilder<QuerySnapshot>(
-      stream: teacherClassesStream(),
+      stream: _classesStream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
         final classDocs = snapshot.data?.docs ?? [];
 
         return Column(
@@ -195,8 +184,16 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                     onPressed: () async {
                       final result = await Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CreateClassPage(),
+                        PageRouteBuilder(
+                          pageBuilder: (_, animation, secondaryAnimation) =>
+                              const CreateClassPage(),
+                          transitionsBuilder:
+                              (_, animation, secondaryAnimation, child) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
                         ),
                       );
 
@@ -212,7 +209,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: classDocs.isEmpty
+              child:
+                  snapshot.connectionState == ConnectionState.waiting &&
+                      classDocs.isEmpty
+                  ? const Center(child: CircularProgressIndicator())
+                  : classDocs.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -464,7 +465,7 @@ class _TeacherSummary extends StatelessWidget {
             stream: classStream,
             builder: (context, snapshot) {
               final count = snapshot.data?.docs.length ?? 0;
-              return _SummaryItem(label: 'My Classes', value: '$count Classes');
+              return _SummaryItem(label: 'My Classes', value: '$count');
             },
           ),
           const _SummaryDivider(),
