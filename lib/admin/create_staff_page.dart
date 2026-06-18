@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/emailjs_service.dart';
 
@@ -81,6 +80,19 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
     );
   }
 
+  // ✅ NEW: Reset form method
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    _firstNameController.clear();
+    _middleNameController.clear();
+    _lastNameController.clear();
+    _extensionController.clear();
+    _emailController.clear();
+    setState(() {
+      _selectedRole = widget.selectedRole;
+    });
+  }
+
   Future<void> _createStaff() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -144,32 +156,121 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
 
       if (!mounted) return;
 
-      showDialog(
+      // ✅ FIXED: Show dialog with proper OK button behavior
+      await showDialog(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Staff Created'),
-          content: Text(
-            'Account created for ${_selectedRole.toUpperCase()}\n\n'
-            'Temporary password:\n$tempPassword\n\n'
-            'Credentials sent to email.',
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _formKey.currentState!.reset();
-                _firstNameController.clear();
-                _middleNameController.clear();
-                _lastNameController.clear();
-                _extensionController.clear();
-                _emailController.clear();
-              },
-              child: const Text('OK'),
+        barrierDismissible: false, // ✅ Prevents closing by tapping outside
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
-        ),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text(
+                  'Staff Created',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Account created for ${_selectedRole.toUpperCase()}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Temporary Password:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SelectableText(
+                        tempPassword,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade900,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.email_outlined,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Credentials sent to: $email',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  // ✅ Close the dialog
+                  Navigator.of(context).pop();
+                  // ✅ Reset the form after dialog closes
+                  _resetForm();
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFF2F80ED),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 10,
+                  ),
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ],
+          );
+        },
       );
+
+      // ✅ Additional reset after dialog (in case of issues)
+      _resetForm();
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message ?? 'Auth error occurred')),
@@ -186,82 +287,140 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Staff Account')),
+      backgroundColor: const Color(0xffF8FAFC),
+      appBar: AppBar(
+        title: const Text('Create Staff Account'),
+        backgroundColor: const Color(0xFF0B2B4A),
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _firstNameController,
-                decoration: fieldDecoration(
-                  hint: 'First Name',
-                  icon: Icons.person,
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _middleNameController,
-                decoration: fieldDecoration(
-                  hint: 'Middle Name',
-                  icon: Icons.person_outline,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: fieldDecoration(
-                  hint: 'Last Name',
-                  icon: Icons.person_outline,
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _extensionController,
-                decoration: fieldDecoration(
-                  hint: 'Extension (Jr., Sr., III)',
-                  icon: Icons.badge_outlined,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _emailController,
-                decoration: fieldDecoration(
-                  hint: 'Email Address',
-                  icon: Icons.email,
-                ),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedRole,
-                decoration: fieldDecoration(hint: 'Role', icon: Icons.badge),
-                items: const [
-                  DropdownMenuItem(value: 'teacher', child: Text('Teacher')),
-                  DropdownMenuItem(value: 'trainer', child: Text('Trainer')),
+        child: Card(
+          elevation: 3,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  const Text(
+                    'Add New Staff Member',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0B2B4A),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Fill in the details to create a new staff account',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: _firstNameController,
+                    decoration: fieldDecoration(
+                      hint: 'First Name',
+                      icon: Icons.person,
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _middleNameController,
+                    decoration: fieldDecoration(
+                      hint: 'Middle Name',
+                      icon: Icons.person_outline,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _lastNameController,
+                    decoration: fieldDecoration(
+                      hint: 'Last Name',
+                      icon: Icons.person_outline,
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _extensionController,
+                    decoration: fieldDecoration(
+                      hint: 'Extension (Jr., Sr., III)',
+                      icon: Icons.badge_outlined,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: fieldDecoration(
+                      hint: 'Email Address',
+                      icon: Icons.email,
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedRole,
+                    decoration: fieldDecoration(
+                      hint: 'Role',
+                      icon: Icons.badge,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'teacher',
+                        child: Text('Teacher'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'trainer',
+                        child: Text('Trainer'),
+                      ),
+                    ],
+                    onChanged: (v) {
+                      if (v != null) setState(() => _selectedRole = v);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _createStaff,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0B2B4A),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : const Text(
+                              'Create Staff Account',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                    ),
+                  ),
                 ],
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedRole = v);
-                },
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _createStaff,
-                  child: _isLoading
-                      ? const CircularProgressIndicator()
-                      : const Text('Create Staff Account'),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

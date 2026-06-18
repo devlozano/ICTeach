@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:icteach/create_class.dart';
 import 'package:icteach/utils/app_navigation.dart';
 import 'class_roster.dart';
+import 'login.dart';
 
 class TeacherHomePage extends StatefulWidget {
   const TeacherHomePage({super.key});
@@ -13,7 +14,6 @@ class TeacherHomePage extends StatefulWidget {
 }
 
 class _TeacherHomePageState extends State<TeacherHomePage> {
-  // Tracks the active bottom navigation panel index
   int _currentTabIndex = 0;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _classesStream;
 
@@ -21,6 +21,119 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
   void initState() {
     super.initState();
     _classesStream = teacherClassesStream();
+  }
+
+  // ✅ FIXED: Return empty stream instead of using QuerySnapshot._()
+  Stream<QuerySnapshot<Map<String, dynamic>>> teacherClassesStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Return an empty stream instead of trying to create a QuerySnapshot
+      return Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('classes')
+        .where('teacherId', isEqualTo: user.uid)
+        .snapshots();
+  }
+
+  String _teacherName(Map<String, dynamic>? profile, User user) {
+    if (profile == null) {
+      return user.displayName ?? 'Teacher';
+    }
+
+    final firstName = profile['firstName']?.toString().trim() ?? '';
+    final lastName = profile['lastName']?.toString().trim() ?? '';
+
+    if (firstName.isEmpty && lastName.isEmpty) {
+      return user.displayName ?? 'Teacher';
+    }
+
+    final parts = [firstName, lastName];
+    final fullName = parts.where((p) => p.isNotEmpty).join(' ');
+
+    return fullName.isNotEmpty ? fullName : 'Teacher';
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await FirebaseAuth.instance.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  }
+
+  Widget buildClassesTab() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _classesStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+        if (classDocs.isEmpty) {
+          return const Center(
+            child: Text('No classes created yet. Tap + to create one.'),
+          );
+        }
+
+        final classes = classDocs
+            .map((doc) => _TeacherClassData.fromSnapshot(doc))
+            .toList();
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: classes.length,
+          itemBuilder: (context, index) {
+            final classData = classes[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: ListTile(
+                title: Text(classData.className),
+                subtitle: Text(
+                  '${classData.enrolledStudentIds?.length ?? 0} students',
+                ),
+                trailing: const Icon(Icons.arrow_forward),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ClassRosterPage(
+                        classId: classData.classId,
+                        className: classData.className,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -49,7 +162,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             final classCount = classes.length;
             final studentCount = classes.fold<int>(
               0,
-              (total, item) => total + item.enrolledStudentIds.length,
+              (total, item) => total + (item.enrolledStudentIds?.length ?? 0),
             );
             final pendingReviewCount = classes.fold<int>(
               0,
@@ -62,12 +175,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 top: false,
                 child: Column(
                   children: [
-                    _TeacherHeader(name: name),
+                    _TeacherHeader(name: name, onLogout: _logout),
                     Expanded(
                       child: IndexedStack(
                         index: _currentTabIndex,
                         children: [
-                          // TAB 0: Core Homepage Dashboard Grid View
                           SingleChildScrollView(
                             padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
                             child: Column(
@@ -97,15 +209,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                             ),
                           ),
                           buildClassesTab(),
+                          const Center(child: Text('Discussion Forums')),
                           const Center(
-                            child: Text(
-                              'Tasks Authoring Hub (Use Case: Creates modules, quizzes & assignments)',
-                            ),
-                          ),
-                          const Center(
-                            child: Text(
-                              'Student Progress Analytics (Use Case: Monitors students progress)',
-                            ),
+                            child: Text('Student Progress Analytics'),
                           ),
                           const Center(
                             child: Text('Teacher Profile Configurations'),
@@ -144,223 +250,42 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
       },
     );
   }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> teacherClassesStream() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return Stream.empty();
-    }
-    return FirebaseFirestore.instance
-        .collection('classes')
-        .where('teacherId', isEqualTo: user.uid)
-        .snapshots();
-  }
-
-  Widget buildClassesTab() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _classesStream,
-      builder: (context, snapshot) {
-        final classDocs = snapshot.data?.docs ?? [];
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 24, 22, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Class Roster',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final result = await AppNavigation.push(
-                        context,
-                        const CreateClassPage(),
-                      );
-
-                      if (result == true && mounted) {
-                        setState(() {});
-                      }
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create Class'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child:
-                  snapshot.connectionState == ConnectionState.waiting &&
-                      classDocs.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : classDocs.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                        child: Text(
-                          'You have no classes yet. Create a class and share the class code with students so they can join.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey.shade700),
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      itemCount: classDocs.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
-                      itemBuilder: (context, index) {
-                        final doc = classDocs[index];
-                        final data = doc.data() as Map<String, dynamic>? ?? {};
-
-                        // ✅ FIX: Get name from 'name' field, not 'className'
-                        final name =
-                            (data['name'] as String?)?.trim() ??
-                            'Unnamed Class';
-                        final description =
-                            (data['description'] as String?)?.trim() ?? '';
-                        final sectionCode =
-                            (data['sectionCode'] as String?)?.trim() ?? 'UNKN';
-                        final classCode =
-                            (data['classCode'] as String?)?.trim() ?? 'No Code';
-                        final enrolledStudentIds = List<String>.from(
-                          data['enrolledStudentIds'] as List<dynamic>? ?? [],
-                        );
-
-                        return Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          elevation: 1.5,
-                          child: ListTile(
-                            title: Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 4),
-                                Text(
-                                  description.isNotEmpty
-                                      ? description
-                                      : 'No description yet',
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 6,
-                                  children: [
-                                    Chip(
-                                      label: Text('Code: $classCode'),
-                                      backgroundColor: Colors.amber.shade100,
-                                    ),
-                                    Chip(
-                                      label: Text(
-                                        '${enrolledStudentIds.length} students',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            trailing: const Icon(Icons.chevron_right_rounded),
-                            onTap: () {
-                              // ✅ FIX: Pass the correct class name
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => ClassRosterPage(
-                                    classId: doc.id,
-                                    className: name, // ✅ Use 'name' here
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  String _teacherName(Map<String, dynamic>? profile, User user) {
-    final firstName = (profile?['firstName'] as String?)?.trim() ?? '';
-    final middleName = (profile?['middleName'] as String?)?.trim() ?? '';
-    final lastName = (profile?['lastName'] as String?)?.trim() ?? '';
-    final extension = (profile?['extension'] as String?)?.trim() ?? '';
-    final separatedName = [
-      firstName,
-      if (middleName.isNotEmpty)
-        '${middleName.characters.first.toUpperCase()}.',
-      lastName,
-      if (extension.isNotEmpty) extension,
-    ].where((part) => part.isNotEmpty).join(' ');
-
-    if (separatedName.isNotEmpty) {
-      return separatedName;
-    }
-
-    final savedName = profile?['name'] as String?;
-    if (savedName != null && savedName.trim().isNotEmpty) {
-      return savedName.trim();
-    }
-
-    final displayName = user.displayName?.trim();
-    if (displayName != null && displayName.isNotEmpty) {
-      return displayName;
-    }
-
-    return 'Teacher';
-  }
 }
 
 class _TeacherClassData {
-  _TeacherClassData({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.sectionCode,
-    required this.enrolledStudentIds,
-    required this.pendingReviews,
-  });
-
-  final String id;
-  final String name;
-  final String description;
-  final String sectionCode;
-  final List<String> enrolledStudentIds;
+  final String classId;
+  final String className;
+  final String teacherId;
+  final List<String>? enrolledStudentIds;
   final int? pendingReviews;
 
+  _TeacherClassData({
+    required this.classId,
+    required this.className,
+    required this.teacherId,
+    this.enrolledStudentIds,
+    this.pendingReviews,
+  });
+
   factory _TeacherClassData.fromSnapshot(
-    DocumentSnapshot<Map<String, dynamic>> doc,
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data() ?? <String, dynamic>{};
+    final data = doc.data();
     return _TeacherClassData(
-      id: doc.id,
-      name: (data['name'] as String?)?.trim() ?? 'Unnamed Class',
-      description: (data['description'] as String?)?.trim() ?? '',
-      sectionCode: (data['sectionCode'] as String?)?.trim() ?? 'UNKN',
-      enrolledStudentIds: List<String>.from(
-        data['enrolledStudentIds'] as List<dynamic>? ?? [],
-      ),
+      classId: doc.id,
+      className: data['className'] ?? 'Untitled Class',
+      teacherId: data['teacherId'] ?? '',
+      enrolledStudentIds: List<String>.from(data['enrolledStudentIds'] ?? []),
       pendingReviews: data['pendingReviews'] as int?,
     );
   }
 }
 
 class _TeacherHeader extends StatelessWidget {
-  const _TeacherHeader({required this.name});
+  const _TeacherHeader({required this.name, required this.onLogout});
+
   final String name;
+  final VoidCallback onLogout;
 
   @override
   Widget build(BuildContext context) {
@@ -420,13 +345,13 @@ class _TeacherHeader extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Notifications',
-            onPressed: () {},
+            onPressed: onLogout,
             icon: const Icon(
-              Icons.notifications_none_rounded,
+              Icons.logout_rounded,
               color: Colors.white,
               size: 28,
             ),
+            tooltip: 'Logout',
           ),
         ],
       ),
@@ -448,78 +373,80 @@ class _TeacherSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E7F4)),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: classStream,
-            builder: (context, snapshot) {
-              final count = snapshot.data?.docs.length ?? 0;
-              return _SummaryItem(label: 'My Classes', value: '$count');
-            },
+          const Text(
+            'Overview',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          const _SummaryDivider(),
-          _SummaryItem(label: 'Students Active', value: '$studentCount'),
-          const _SummaryDivider(),
-          _SummaryItem(label: 'Pending Reviews', value: '$pendingReviewCount'),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _SummaryCard('Classes', '0', Colors.blue.shade300),
+              _SummaryCard(
+                'Students',
+                studentCount.toString(),
+                Colors.green.shade300,
+              ),
+              _SummaryCard(
+                'Pending',
+                pendingReviewCount.toString(),
+                Colors.orange.shade300,
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _SummaryItem extends StatelessWidget {
-  const _SummaryItem({required this.label, required this.value});
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard(this.label, this.value, this.color);
+
   final String label;
   final String value;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF0868D8),
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF656565),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
-  }
-}
-
-class _SummaryDivider extends StatelessWidget {
-  const _SummaryDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(width: 1, height: 42, color: const Color(0xFFE2E2E2));
   }
 }
 
@@ -534,132 +461,85 @@ class _TeacherToolGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tools = [
-      _TeacherToolItem(
-        title: 'Manage Classes',
-        subtitle: '$classCount sections assigned',
-        icon: Icons.groups_rounded,
-        color: const Color(0xFF2F80ED),
-        background: const Color(0xFFDCEBFF),
-        onTap: onManageClasses,
-      ),
-      _TeacherToolItem(
-        title: 'Curriculum Modules',
-        subtitle: 'Construct lesson tracks',
-        icon: Icons.menu_book_rounded,
-        color: const Color(0xFF4F6DB8),
-        background: const Color(0xFFDCE6FF),
-      ),
-      _TeacherToolItem(
-        title: 'Provide Feedback',
-        subtitle: 'Review student submissions',
-        icon: Icons.rate_review_rounded,
-        color: const Color(0xFFE76C31),
-        background: const Color(0xFFFFD7C2),
-      ),
-      _TeacherToolItem(
-        title: 'Quizzes & Tests',
-        subtitle: 'Formative design options',
-        icon: Icons.quiz_outlined,
-        color: const Color(0xFF9C4FA1),
-        background: const Color(0xFFE9C4EB),
-      ),
-      _TeacherToolItem(
-        title: 'Student Progress',
-        subtitle: 'Monitor system pathways',
-        icon: Icons.trending_up_rounded,
-        color: const Color(0xFF249A38),
-        background: const Color(0xFFC9F2CE),
-      ),
-      _TeacherToolItem(
-        title: 'Discussion Forums',
-        subtitle: 'Interact in threads',
-        icon: Icons.forum_rounded,
-        color: const Color(0xFF168D92),
-        background: const Color(0xFFA6F4F5),
-      ),
-    ];
-
-    return GridView.builder(
-      itemCount: tools.length,
+    return GridView.count(
+      crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.1,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemBuilder: (context, index) => tools[index],
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      children: [
+        _ToolCard(
+          icon: Icons.class_,
+          title: 'Manage Classes',
+          subtitle: '$classCount classes',
+          onTap: onManageClasses,
+        ),
+        _ToolCard(
+          icon: Icons.people,
+          title: 'Student Roster',
+          subtitle: 'View all students',
+          onTap: () {},
+        ),
+        _ToolCard(
+          icon: Icons.assessment,
+          title: 'Assessments',
+          subtitle: 'Create & manage',
+          onTap: () {},
+        ),
+        _ToolCard(
+          icon: Icons.bar_chart,
+          title: 'Analytics',
+          subtitle: 'Performance data',
+          onTap: () {},
+        ),
+      ],
     );
   }
 }
 
-class _TeacherToolItem extends StatelessWidget {
-  const _TeacherToolItem({
+class _ToolCard extends StatelessWidget {
+  const _ToolCard({
+    required this.icon,
     required this.title,
     required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.background,
-    this.onTap,
+    required this.onTap,
   });
 
+  final IconData icon;
   final String title;
   final String subtitle;
-  final IconData icon;
-  final Color color;
-  final Color background;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      elevation: 2.5,
-      shadowColor: Colors.black.withOpacity(0.24),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(17),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: Icon(icon, color: color, size: 27),
-              ),
-              const Spacer(),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF666666),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: const Color(0xFF2F80ED)),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
         ),
       ),
     );
@@ -673,103 +553,35 @@ class _TeacherBottomNavBar extends StatelessWidget {
   });
 
   final int currentIndex;
-  final ValueChanged<int> onTabChanged;
+  final Function(int) onTabChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 75,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFECECEC))),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _TeacherNavItem(
-            label: 'Home',
-            icon: Icons.home_outlined,
-            selected: currentIndex == 0,
-            onTap: () => onTabChanged(0),
-          ),
-          _TeacherNavItem(
-            label: 'Classes',
-            icon: Icons.groups_outlined,
-            selected: currentIndex == 1,
-            onTap: () => onTabChanged(1),
-          ),
-          _TeacherNavItem(
-            label: 'Tasks',
-            icon: Icons.assignment_outlined,
-            selected: currentIndex == 2,
-            onTap: () => onTabChanged(2),
-          ),
-          _TeacherNavItem(
-            label: 'Progress',
-            icon: Icons.bar_chart_rounded,
-            selected: currentIndex == 3,
-            onTap: () => onTabChanged(3),
-          ),
-          _TeacherNavItem(
-            label: 'Profile',
-            icon: Icons.person_outline_rounded,
-            selected: currentIndex == 4,
-            onTap: () => onTabChanged(4),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TeacherNavItem extends StatelessWidget {
-  const _TeacherNavItem({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.selected = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF0868D8) : Colors.black54;
-
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: 70,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 25),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFF0868D8) : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
+    return BottomNavigationBar(
+      currentIndex: currentIndex,
+      onTap: onTabChanged,
+      selectedItemColor: const Color(0xFF2F80ED),
+      unselectedItemColor: Colors.grey.shade400,
+      type: BottomNavigationBarType.fixed,
+      items: const [
+        BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.class_rounded),
+          label: 'Classes',
         ),
-      ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.forum_rounded),
+          label: 'Discussion',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.bar_chart_rounded),
+          label: 'Analytics',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person_rounded),
+          label: 'Profile',
+        ),
+      ],
     );
   }
 }

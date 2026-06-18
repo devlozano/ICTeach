@@ -6,11 +6,11 @@ class AppNavigation {
       context,
 
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => page,
+        pageBuilder: (_, _, _) => page,
 
         transitionDuration: const Duration(milliseconds: 250),
 
-        transitionsBuilder: (_, animation, __, child) {
+        transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
       ),

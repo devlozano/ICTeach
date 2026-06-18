@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'dart:math'; // ✅ Add this for random generation
+import 'dart:math';
 
 class CreateClassPage extends StatefulWidget {
   const CreateClassPage({super.key});
@@ -17,40 +17,34 @@ class _CreateClassPageState extends State<CreateClassPage> {
   final _descriptionController = TextEditingController();
   bool _isLoading = false;
 
-  // ✅ NEW: Generate a unique class code (like Google Classroom)
+  // Generate a unique class code (like Google Classroom)
   String _generateClassCode() {
     const String chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final Random random = Random();
     String code = '';
-
-    // Generate a 7-character code (e.g., "ABC1234")
     for (int i = 0; i < 7; i++) {
       code += chars[random.nextInt(chars.length)];
     }
-
     return code;
   }
 
-  // ✅ NEW: Check if class code already exists
+  // Check if class code already exists
   Future<bool> _isClassCodeUnique(String code) async {
     final query = await FirebaseFirestore.instance
         .collection('classes')
         .where('classCode', isEqualTo: code)
         .get();
-
     return query.docs.isEmpty;
   }
 
-  // ✅ NEW: Generate unique class code (retry if duplicate)
+  // Generate unique class code (retry if duplicate)
   Future<String> _generateUniqueClassCode() async {
     String code;
     bool isUnique;
-
     do {
       code = _generateClassCode();
       isUnique = await _isClassCodeUnique(code);
     } while (!isUnique);
-
     return code;
   }
 
@@ -63,7 +57,6 @@ class _CreateClassPageState extends State<CreateClassPage> {
   }
 
   Future<void> _createClass() async {
-    // Validate form
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -77,7 +70,6 @@ class _CreateClassPageState extends State<CreateClassPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Get trimmed values
       final className = _classNameController.text.trim();
       final sectionCode = _sectionController.text.trim();
       final description = _descriptionController.text.trim();
@@ -94,48 +86,81 @@ class _CreateClassPageState extends State<CreateClassPage> {
         return;
       }
 
-      // ✅ NEW: Generate unique class code
-      final classCode = await _generateUniqueClassCode();
+      // ✅ FIX: Get the teacher's full name from Firestore users collection
+      final teacherDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(teacher.uid)
+          .get();
 
-      final classRef = FirebaseFirestore.instance.collection('classes').doc();
+      final teacherData = teacherDoc.data();
 
-      // Safely get teacher name - ensure it's never null
-      String teacherName = "Unknown Teacher";
-      if (teacher.displayName != null && teacher.displayName!.isNotEmpty) {
-        teacherName = teacher.displayName!;
-      } else if (teacher.email != null && teacher.email!.isNotEmpty) {
-        teacherName = teacher.email!;
+      // ✅ Get the proper teacher name from the users collection
+      String teacherName = 'Unknown Teacher';
+      if (teacherData != null) {
+        // Try to get the 'name' field first (which has the full formatted name)
+        if (teacherData['name'] != null &&
+            teacherData['name'].toString().isNotEmpty) {
+          teacherName = teacherData['name'].toString();
+          print('✅ Using teacher name from "name" field: $teacherName');
+        }
+        // Fallback to building the name from parts
+        else {
+          final firstName = teacherData['firstName']?.toString() ?? '';
+          final middleInitial = teacherData['middleInitial']?.toString() ?? '';
+          final lastName = teacherData['lastName']?.toString() ?? '';
+          final extension = teacherData['extension']?.toString() ?? '';
+
+          final parts = [firstName, middleInitial, lastName, extension];
+          teacherName = parts.where((p) => p.isNotEmpty).join(' ');
+          print('✅ Built teacher name from parts: $teacherName');
+
+          if (teacherName.isEmpty) {
+            teacherName =
+                teacher.displayName ?? teacher.email ?? 'Unknown Teacher';
+            print('⚠️ Fallback to displayName/email: $teacherName');
+          }
+        }
+      } else {
+        // Fallback to email if no user data found
+        teacherName = teacher.displayName ?? teacher.email ?? 'Unknown Teacher';
+        print('⚠️ No teacher data found, using: $teacherName');
       }
 
-      // Safely get teacher email - ensure it's never null
+      // Generate unique class code
+      final classCode = await _generateUniqueClassCode();
+      final classRef = FirebaseFirestore.instance.collection('classes').doc();
+
+      // Get current school year
+      final schoolYear = _getCurrentSchoolYear();
+
+      // ✅ Use the proper teacher name
       String teacherEmail = teacher.email ?? "No email provided";
 
       // Create class data with ALL non-nullable strings
       final classData = {
         "id": classRef.id,
-        "classCode":
-            classCode, // ✅ NEW: Auto-generated code for students to join
+        "classCode": classCode,
         "name": className,
         "description": description,
         "sectionCode": sectionCode,
         "teacherId": teacher.uid,
-        "teacherName": teacherName,
+        "teacherName": teacherName, // ✅ Now using the full name from Firestore
         "teacherEmail": teacherEmail,
         "enrolledStudentIds": [],
         "pendingReviews": 0,
         "status": "active",
+        "schoolYear": schoolYear,
         "createdAt": FieldValue.serverTimestamp(),
         "updatedAt": FieldValue.serverTimestamp(),
       };
 
-      // Debug: print the data to see if anything is null
-      print("Creating class with data: $classData");
+      print("✅ Creating class with teacherName: $teacherName");
+      print("📦 Full class data: $classData");
 
       await classRef.set(classData);
 
       if (!mounted) return;
 
-      // ✅ MODIFIED: Show success message with the class code
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Column(
@@ -148,6 +173,14 @@ class _CreateClassPageState extends State<CreateClassPage> {
                 "Class Code: $classCode",
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
+              Text(
+                "Teacher: $teacherName",
+                style: const TextStyle(fontSize: 12),
+              ),
+              Text(
+                "School Year: $schoolYear",
+                style: const TextStyle(fontSize: 12),
+              ),
               const Text("Share this code with your students to join."),
             ],
           ),
@@ -157,12 +190,23 @@ class _CreateClassPageState extends State<CreateClassPage> {
 
       Navigator.pop(context, true);
     } catch (error) {
-      print("Error creating class: $error");
+      print("❌ Error creating class: $error");
       _showMessage("Failed to create class: $error");
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  String _getCurrentSchoolYear() {
+    final now = DateTime.now();
+    final year = now.year;
+    final month = now.month;
+    if (month >= 6) {
+      return '$year-${year + 1}';
+    } else {
+      return '${year - 1}-$year';
     }
   }
 
@@ -207,7 +251,6 @@ class _CreateClassPageState extends State<CreateClassPage> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // ✅ NEW: Amber info box about class code
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
@@ -229,6 +272,33 @@ class _CreateClassPageState extends State<CreateClassPage> {
                                   color: Colors.amber.shade900,
                                   fontSize: 13,
                                 ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              color: Colors.blue.shade700,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "School Year: ${_getCurrentSchoolYear()}",
+                              style: TextStyle(
+                                color: Colors.blue.shade900,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 14,
                               ),
                             ),
                           ],

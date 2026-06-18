@@ -19,6 +19,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isResettingPassword = false; // ✅ NEW: Track password reset state
 
   @override
   void dispose() {
@@ -89,27 +90,199 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ✅ UPDATED: Password reset with dialog feedback
   Future<void> _sendPasswordReset() async {
     FocusScope.of(context).unfocus();
 
     final email = _emailController.text.trim();
-    if (email.isEmpty || !_isValidEmail(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your email address first.')),
+
+    // ✅ Check if email is provided
+    if (email.isEmpty) {
+      _showErrorDialog(
+        'Email Required',
+        'Please enter your email address first.',
       );
       return;
     }
 
+    // ✅ Validate email format
+    if (!_isValidEmail(email)) {
+      _showErrorDialog('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    setState(() => _isResettingPassword = true);
+
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset email sent.')),
+
+      // ✅ Show success dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                const Text(
+                  'Password Reset Email Sent',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A password reset link has been sent to:',
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.email, size: 20, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          email,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade900,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Please check your email inbox and follow the instructions to reset your password.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  // ✅ Clear password field after successful reset
+                  _passwordController.clear();
+                },
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFF2F80ED),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 10,
+                  ),
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ],
+          );
+        },
       );
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
-      _showError(_authErrorMessage(error));
+
+      // ✅ Show error dialog with specific message
+      String title = 'Password Reset Failed';
+      String message = _authErrorMessage(error);
+
+      // ✅ Handle specific cases
+      switch (error.code) {
+        case 'user-not-found':
+          title = 'Account Not Found';
+          message = 'No account found with this email address.';
+          break;
+        case 'invalid-email':
+          title = 'Invalid Email';
+          message = 'Please enter a valid email address.';
+          break;
+        case 'too-many-requests':
+          title = 'Too Many Attempts';
+          message = 'Too many password reset requests. Please try again later.';
+          break;
+        default:
+          message = error.message ?? 'Please try again.';
+      }
+
+      _showErrorDialog(title, message);
+    } catch (error) {
+      if (!mounted) return;
+      _showErrorDialog('Error', 'Could not send password reset email: $error');
+    } finally {
+      if (mounted) setState(() => _isResettingPassword = false);
     }
+  }
+
+  // ✅ NEW: Show error dialog
+  Future<void> _showErrorDialog(String title, String message) async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red.shade600),
+              const SizedBox(width: 8),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            message,
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF2F80ED),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String _authErrorMessage(FirebaseAuthException error) {
@@ -289,11 +462,34 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           const SizedBox(height: 8),
+          // ✅ UPDATED: Forgot Password with loading state
           Center(
-            child: TextButton(
-              onPressed: _isLoading ? null : _sendPasswordReset,
-              child: const Text('Forgot Password?'),
-            ),
+            child: _isResettingPassword
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8.0),
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFF2F80ED),
+                      ),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: _isLoading ? null : _sendPasswordReset,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF2F80ED),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -416,12 +612,11 @@ class _LoginHeader extends StatelessWidget {
       child: Column(
         children: [
           Image.asset(
-            'assets/logo 2.png', // Targets the updated clean string name layout match
+            'assets/logo 2.png',
             width: logoSize,
             height: logoSize,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) {
-              // This acts as a protective shield. Even if asset files break, your code will safely continue executing without crashing.
               return Container(
                 width: logoSize,
                 height: logoSize,
