@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/create_class.dart';
 import 'package:icteach/utils/app_navigation.dart';
+import 'package:icteach/screens/teacher/manage_modules_page.dart';
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -480,6 +481,20 @@ class _TeacherToolGrid extends StatelessWidget {
           subtitle: 'View all students',
           onTap: () {},
         ),
+        _TrainerToolItem(
+          title: 'Learning Modules',
+          subtitle: 'Manage modules',
+          icon: Icons.menu_book_rounded,
+          color: const Color(0xFF4F6DB8),
+          bgColor: const Color(0xFFDCE6FF),
+          onTap: () async {
+            // Navigate to select a class to manage modules
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => _ModuleClassSelector()),
+            );
+          },
+        ),
         _ToolCard(
           icon: Icons.assessment,
           title: 'Assessments',
@@ -546,6 +561,64 @@ class _ToolCard extends StatelessWidget {
   }
 }
 
+class _TrainerToolItem extends StatelessWidget {
+  const _TrainerToolItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.bgColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final Color bgColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: bgColor.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: bgColor),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: color.withOpacity(0.7)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TeacherBottomNavBar extends StatelessWidget {
   const _TeacherBottomNavBar({
     required this.currentIndex,
@@ -582,6 +655,95 @@ class _TeacherBottomNavBar extends StatelessWidget {
           label: 'Profile',
         ),
       ],
+    );
+  }
+}
+
+class _ModuleClassSelector extends StatefulWidget {
+  const _ModuleClassSelector();
+
+  @override
+  State<_ModuleClassSelector> createState() => _ModuleClassSelectorState();
+}
+
+class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _classesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _classesStream = teacherClassesStream();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> teacherClassesStream() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('classes')
+        .where('teacherId', isEqualTo: user.uid)
+        .snapshots();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xffF8FAFC),
+      appBar: AppBar(
+        title: const Text('Select Class to Manage Modules'),
+        backgroundColor: const Color(0xFF2F80ED),
+        foregroundColor: Colors.white,
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _classesStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final classDocs = snapshot.data?.docs ?? [];
+          if (classDocs.isEmpty) {
+            return const Center(
+              child: Text('No classes found. Create a class first.'),
+            );
+          }
+
+          final classes = classDocs
+              .map((doc) => _TeacherClassData.fromSnapshot(doc))
+              .toList();
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: classes.length,
+            itemBuilder: (context, index) {
+              final classData = classes[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  title: Text(classData.className),
+                  subtitle: Text(
+                    '${classData.enrolledStudentIds?.length ?? 0} students',
+                  ),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ManageModulesPage(
+                          classId: classData.classId,
+                          className: classData.className,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

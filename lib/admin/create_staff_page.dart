@@ -66,10 +66,6 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
     );
   }
 
-  bool _isValidEmail(String email) {
-    return RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email);
-  }
-
   Future<UserCredential> createStaffAccount({
     required String email,
     required String password,

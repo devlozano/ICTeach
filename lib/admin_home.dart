@@ -245,28 +245,24 @@ class _SideNav extends StatelessWidget {
                   selected: currentSelection == 'Dashboard',
                   onTap: () => onSelected('Dashboard'),
                 ),
-
                 _NavTile(
                   icon: Icons.people_alt_rounded,
                   label: 'Manage Users',
                   selected: currentSelection == 'Manage Users',
                   onTap: () => onSelected('Manage Users'),
                 ),
-
                 _NavTile(
                   icon: Icons.class_rounded,
                   label: 'Manage Classes',
                   selected: currentSelection == 'Manage Classes',
                   onTap: () => onSelected('Manage Classes'),
                 ),
-
                 _NavTile(
                   icon: Icons.bar_chart_rounded,
                   label: 'Performance',
                   selected: currentSelection == 'Performance',
                   onTap: () => onSelected('Performance'),
                 ),
-
                 _NavTile(
                   icon: Icons.assessment_rounded,
                   label: 'Reports',
@@ -439,19 +435,16 @@ class _SummaryRow extends StatelessWidget {
         value: '120',
         subtitle: 'All registered accounts',
       ),
-
       const _SmallStat(
         title: 'Teachers',
         value: '10',
         subtitle: 'Active teachers',
       ),
-
       const _SmallStat(
         title: 'Trainers',
         value: '5',
         subtitle: 'Industry trainers',
       ),
-
       const _SmallStat(
         title: 'Students',
         value: '105',
@@ -464,7 +457,7 @@ class _SummaryRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cards.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) =>
             SizedBox(width: 260, child: cards[index]),
       ),
@@ -796,7 +789,6 @@ class _QuickActionsCard extends StatelessWidget {
           _openCreateStaff(context, 'teacher');
         },
       ),
-
       _ActionItem(
         label: 'Create Trainer Account',
         icon: Icons.person_add_alt_1,
@@ -804,38 +796,28 @@ class _QuickActionsCard extends StatelessWidget {
           _openCreateStaff(context, 'trainer');
         },
       ),
-
       const _ActionItem(label: 'Create Class', icon: Icons.class_rounded),
-
       const _ActionItem(label: 'Generate Report', icon: Icons.insert_chart),
     ];
 
     return Container(
       padding: const EdgeInsets.all(16),
-
       decoration: BoxDecoration(
         color: Colors.white,
-
         borderRadius: BorderRadius.circular(12),
-
         border: Border.all(color: const Color(0xFFECECEC)),
       ),
-
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-
         children: [
           const Text(
             'Quick Actions',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
           ),
-
           const SizedBox(height: 12),
-
           ...actions.map(
             (a) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
-
               child: _ActionRow(action: a),
             ),
           ),

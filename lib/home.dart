@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:icteach/screens/student/module_view_page.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import 'login.dart';
@@ -76,7 +77,7 @@ class _HomePageState extends State<HomePage> {
                     index: _currentTabIndex,
                     children: [
                       _buildHomeContent(course),
-                      const Center(child: Text('Course Content')),
+                      _buildModulesContent(), // ✅ NEW: Modules tab
                       const Center(child: Text('Discussion Forums')),
                       _buildProgressContent(user.uid),
                       _buildProfileContent(profile, user),
@@ -241,8 +242,6 @@ class _HomePageState extends State<HomePage> {
         String className = 'No Class Joined';
         String schoolYear = '';
         String classId = '';
-        String teacherName = '';
-        String classCode = '';
 
         if (hasClass) {
           final doc = snapshot.data!.docs.first;
@@ -254,8 +253,6 @@ class _HomePageState extends State<HomePage> {
                 'Your Class';
             schoolYear = data['schoolYear']?.toString() ?? '';
             classId = data['classId']?.toString() ?? '';
-            teacherName = data['teacherName']?.toString() ?? '';
-            classCode = data['classCode']?.toString() ?? '';
           }
         }
 
@@ -431,6 +428,169 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ✅ NEW: Modules Tab Content
+  Widget _buildModulesContent() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return FutureBuilder<QuerySnapshot>(
+      future: user != null
+          ? FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .collection('classes')
+                .get()
+          : null,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+              ],
+            ),
+          );
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+
+        if (classDocs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.menu_book_outlined,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No Class Joined',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Join a class to access learning modules',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const JoinClassPage()),
+                    );
+                    if (result == true && mounted) {
+                      setState(() {});
+                    }
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Join a Class'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF428DEB),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Get the first (and only) class the student is enrolled in
+        final classDoc = classDocs.first;
+        final data = classDoc.data() as Map<String, dynamic>?;
+        final classId = data?['classId']?.toString() ?? '';
+        final className = data?['className']?.toString() ?? 'My Class';
+
+        // ✅ Navigate to Module View Page
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(40),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.menu_book_rounded,
+                        size: 80,
+                        color: Color(0xFF428DEB),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Learning Modules',
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Access your modules for $className',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ModuleViewPage(
+                                  classId: classId,
+                                  className: className,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.arrow_forward_rounded),
+                          label: const Text('View Modules'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF428DEB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildQuickAccessGrid() {
     final items = [
       _QuickAccessItem(
@@ -439,6 +599,12 @@ class _HomePageState extends State<HomePage> {
         subtitle: '5 modules',
         color: const Color(0xFF4F6DB8),
         bgColor: const Color(0xFFDCE6FF),
+        onTap: () {
+          // ✅ Navigate to Modules tab
+          setState(() {
+            _currentTabIndex = 1;
+          });
+        },
       ),
       _QuickAccessItem(
         icon: Icons.quiz_rounded,
@@ -896,9 +1062,7 @@ class _HomePageState extends State<HomePage> {
                       data['className']?.toString() ??
                       data['name']?.toString() ??
                       '';
-                  // ✅ FIXED: Get teacher name from the student's class data
-                  teacherName =
-                      data['teacherName']?.toString() ?? 'Unknown Teacher';
+                  teacherName = data['teacherName']?.toString() ?? '';
                   schoolYear = data['schoolYear']?.toString() ?? '';
                   classId = data['classId']?.toString() ?? '';
                 }
@@ -954,7 +1118,6 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // ✅ FIXED: Display teacher name properly
                       Row(
                         children: [
                           const Icon(
@@ -1062,7 +1225,11 @@ class _HomePageState extends State<HomePage> {
   Widget _buildBottomNavBar() {
     final items = [
       {'icon': Icons.home_outlined, 'label': 'Home', 'index': 0},
-      {'icon': Icons.menu_book_outlined, 'label': 'Course', 'index': 1},
+      {
+        'icon': Icons.menu_book_outlined,
+        'label': 'Modules',
+        'index': 1,
+      }, // ✅ Changed from 'Course' to 'Modules'
       {'icon': Icons.forum_outlined, 'label': 'Forum', 'index': 2},
       {'icon': Icons.bar_chart_rounded, 'label': 'Progress', 'index': 3},
       {'icon': Icons.person_outline_rounded, 'label': 'Profile', 'index': 4},
@@ -1167,12 +1334,14 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+// Quick Access Item
 class _QuickAccessItem extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final Color color;
   final Color bgColor;
+  final VoidCallback? onTap;
 
   const _QuickAccessItem({
     required this.icon,
@@ -1180,58 +1349,62 @@ class _QuickAccessItem extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.bgColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

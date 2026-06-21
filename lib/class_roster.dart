@@ -34,7 +34,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           .get();
 
       if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>?;
+        final data = doc.data();
         if (data != null) {
           setState(() {
             _classCode = data['classCode']?.toString() ?? '';
