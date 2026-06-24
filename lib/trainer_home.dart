@@ -300,10 +300,10 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseAuth.instance.currentUser != null
           ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(FirebaseAuth.instance.currentUser!.uid)
-                .collection('classes')
-                .get()
+              .collection('users')
+              .doc(FirebaseAuth.instance.currentUser!.uid)
+              .collection('classes')
+              .get()
           : null,
       builder: (context, snapshot) {
         final classCount = snapshot.data?.docs.length ?? 0;
@@ -599,12 +599,10 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                     if (hasClass) ...[
                       ...classDocs.map((doc) {
                         final data = doc.data() as Map<String, dynamic>? ?? {};
-                        final className =
-                            data['className']?.toString() ??
+                        final className = data['className']?.toString() ??
                             data['name']?.toString() ??
                             'Unnamed Class';
-                        final teacherName =
-                            data['teacherName']?.toString() ??
+                        final teacherName = data['teacherName']?.toString() ??
                             'Unknown Teacher';
                         final schoolYear = data['schoolYear']?.toString() ?? '';
                         final classId = data['classId']?.toString() ?? '';
@@ -732,7 +730,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                             ],
                           ),
                         );
-                      }).toList(),
+                      }),
                     ] else ...[
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),

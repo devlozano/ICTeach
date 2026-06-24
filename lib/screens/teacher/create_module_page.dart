@@ -27,7 +27,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
   bool _isLoading = false;
   bool _isPublished = false;
   int _order = 0;
-  List<String> _competencies = [];
+  final List<String> _competencies = [];
   bool _videoLinkValid = false;
   bool _fileLinkValid = false;
 
@@ -64,8 +64,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
 
   void _validateYoutubeLink() {
     final url = _youtubeLinkController.text.trim();
-    final isValid =
-        url.isNotEmpty &&
+    final isValid = url.isNotEmpty &&
         (url.contains('youtube.com/watch') ||
             url.contains('youtu.be/') ||
             url.contains('youtube.com/embed') ||
@@ -77,8 +76,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
 
   void _validateFileLink() {
     final url = _fileLinkController.text.trim();
-    final isValid =
-        url.isNotEmpty &&
+    final isValid = url.isNotEmpty &&
         (url.contains('drive.google.com') ||
             url.contains('docs.google.com') ||
             url.startsWith('https://'));
@@ -242,7 +240,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
             onChanged: (value) {
               setState(() => _isPublished = value);
             },
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
           ),
           const SizedBox(width: 8),
           const Text('Publish', style: TextStyle(color: Colors.white70)),

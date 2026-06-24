@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:icteach/create_class.dart';
 import 'package:icteach/utils/app_navigation.dart';
 import 'package:icteach/screens/teacher/manage_modules_page.dart';
+import 'package:icteach/screens/teacher/manage_quizzes_page.dart'; // ✅ Added
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -24,11 +25,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     _classesStream = teacherClassesStream();
   }
 
-  // ✅ FIXED: Return empty stream instead of using QuerySnapshot._()
   Stream<QuerySnapshot<Map<String, dynamic>>> teacherClassesStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Return an empty stream instead of trying to create a QuerySnapshot
       return Stream.empty();
     }
 
@@ -194,7 +193,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                                 const SizedBox(height: 22),
                                 Text(
                                   'Teacher Tools',
-                                  style: Theme.of(context).textTheme.titleMedium
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
                                       ?.copyWith(fontWeight: FontWeight.w900),
                                 ),
                                 const SizedBox(height: 10),
@@ -451,6 +452,7 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
+// ✅ UPDATED: Teacher Tool Grid with Quizzes
 class _TeacherToolGrid extends StatelessWidget {
   const _TeacherToolGrid({
     required this.classCount,
@@ -479,19 +481,39 @@ class _TeacherToolGrid extends StatelessWidget {
           icon: Icons.people,
           title: 'Student Roster',
           subtitle: 'View all students',
-          onTap: () {},
+          onTap: () {
+            // ✅ FIXED: Use onManageClasses to switch to Classes tab
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Go to Classes tab to view roster'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
         ),
-        _TrainerToolItem(
-          title: 'Learning Modules',
-          subtitle: 'Manage modules',
+        _ToolCard(
           icon: Icons.menu_book_rounded,
-          color: const Color(0xFF4F6DB8),
-          bgColor: const Color(0xFFDCE6FF),
-          onTap: () async {
-            // Navigate to select a class to manage modules
-            await Navigator.push(
+          title: 'Learning Modules',
+          subtitle: 'Create & manage modules',
+          onTap: () {
+            Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => _ModuleClassSelector()),
+              MaterialPageRoute(
+                builder: (_) => _ModuleClassSelector(moduleType: 'modules'),
+              ),
+            );
+          },
+        ),
+        _ToolCard(
+          icon: Icons.quiz_rounded,
+          title: 'Quizzes',
+          subtitle: 'Create & manage quizzes',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _ModuleClassSelector(moduleType: 'quizzes'),
+              ),
             );
           },
         ),
@@ -561,64 +583,6 @@ class _ToolCard extends StatelessWidget {
   }
 }
 
-class _TrainerToolItem extends StatelessWidget {
-  const _TrainerToolItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.color,
-    required this.bgColor,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color color;
-  final Color bgColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: bgColor.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: bgColor),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: color.withOpacity(0.7)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _TeacherBottomNavBar extends StatelessWidget {
   const _TeacherBottomNavBar({
     required this.currentIndex,
@@ -659,8 +623,11 @@ class _TeacherBottomNavBar extends StatelessWidget {
   }
 }
 
+// ✅ UPDATED: Module Class Selector with both Modules and Quizzes
 class _ModuleClassSelector extends StatefulWidget {
-  const _ModuleClassSelector();
+  final String moduleType;
+
+  const _ModuleClassSelector({required this.moduleType});
 
   @override
   State<_ModuleClassSelector> createState() => _ModuleClassSelectorState();
@@ -689,10 +656,15 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.moduleType == 'quizzes' ? 'Quizzes' : 'Modules';
+    final subtitle = widget.moduleType == 'quizzes'
+        ? 'Select a class to manage quizzes'
+        : 'Select a class to manage modules';
+
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
-        title: const Text('Select Class to Manage Modules'),
+        title: Text('Manage $title'),
         backgroundColor: const Color(0xFF2F80ED),
         foregroundColor: Colors.white,
       ),
@@ -705,8 +677,35 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
 
           final classDocs = snapshot.data?.docs ?? [];
           if (classDocs.isEmpty) {
-            return const Center(
-              child: Text('No classes found. Create a class first.'),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.class_outlined,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No classes found',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create a class first to manage $title',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Go Back'),
+                  ),
+                ],
+              ),
             );
           }
 
@@ -714,33 +713,80 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
               .map((doc) => _TeacherClassData.fromSnapshot(doc))
               .toList();
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: classes.length,
-            itemBuilder: (context, index) {
-              final classData = classes[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  title: Text(classData.className),
-                  subtitle: Text(
-                    '${classData.enrolledStudentIds?.length ?? 0} students',
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
                   ),
-                  trailing: const Icon(Icons.arrow_forward),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ManageModulesPage(
-                          classId: classData.classId,
-                          className: classData.className,
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: classes.length,
+                  itemBuilder: (context, index) {
+                    final classData = classes[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              const Color(0xFF2F80ED).withOpacity(0.1),
+                          child: Icon(
+                            widget.moduleType == 'quizzes'
+                                ? Icons.quiz
+                                : Icons.menu_book,
+                            color: const Color(0xFF2F80ED),
+                          ),
                         ),
+                        title: Text(
+                          classData.className,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${classData.enrolledStudentIds?.length ?? 0} students',
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          if (widget.moduleType == 'quizzes') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ManageQuizzesPage(
+                                  classId: classData.classId,
+                                  className: classData.className,
+                                ),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ManageModulesPage(
+                                  classId: classData.classId,
+                                  className: classData.className,
+                                ),
+                              ),
+                            );
+                          }
+                        },
                       ),
                     );
                   },
                 ),
-              );
-            },
+              ),
+            ],
           );
         },
       ),

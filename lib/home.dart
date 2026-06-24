@@ -2,9 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/screens/student/module_view_page.dart';
+import 'package:icteach/screens/student/student_quizzes_page.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import 'login.dart';
+import '../../services/quiz_service.dart'; // ✅ ADD THIS IMPORT
+import '../../models/quiz_model.dart'; // ✅ ADD THIS IMPORT
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,6 +18,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentTabIndex = 0;
+  String? _classId;
+  String? _className;
+  final QuizService _quizService = QuizService(); // ✅ ADD THIS LINE
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -61,33 +67,51 @@ class _HomePageState extends State<HomePage> {
       builder: (context, snapshot) {
         final profile = snapshot.data?.data();
         final fullName = _getFullName(profile);
-        final course =
-            profile?['course'] as String? ??
+        final course = profile?['course'] as String? ??
             'CSS NC II - Computer System Servicing';
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
-          body: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                _buildHeader(fullName, user.photoURL),
-                Expanded(
-                  child: IndexedStack(
-                    index: _currentTabIndex,
-                    children: [
-                      _buildHomeContent(course),
-                      _buildModulesContent(), // ✅ NEW: Modules tab
-                      const Center(child: Text('Discussion Forums')),
-                      _buildProgressContent(user.uid),
-                      _buildProfileContent(profile, user),
-                    ],
-                  ),
+        // Get class info for navigation
+        return FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('classes')
+              .get(),
+          builder: (context, classSnapshot) {
+            if (classSnapshot.hasData && classSnapshot.data!.docs.isNotEmpty) {
+              final doc = classSnapshot.data!.docs.first;
+              final data = doc.data() as Map<String, dynamic>?;
+              if (data != null) {
+                _classId = data['classId']?.toString() ?? '';
+                _className = data['className']?.toString() ?? 'My Class';
+              }
+            }
+
+            return Scaffold(
+              backgroundColor: const Color(0xFFF5F7FA),
+              body: SafeArea(
+                top: false,
+                child: Column(
+                  children: [
+                    _buildHeader(fullName, user.photoURL),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _currentTabIndex,
+                        children: [
+                          _buildHomeContent(course),
+                          _buildModulesContent(),
+                          const Center(child: Text('Discussion Forums')),
+                          _buildProgressContent(user.uid),
+                          _buildProfileContent(profile, user),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          bottomNavigationBar: _buildBottomNavBar(),
+              ),
+              bottomNavigationBar: _buildBottomNavBar(),
+            );
+          },
         );
       },
     );
@@ -231,10 +255,10 @@ class _HomePageState extends State<HomePage> {
     return FutureBuilder<QuerySnapshot>(
       future: user != null
           ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('classes')
-                .get()
+              .collection('users')
+              .doc(user.uid)
+              .collection('classes')
+              .get()
           : null,
       builder: (context, snapshot) {
         final hasClass = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
@@ -247,8 +271,7 @@ class _HomePageState extends State<HomePage> {
           final doc = snapshot.data!.docs.first;
           final data = doc.data() as Map<String, dynamic>?;
           if (data != null) {
-            className =
-                data['className']?.toString() ??
+            className = data['className']?.toString() ??
                 data['name']?.toString() ??
                 'Your Class';
             schoolYear = data['schoolYear']?.toString() ?? '';
@@ -428,17 +451,17 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ NEW: Modules Tab Content
+  // ✅ Modules Tab Content
   Widget _buildModulesContent() {
     final user = FirebaseAuth.instance.currentUser;
 
     return FutureBuilder<QuerySnapshot>(
       future: user != null
           ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('classes')
-                .get()
+              .collection('users')
+              .doc(user.uid)
+              .collection('classes')
+              .get()
           : null,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -503,13 +526,11 @@ class _HomePageState extends State<HomePage> {
           );
         }
 
-        // Get the first (and only) class the student is enrolled in
         final classDoc = classDocs.first;
         final data = classDoc.data() as Map<String, dynamic>?;
         final classId = data?['classId']?.toString() ?? '';
         final className = data?['className']?.toString() ?? 'My Class';
 
-        // ✅ Navigate to Module View Page
         return Center(
           child: Padding(
             padding: const EdgeInsets.all(20.0),
@@ -591,6 +612,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ✅ Updated Quick Access Grid with Quizzes
   Widget _buildQuickAccessGrid() {
     final items = [
       _QuickAccessItem(
@@ -600,18 +622,38 @@ class _HomePageState extends State<HomePage> {
         color: const Color(0xFF4F6DB8),
         bgColor: const Color(0xFFDCE6FF),
         onTap: () {
-          // ✅ Navigate to Modules tab
           setState(() {
             _currentTabIndex = 1;
           });
         },
       ),
+      // ✅ Updated: Quizzes with onTap
       _QuickAccessItem(
         icon: Icons.quiz_rounded,
         title: 'Quizzes',
-        subtitle: '3 Available • Practice Mode',
+        subtitle: 'Available • Practice Mode',
         color: const Color(0xFF9C4FA1),
         bgColor: const Color(0xFFE9C4EB),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentQuizzesPage(
+                  classId: _classId!,
+                  className: _className ?? 'My Class',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please join a class first to access quizzes'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
       ),
       _QuickAccessItem(
         icon: Icons.assignment_rounded,
@@ -657,6 +699,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ✅ Updated Progress Content with QuizService
   Widget _buildProgressContent(String userId) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -668,52 +711,145 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildProgressStat('Modules', '2/10', '20%'),
-                    _buildProgressStat('Quizzes', '3/8', '37.5%'),
-                    _buildProgressStat('Assignments', '2/5', '40%'),
+
+          // ✅ Progress Stats with Quiz Scores
+          FutureBuilder<List<QuizResult>>(
+            future: _quizService.getStudentQuizResults(userId),
+            builder: (context, quizSnapshot) {
+              final quizResults = quizSnapshot.data ?? [];
+              final quizCount = quizResults.length;
+              final avgScore = quizCount > 0
+                  ? quizResults.fold<double>(
+                          0, (sum, r) => sum + r.percentage) /
+                      quizCount
+                  : 0;
+
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
                 ),
-                const Divider(height: 24),
-                const Text(
-                  'Overall Progress: 32%',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF428DEB),
-                  ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildProgressStat('Modules', '2/10', '20%'),
+                        _buildProgressStat(
+                            'Quizzes',
+                            '$quizCount/${quizCount + 5}',
+                            quizCount > 0
+                                ? '${avgScore.toStringAsFixed(0)}%'
+                                : '0%'),
+                        _buildProgressStat('Assignments', '2/5', '40%'),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    const Text(
+                      'Overall Progress: 32%',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF428DEB),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: LinearProgressIndicator(
+                        minHeight: 12,
+                        value: 0.32,
+                        color: const Color(0xFF428DEB),
+                        backgroundColor: const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: LinearProgressIndicator(
-                    minHeight: 12,
-                    value: 0.32,
-                    color: const Color(0xFF428DEB),
-                    backgroundColor: const Color(0xFFE5E7EB),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: 16),
+
+          // ✅ Quiz Results List
+          FutureBuilder<List<QuizResult>>(
+            future: _quizService.getStudentQuizResults(userId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final results = snapshot.data ?? [];
+              if (results.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.quiz_outlined, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text(
+                        'No quizzes taken yet',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Quiz Results',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...results.map((result) => _buildQuizResultTile(result)),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
+          // Leaderboard
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -736,17 +872,13 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(width: 8),
                     const Text(
                       'Leaderboard',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
+                          horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.amber.shade100,
                         borderRadius: BorderRadius.circular(12),
@@ -765,21 +897,15 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 12),
                 _buildLeaderboardItem('1', 'Juan Dela Cruz', 95, Colors.amber),
                 _buildLeaderboardItem(
-                  '2',
-                  'Maria Santos',
-                  88,
-                  Colors.grey.shade600,
-                ),
+                    '2', 'Maria Santos', 88, Colors.grey.shade600),
                 _buildLeaderboardItem(
-                  '3',
-                  'Jose Garcia',
-                  82,
-                  Colors.brown.shade400,
-                ),
+                    '3', 'Jose Garcia', 82, Colors.brown.shade400),
               ],
             ),
           ),
           const SizedBox(height: 16),
+
+          // Achievements
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -806,28 +932,86 @@ class _HomePageState extends State<HomePage> {
                   runSpacing: 12,
                   children: [
                     _buildAchievementBadge(
-                      '🏆',
-                      'First Quiz',
-                      'Completed your first quiz',
-                    ),
+                        '🏆', 'First Quiz', 'Completed your first quiz'),
                     _buildAchievementBadge(
-                      '⭐',
-                      'Module Master',
-                      'Completed 3 modules',
-                    ),
+                        '⭐', 'Module Master', 'Completed 3 modules'),
                     _buildAchievementBadge(
-                      '🎯',
-                      'Perfect Score',
-                      'Got 100% on a quiz',
-                    ),
+                        '🎯', 'Perfect Score', 'Got 100% on a quiz'),
                     _buildAchievementBadge(
-                      '🔧',
-                      'Tech Explorer',
-                      'Completed 2 simulations',
-                    ),
+                        '🔧', 'Tech Explorer', 'Completed 2 simulations'),
                   ],
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Helper: Build Quiz Result Tile
+  Widget _buildQuizResultTile(QuizResult result) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color:
+                  result.isPassed ? Colors.green.shade100 : Colors.red.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              result.isPassed ? Icons.check_circle : Icons.cancel,
+              color: result.isPassed ? Colors.green : Colors.red,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Quiz #${result.quizId.substring(0, 8)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  'Score: ${result.score}/${result.totalPoints} (${result.percentage.toStringAsFixed(0)}%)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color:
+                  result.isPassed ? Colors.green.shade100 : Colors.red.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              result.isPassed ? 'Passed' : 'Failed',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: result.isPassed
+                    ? Colors.green.shade800
+                    : Colors.red.shade800,
+              ),
             ),
           ),
         ],
@@ -1058,8 +1242,7 @@ class _HomePageState extends State<HomePage> {
                 final doc = snapshot.data!.docs.first;
                 final data = doc.data() as Map<String, dynamic>?;
                 if (data != null) {
-                  className =
-                      data['className']?.toString() ??
+                  className = data['className']?.toString() ??
                       data['name']?.toString() ??
                       '';
                   teacherName = data['teacherName']?.toString() ?? '';
@@ -1229,7 +1412,7 @@ class _HomePageState extends State<HomePage> {
         'icon': Icons.menu_book_outlined,
         'label': 'Modules',
         'index': 1,
-      }, // ✅ Changed from 'Course' to 'Modules'
+      },
       {'icon': Icons.forum_outlined, 'label': 'Forum', 'index': 2},
       {'icon': Icons.bar_chart_rounded, 'label': 'Progress', 'index': 3},
       {'icon': Icons.person_outline_rounded, 'label': 'Profile', 'index': 4},
@@ -1274,9 +1457,8 @@ class _HomePageState extends State<HomePage> {
                           ? const Color(0xFF428DEB)
                           : Colors.grey.shade600,
                       fontSize: 11,
-                      fontWeight: isSelected
-                          ? FontWeight.w700
-                          : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                   if (isSelected)
@@ -1334,7 +1516,6 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// Quick Access Item
 class _QuickAccessItem extends StatelessWidget {
   final IconData icon;
   final String title;
