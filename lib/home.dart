@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/screens/student/module_view_page.dart';
+import 'package:icteach/screens/student/student_assignments_page.dart';
 import 'package:icteach/screens/student/student_quizzes_page.dart';
 import 'package:icteach/screens/student/instructional_videos_page.dart';
 import 'join_class.dart';
@@ -584,12 +585,34 @@ class _HomePageState extends State<HomePage> {
           }
         },
       ),
+// Add this to the quick access items
       _QuickAccessItem(
         icon: Icons.assignment_rounded,
         title: 'Assignments',
-        subtitle: '2 Pending',
+        subtitle: 'View assignments',
         color: const Color(0xFFE76C31),
         bgColor: const Color(0xFFFFD7C2),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentAssignmentsPage(
+                  classId: _classId!,
+                  className: _className ?? 'My Class',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Please join a class first to access assignments'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
       ),
       _QuickAccessItem(
         icon: Icons.science_rounded,

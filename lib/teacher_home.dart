@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/create_class.dart';
+import 'package:icteach/screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/utils/app_navigation.dart';
 import 'package:icteach/screens/teacher/manage_modules_page.dart';
 import 'package:icteach/screens/teacher/manage_quizzes_page.dart'; // ✅ Added
@@ -504,6 +505,21 @@ class _TeacherToolGrid extends StatelessWidget {
             );
           },
         ),
+        // Add this to the tools grid
+        _ToolCard(
+          icon: Icons.assignment_rounded,
+          title: 'Assignments',
+          subtitle: 'Create & manage',
+          onTap: () {
+            // Navigate to class selector for assignments
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _ModuleClassSelector(moduleType: 'assignments'),
+              ),
+            );
+          },
+        ),
         _ToolCard(
           icon: Icons.quiz_rounded,
           title: 'Quizzes',
@@ -623,7 +639,6 @@ class _TeacherBottomNavBar extends StatelessWidget {
   }
 }
 
-// ✅ UPDATED: Module Class Selector with both Modules and Quizzes
 class _ModuleClassSelector extends StatefulWidget {
   final String moduleType;
 
@@ -656,10 +671,16 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.moduleType == 'quizzes' ? 'Quizzes' : 'Modules';
+    final title = widget.moduleType == 'quizzes'
+        ? 'Quizzes'
+        : widget.moduleType == 'assignments'
+            ? 'Assignments' // ✅ Added this
+            : 'Modules';
     final subtitle = widget.moduleType == 'quizzes'
         ? 'Select a class to manage quizzes'
-        : 'Select a class to manage modules';
+        : widget.moduleType == 'assignments'
+            ? 'Select a class to manage assignments'
+            : 'Select a class to manage modules';
 
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
@@ -741,10 +762,13 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                         leading: CircleAvatar(
                           backgroundColor:
                               const Color(0xFF2F80ED).withOpacity(0.1),
-                          child: Icon(
+                          child: // Update the icon selection
+                              Icon(
                             widget.moduleType == 'quizzes'
                                 ? Icons.quiz
-                                : Icons.menu_book,
+                                : widget.moduleType == 'assignments'
+                                    ? Icons.assignment // ✅ Added this
+                                    : Icons.menu_book,
                             color: const Color(0xFF2F80ED),
                           ),
                         ),
@@ -759,11 +783,23 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
+                          // ✅ FIXED: Navigate to the correct page based on moduleType
                           if (widget.moduleType == 'quizzes') {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ManageQuizzesPage(
+                                  classId: classData.classId,
+                                  className: classData.className,
+                                ),
+                              ),
+                            );
+                          } else if (widget.moduleType == 'assignments') {
+                            // ✅ NEW: Navigate to ManageAssignmentsPage
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ManageAssignmentsPage(
                                   classId: classData.classId,
                                   className: classData.className,
                                 ),

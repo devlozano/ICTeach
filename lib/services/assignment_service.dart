@@ -5,22 +5,23 @@ import '../models/assignment_model.dart';
 class AssignmentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get all assignments for a class
+  // Get all assignments for a class (sorted in memory)
   Stream<List<AssignmentModel>> getAssignmentsForClass(String classId) {
     return _firestore
         .collection('classes')
         .doc(classId)
         .collection('assignments')
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final assignments = snapshot.docs
           .map((doc) => AssignmentModel.fromFirestore(doc))
           .toList();
+      assignments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return assignments;
     });
   }
 
-  // Get published assignments for students
+  // ✅ FIXED: Get published assignments for students (no orderBy, sort in memory)
   Stream<List<AssignmentModel>> getPublishedAssignmentsForClass(
       String classId) {
     return _firestore
@@ -28,12 +29,14 @@ class AssignmentService {
         .doc(classId)
         .collection('assignments')
         .where('isPublished', isEqualTo: true)
-        .orderBy('dueDate')
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
+      final assignments = snapshot.docs
           .map((doc) => AssignmentModel.fromFirestore(doc))
           .toList();
+      // ✅ Sort in memory by dueDate
+      assignments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+      return assignments;
     });
   }
 
@@ -90,9 +93,8 @@ class AssignmentService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    // Store in a separate submissions collection for easier querying
     await _firestore
-        .collection('classes')
-        .doc(submission.assignmentId) // We'll need to store classId separately
         .collection('submissions')
         .doc('${submission.assignmentId}_${user.uid}')
         .set(submission.toFirestore());
