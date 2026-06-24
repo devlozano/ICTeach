@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.icteach"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -30,9 +30,9 @@ android {
 
     defaultConfig {
         applicationId = "com.example.icteach"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode.toInt()   // ✅ toInt() not toInteger()
+        minSdk = flutter.minSdkVersion  // ✅ Set explicitly
+        targetSdk = 36  // ✅ Set to 36 (not flutter.targetSdkVersion)
+        versionCode = flutter.versionCode.toInt()
         versionName = flutter.versionName
     }
 

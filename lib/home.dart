@@ -3,11 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/screens/student/module_view_page.dart';
 import 'package:icteach/screens/student/student_quizzes_page.dart';
+import 'package:icteach/screens/student/instructional_videos_page.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import 'login.dart';
-import '../../services/quiz_service.dart'; // ✅ ADD THIS IMPORT
-import '../../models/quiz_model.dart'; // ✅ ADD THIS IMPORT
+import '../../services/quiz_service.dart';
+import '../../models/quiz_model.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,7 +21,7 @@ class _HomePageState extends State<HomePage> {
   int _currentTabIndex = 0;
   String? _classId;
   String? _className;
-  final QuizService _quizService = QuizService(); // ✅ ADD THIS LINE
+  final QuizService _quizService = QuizService();
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -84,6 +85,8 @@ class _HomePageState extends State<HomePage> {
               if (data != null) {
                 _classId = data['classId']?.toString() ?? '';
                 _className = data['className']?.toString() ?? 'My Class';
+
+                // ✅ Store class info for video access
               }
             }
 
@@ -451,7 +454,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ Modules Tab Content
+  // ✅ Modules Tab Content - Goes DIRECTLY to ModuleViewPage
   Widget _buildModulesContent() {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -531,88 +534,15 @@ class _HomePageState extends State<HomePage> {
         final classId = data?['classId']?.toString() ?? '';
         final className = data?['className']?.toString() ?? 'My Class';
 
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(40),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.menu_book_rounded,
-                        size: 80,
-                        color: Color(0xFF428DEB),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Learning Modules',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Access your modules for $className',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ModuleViewPage(
-                                  classId: classId,
-                                  className: className,
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_forward_rounded),
-                          label: const Text('View Modules'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF428DEB),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+        return ModuleViewPage(
+          classId: classId,
+          className: className,
         );
       },
     );
   }
 
-  // ✅ Updated Quick Access Grid with Quizzes
+  // ✅ Updated Quick Access Grid with Instructional Videos
   Widget _buildQuickAccessGrid() {
     final items = [
       _QuickAccessItem(
@@ -627,7 +557,6 @@ class _HomePageState extends State<HomePage> {
           });
         },
       ),
-      // ✅ Updated: Quizzes with onTap
       _QuickAccessItem(
         icon: Icons.quiz_rounded,
         title: 'Quizzes',
@@ -669,12 +598,26 @@ class _HomePageState extends State<HomePage> {
         color: const Color(0xFF168D92),
         bgColor: const Color(0xFFA6F4F5),
       ),
+      // ✅ NEW: Instructional Videos - Now accessible from home
       _QuickAccessItem(
         icon: Icons.video_library_rounded,
         title: 'Instructional Videos',
         subtitle: '2 New',
         color: const Color(0xFFD97847),
         bgColor: const Color(0xFFFFCFB1),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            // Fetch the first module's video or show a list
+            _navigateToInstructionalVideos(context);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please join a class first to access videos'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
       ),
       _QuickAccessItem(
         icon: Icons.forum_rounded,
@@ -696,6 +639,32 @@ class _HomePageState extends State<HomePage> {
         mainAxisSpacing: 14,
       ),
       itemBuilder: (context, index) => items[index],
+    );
+  }
+
+  // ✅ Navigate to Instructional Videos
+  // ✅ Updated: Navigate to Instructional Videos
+  Future<void> _navigateToInstructionalVideos(BuildContext context) async {
+    if (_classId == null || _classId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please join a class first to access videos'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // ✅ Navigate directly to InstructionalVideosPage
+    // The page will handle loading videos itself
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => InstructionalVideosPage(
+          classId: _classId,
+          className: _className,
+        ),
+      ),
     );
   }
 
