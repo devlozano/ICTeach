@@ -2,10 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:icteach/create_class.dart';
-import 'package:icteach/screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/utils/app_navigation.dart';
 import 'package:icteach/screens/teacher/manage_modules_page.dart';
-import 'package:icteach/screens/teacher/manage_quizzes_page.dart'; // ✅ Added
+import 'package:icteach/screens/teacher/manage_quizzes_page.dart';
+import 'package:icteach/screens/teacher/manage_assignments_page.dart';
+import 'package:icteach/screens/student/forums_page.dart'; // ✅ Added
+import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
+import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -347,6 +350,25 @@ class _TeacherHeader extends StatelessWidget {
               ],
             ),
           ),
+          // ✅ ADD NOTIFICATION BADGE HERE
+          NotificationBadge(
+            child: IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationPage(),
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+              tooltip: 'Notifications',
+            ),
+          ),
           IconButton(
             onPressed: onLogout,
             icon: const Icon(
@@ -453,7 +475,7 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-// ✅ UPDATED: Teacher Tool Grid with Quizzes
+// ✅ UPDATED: Teacher Tool Grid with Forums
 class _TeacherToolGrid extends StatelessWidget {
   const _TeacherToolGrid({
     required this.classCount,
@@ -483,7 +505,7 @@ class _TeacherToolGrid extends StatelessWidget {
           title: 'Student Roster',
           subtitle: 'View all students',
           onTap: () {
-            // ✅ FIXED: Use onManageClasses to switch to Classes tab
+            // Navigate to Classes tab
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Go to Classes tab to view roster'),
@@ -505,21 +527,6 @@ class _TeacherToolGrid extends StatelessWidget {
             );
           },
         ),
-        // Add this to the tools grid
-        _ToolCard(
-          icon: Icons.assignment_rounded,
-          title: 'Assignments',
-          subtitle: 'Create & manage',
-          onTap: () {
-            // Navigate to class selector for assignments
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ModuleClassSelector(moduleType: 'assignments'),
-              ),
-            );
-          },
-        ),
         _ToolCard(
           icon: Icons.quiz_rounded,
           title: 'Quizzes',
@@ -534,16 +541,31 @@ class _TeacherToolGrid extends StatelessWidget {
           },
         ),
         _ToolCard(
-          icon: Icons.assessment,
-          title: 'Assessments',
+          icon: Icons.assignment_rounded,
+          title: 'Assignments',
           subtitle: 'Create & manage',
-          onTap: () {},
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _ModuleClassSelector(moduleType: 'assignments'),
+              ),
+            );
+          },
         ),
+        // ✅ NEW: Forum Tool Card
         _ToolCard(
-          icon: Icons.bar_chart,
-          title: 'Analytics',
-          subtitle: 'Performance data',
-          onTap: () {},
+          icon: Icons.forum_rounded,
+          title: 'Forums',
+          subtitle: 'Manage discussions',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _ModuleClassSelector(moduleType: 'forums'),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -639,6 +661,7 @@ class _TeacherBottomNavBar extends StatelessWidget {
   }
 }
 
+// ✅ UPDATED: Module Class Selector with Forums Support
 class _ModuleClassSelector extends StatefulWidget {
   final String moduleType;
 
@@ -671,16 +694,32 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ UPDATED: Title based on module type
     final title = widget.moduleType == 'quizzes'
         ? 'Quizzes'
         : widget.moduleType == 'assignments'
-            ? 'Assignments' // ✅ Added this
-            : 'Modules';
+            ? 'Assignments'
+            : widget.moduleType == 'forums' // ✅ Added forums
+                ? 'Forums'
+                : 'Modules';
+
+    // ✅ UPDATED: Subtitle based on module type
     final subtitle = widget.moduleType == 'quizzes'
         ? 'Select a class to manage quizzes'
         : widget.moduleType == 'assignments'
             ? 'Select a class to manage assignments'
-            : 'Select a class to manage modules';
+            : widget.moduleType == 'forums' // ✅ Added forums
+                ? 'Select a class to manage discussions'
+                : 'Select a class to manage modules';
+
+    // ✅ UPDATED: Icon based on module type
+    final icon = widget.moduleType == 'quizzes'
+        ? Icons.quiz
+        : widget.moduleType == 'assignments'
+            ? Icons.assignment
+            : widget.moduleType == 'forums' // ✅ Added forums
+                ? Icons.forum
+                : Icons.menu_book;
 
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
@@ -762,13 +801,8 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                         leading: CircleAvatar(
                           backgroundColor:
                               const Color(0xFF2F80ED).withOpacity(0.1),
-                          child: // Update the icon selection
-                              Icon(
-                            widget.moduleType == 'quizzes'
-                                ? Icons.quiz
-                                : widget.moduleType == 'assignments'
-                                    ? Icons.assignment // ✅ Added this
-                                    : Icons.menu_book,
+                          child: Icon(
+                            icon, // ✅ Now uses dynamic icon
                             color: const Color(0xFF2F80ED),
                           ),
                         ),
@@ -783,7 +817,7 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
-                          // ✅ FIXED: Navigate to the correct page based on moduleType
+                          // ✅ UPDATED: Navigate to the correct page based on moduleType
                           if (widget.moduleType == 'quizzes') {
                             Navigator.push(
                               context,
@@ -795,11 +829,21 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                               ),
                             );
                           } else if (widget.moduleType == 'assignments') {
-                            // ✅ NEW: Navigate to ManageAssignmentsPage
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ManageAssignmentsPage(
+                                  classId: classData.classId,
+                                  className: classData.className,
+                                ),
+                              ),
+                            );
+                          } else if (widget.moduleType == 'forums') {
+                            // ✅ NEW: Navigate to ForumsPage
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ForumsPage(
                                   classId: classData.classId,
                                   className: classData.className,
                                 ),

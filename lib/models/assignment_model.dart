@@ -78,13 +78,14 @@ class AssignmentModel {
   }
 }
 
-// Assignment Submission Model
+// Assignment Submission Model with Rich Text Support
 class AssignmentSubmission {
   final String id;
   final String assignmentId;
   final String studentId;
   final String studentName;
-  final String content;
+  final String content; // Plain text for preview/search
+  final dynamic richContent; // Rich text JSON from quill editor
   final String? attachmentUrl;
   final int score;
   final String? feedback;
@@ -97,6 +98,7 @@ class AssignmentSubmission {
     required this.studentId,
     required this.studentName,
     required this.content,
+    this.richContent,
     this.attachmentUrl,
     required this.score,
     this.feedback,
@@ -114,6 +116,7 @@ class AssignmentSubmission {
       studentId: data['studentId'] ?? '',
       studentName: data['studentName'] ?? 'Student',
       content: data['content'] ?? '',
+      richContent: data['richContent'], // Store rich text JSON
       attachmentUrl: data['attachmentUrl'],
       score: data['score'] ?? 0,
       feedback: data['feedback'],
@@ -129,6 +132,7 @@ class AssignmentSubmission {
       'studentId': studentId,
       'studentName': studentName,
       'content': content,
+      'richContent': richContent, // Save rich text data
       'attachmentUrl': attachmentUrl,
       'score': score,
       'feedback': feedback,
@@ -143,6 +147,7 @@ class AssignmentSubmission {
     String? studentId,
     String? studentName,
     String? content,
+    dynamic richContent,
     String? attachmentUrl,
     int? score,
     String? feedback,
@@ -155,6 +160,7 @@ class AssignmentSubmission {
       studentId: studentId ?? this.studentId,
       studentName: studentName ?? this.studentName,
       content: content ?? this.content,
+      richContent: richContent ?? this.richContent,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       score: score ?? this.score,
       feedback: feedback ?? this.feedback,
@@ -162,4 +168,21 @@ class AssignmentSubmission {
       isGraded: isGraded ?? this.isGraded,
     );
   }
+
+  // Helper method to get plain text from rich content
+  String get plainText {
+    if (richContent != null) {
+      try {
+        // If richContent is stored as JSON, convert to plain text
+        // This is a simplified version - you may need to implement proper conversion
+        return content;
+      } catch (e) {
+        return content;
+      }
+    }
+    return content;
+  }
+
+  // Helper to check if submission has rich content
+  bool get hasRichContent => richContent != null;
 }

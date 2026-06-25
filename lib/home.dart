@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:icteach/screens/student/forums_page.dart';
 import 'package:icteach/screens/student/module_view_page.dart';
 import 'package:icteach/screens/student/student_assignments_page.dart';
 import 'package:icteach/screens/student/student_quizzes_page.dart';
 import 'package:icteach/screens/student/instructional_videos_page.dart';
+import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
+import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import 'login.dart';
@@ -175,6 +178,25 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
+            ),
+          ),
+          // ✅ ADD NOTIFICATION BADGE HERE
+          NotificationBadge(
+            child: IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationPage(),
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+              tooltip: 'Notifications',
             ),
           ),
           IconButton(
@@ -642,12 +664,33 @@ class _HomePageState extends State<HomePage> {
           }
         },
       ),
+// In _buildQuickAccessGrid() method
       _QuickAccessItem(
         icon: Icons.forum_rounded,
         title: 'Discussion Forums',
         subtitle: 'Ask & Discuss',
         color: const Color(0xFF249A38),
         bgColor: const Color(0xFFC9F2CE),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForumsPage(
+                  classId: _classId!,
+                  className: _className ?? 'My Class',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please join a class first to access forums'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
       ),
     ];
 

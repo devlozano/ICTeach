@@ -21,7 +21,7 @@ class AssignmentService {
     });
   }
 
-  // ✅ FIXED: Get published assignments for students (no orderBy, sort in memory)
+  // Get published assignments for students
   Stream<List<AssignmentModel>> getPublishedAssignmentsForClass(
       String classId) {
     return _firestore
@@ -34,7 +34,6 @@ class AssignmentService {
       final assignments = snapshot.docs
           .map((doc) => AssignmentModel.fromFirestore(doc))
           .toList();
-      // ✅ Sort in memory by dueDate
       assignments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
       return assignments;
     });
@@ -93,7 +92,6 @@ class AssignmentService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Store in a separate submissions collection for easier querying
     await _firestore
         .collection('submissions')
         .doc('${submission.assignmentId}_${user.uid}')
@@ -118,18 +116,22 @@ class AssignmentService {
     return null;
   }
 
-  // Get all submissions for an assignment (teacher view)
+  // ✅ FIXED: Get all submissions for an assignment (teacher view) - no index needed
   Future<List<AssignmentSubmission>> getSubmissionsForAssignment(
       String assignmentId) async {
     final snapshot = await _firestore
         .collection('submissions')
         .where('assignmentId', isEqualTo: assignmentId)
-        .orderBy('submittedAt', descending: true)
         .get();
 
-    return snapshot.docs
+    final submissions = snapshot.docs
         .map((doc) => AssignmentSubmission.fromFirestore(doc))
         .toList();
+
+    // Sort in memory by submittedAt (descending)
+    submissions.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+
+    return submissions;
   }
 
   // Grade a submission

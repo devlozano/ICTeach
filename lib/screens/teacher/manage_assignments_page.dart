@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
 import 'create_assignment_page.dart';
+import 'assignment_submissions_page.dart';
 
 class ManageAssignmentsPage extends StatefulWidget {
   final String classId;
@@ -231,12 +232,20 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
   }
 
   void _viewSubmissions(AssignmentModel assignment) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Submissions view coming soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AssignmentSubmissionsPage(
+          classId: widget.classId,
+          assignmentId: assignment.id,
+          assignmentTitle: assignment.title,
+        ),
+      ),
     );
   }
 }
 
+// ✅ FIXED: Assignment Card with no overflow
 class _AssignmentCard extends StatelessWidget {
   final AssignmentModel assignment;
   final VoidCallback onEdit;
@@ -255,6 +264,8 @@ class _AssignmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final daysLeft = assignment.dueDate.difference(DateTime.now()).inDays;
+    final isOverdue = daysLeft < 0;
+    final isDueSoon = daysLeft >= 0 && daysLeft <= 2;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -292,60 +303,93 @@ class _AssignmentCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      assignment.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            assignment.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // ✅ FIXED: Status badge moved next to title
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: assignment.isPublished
+                                ? Colors.green.shade100
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            assignment.isPublished ? 'Published' : 'Draft',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: assignment.isPublished
+                                  ? Colors.green.shade800
+                                  : Colors.amber.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     Row(
                       children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 12,
+                          color: isOverdue ? Colors.red : Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
                         Text(
                           'Due: ${assignment.dueDate.day}/${assignment.dueDate.month}/${assignment.dueDate.year}',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: daysLeft < 0
-                                ? Colors.red
-                                : Colors.grey.shade600,
+                            fontSize: 12,
+                            color:
+                                isOverdue ? Colors.red : Colors.grey.shade600,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        if (daysLeft >= 0)
+                        if (!isOverdue) ...[
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: daysLeft <= 2
+                              color: isDueSoon
                                   ? Colors.orange.shade100
                                   : Colors.green.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               '$daysLeft days left',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.w600,
-                                color: daysLeft <= 2
+                                color: isDueSoon
                                     ? Colors.orange.shade800
                                     : Colors.green.shade800,
                               ),
                             ),
                           ),
-                        if (daysLeft < 0)
+                        ],
+                        if (isOverdue)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: Colors.red.shade100,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               'Overdue',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.red.shade800,
                               ),
@@ -356,79 +400,78 @@ class _AssignmentCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: assignment.isPublished
-                      ? Colors.green.shade100
-                      : Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  assignment.isPublished ? 'Published' : 'Draft',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: assignment.isPublished
-                        ? Colors.green.shade800
-                        : Colors.amber.shade800,
-                  ),
-                ),
-              ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            assignment.description,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey.shade600,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 12),
+          // ✅ FIXED: Wrapped in Row with proper spacing
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'Max Score: ${assignment.maxScore}',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: 12,
                   color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
+              // ✅ FIXED: Action buttons with smaller size
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
                     onPressed: onViewSubmissions,
-                    icon: const Icon(Icons.assessment, size: 20),
+                    icon: const Icon(Icons.assessment, size: 18),
                     tooltip: 'View Submissions',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onTogglePublish,
                     icon: Icon(
                       assignment.isPublished
                           ? Icons.visibility
                           : Icons.visibility_off,
-                      size: 20,
+                      size: 18,
                       color:
                           assignment.isPublished ? Colors.green : Colors.grey,
                     ),
                     tooltip: assignment.isPublished ? 'Unpublish' : 'Publish',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
                     tooltip: 'Edit',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline, size: 20),
+                    icon: const Icon(Icons.delete_outline, size: 18),
                     tooltip: 'Delete',
                     color: Colors.red,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 28, minHeight: 28),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),

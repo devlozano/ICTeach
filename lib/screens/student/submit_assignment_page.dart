@@ -126,10 +126,24 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
   }
 
   Future<void> _submitAssignment() async {
-    if (_contentController.text.trim().isEmpty && _uploadedFileUrl == null) {
+    // Check if content is provided
+    final content = _contentController.text.trim();
+    if (content.isEmpty && _uploadedFileUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please provide content or upload a file'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Check minimum character requirement
+    if (content.isNotEmpty && content.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Please provide a more detailed answer (at least 10 characters)'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -147,7 +161,7 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
         assignmentId: widget.assignment.id,
         studentId: user.uid,
         studentName: user.displayName ?? 'Student',
-        content: _contentController.text.trim(),
+        content: content,
         attachmentUrl: _uploadedFileUrl,
         score: 0,
         submittedAt: DateTime.now(),
@@ -178,6 +192,20 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
     }
   }
 
+  String _getCharacterCountText() {
+    final length = _contentController.text.length;
+    return length == 0
+        ? '0 characters (minimum 10)'
+        : '$length characters (minimum 10)';
+  }
+
+  Color _getCharacterCountColor() {
+    final length = _contentController.text.length;
+    if (length == 0) return Colors.grey[400]!;
+    if (length < 10) return Colors.orange;
+    return Colors.green[700]!;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,7 +221,7 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Assignment Info
+            // Assignment Info Card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -246,22 +274,85 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
             ),
             const SizedBox(height: 20),
 
-            // Content
-            TextFormField(
-              controller: _contentController,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                labelText: 'Your Answer',
-                hintText: 'Write your answer here...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(12)),
-                ),
-                alignLabelWithHint: true,
+            // Instructions Banner
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'The answer box expands as you type. Minimum 10 characters required.',
+                      style: TextStyle(
+                        color: Colors.blue[800],
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // File Upload
+            // Content Label
+            const Text(
+              'Your Answer:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Auto-Expanding TextField with Max Height
+            Container(
+              constraints: BoxConstraints(
+                minHeight: 150,
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
+              ),
+              child: TextFormField(
+                controller: _contentController,
+                maxLines: null, // This allows unlimited expansion
+                minLines: 5, // Start with 5 lines visible
+                maxLength: 1000, // Optional: limit total characters
+                decoration: InputDecoration(
+                  labelText: 'Your Answer',
+                  hintText: 'Write your answer here...',
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                  alignLabelWithHint: true,
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  counterText:
+                      '', // Hide character counter if you don't want it
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please write your answer';
+                  }
+                  if (value.length < 10) {
+                    return 'Your answer should be at least 10 characters';
+                  }
+                  return null;
+                },
+                onChanged: (value) {
+                  // Optional: auto-save draft or update character count
+                  setState(() {});
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // File Upload Section
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -450,6 +541,7 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  elevation: 2,
                 ),
                 child: _isSubmitting
                     ? const SizedBox(

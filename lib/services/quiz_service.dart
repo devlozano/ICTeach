@@ -5,13 +5,14 @@ import '../models/quiz_model.dart';
 class QuizService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get all quizzes for a class
+  // ✅ Get quizzes with offline support
   Stream<List<QuizModel>> getQuizzesForClass(String classId) {
     return _firestore
         .collection('classes')
         .doc(classId)
         .collection('quizzes')
-        .snapshots()
+        .snapshots(
+            includeMetadataChanges: true) // ✅ Include metadata for offline
         .map((snapshot) {
       final quizzes =
           snapshot.docs.map((doc) => QuizModel.fromFirestore(doc)).toList();
@@ -20,19 +21,19 @@ class QuizService {
     });
   }
 
-  // ✅ FIXED: Get published quizzes for students (no index needed)
+  // ✅ Get published quizzes with offline support
   Stream<List<QuizModel>> getPublishedQuizzesForClass(String classId) {
     return _firestore
         .collection('classes')
         .doc(classId)
         .collection('quizzes')
         .where('isPublished', isEqualTo: true)
-        .snapshots()
+        .snapshots(
+            includeMetadataChanges: true) // ✅ Include metadata for offline
         .map((snapshot) {
       final quizzes =
           snapshot.docs.map((doc) => QuizModel.fromFirestore(doc)).toList();
-      // ✅ Sort in memory by createdAt (descending)
-      quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      quizzes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       return quizzes;
     });
   }
@@ -151,15 +152,20 @@ class QuizService {
     return snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
   }
 
-  // Get quiz results for a specific quiz (teacher view)
+  // ✅ FIXED: Get quiz results without orderBy
   Future<List<QuizResult>> getQuizResults(String classId, String quizId) async {
     final snapshot = await _firestore
         .collection('quiz_results')
         .where('quizId', isEqualTo: quizId)
-        .orderBy('score', descending: true)
         .get();
 
-    return snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
+    final results =
+        snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
+
+    // Sort in memory by score (descending)
+    results.sort((a, b) => b.score.compareTo(a.score));
+
+    return results;
   }
 
   // Get quiz attempt count

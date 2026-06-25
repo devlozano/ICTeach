@@ -4,6 +4,14 @@ import 'package:flutter/material.dart';
 import 'login.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
+import '../screens/teacher/create_module_page.dart';
+import '../screens/teacher/manage_modules_page.dart';
+import '../screens/teacher/create_quiz_page.dart';
+import '../screens/teacher/manage_quizzes_page.dart';
+import '../screens/teacher/create_assignment_page.dart';
+import '../screens/teacher/manage_assignments_page.dart';
+import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
+import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
 
 class TrainerHomePage extends StatefulWidget {
   const TrainerHomePage({super.key});
@@ -14,6 +22,8 @@ class TrainerHomePage extends StatefulWidget {
 
 class _TrainerHomePageState extends State<TrainerHomePage> {
   int _selectedIndex = 0;
+  String? _selectedClassId;
+  String? _selectedClassName;
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -110,6 +120,25 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
               ),
             ),
             actions: [
+              // ✅ ADD NOTIFICATION BADGE HERE
+              NotificationBadge(
+                child: IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const NotificationPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                  tooltip: 'Notifications',
+                ),
+              ),
               IconButton(
                 icon: const Icon(Icons.logout_rounded, color: Colors.white),
                 onPressed: _logout,
@@ -120,11 +149,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           body: IndexedStack(
             index: _selectedIndex,
             children: [
-              // Tab 0: Home
               _buildHomeContent(primaryColor, trainerName, user.uid),
-              // Tab 1: Discussions
               const Center(child: Text('Discussion Forums')),
-              // Tab 2: Profile
               _buildProfileContent(profile, user),
             ],
           ),
@@ -263,18 +289,13 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
             ),
           ),
 
-          // Main Content
           Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Stats Row
                 _buildStatsRow(primaryColor),
-
                 const SizedBox(height: 24),
-
-                // GRID LAYOUT: Trainer Tools
                 const Text(
                   'Trainer Tools',
                   style: TextStyle(
@@ -285,7 +306,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 ),
                 const SizedBox(height: 12),
                 _buildTrainerToolsGrid(primaryColor),
-
                 const SizedBox(height: 20),
               ],
             ),
@@ -295,7 +315,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  // Stats Row
   Widget _buildStatsRow(Color primaryColor) {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseAuth.instance.currentUser != null
@@ -360,15 +379,15 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  // GRID LAYOUT: Trainer Tools
   Widget _buildTrainerToolsGrid(Color primaryColor) {
     final items = [
       _TrainerToolItem(
         title: 'Training Modules',
-        subtitle: 'Manage learning materials',
+        subtitle: 'Create & manage modules',
         icon: Icons.menu_book_rounded,
         color: Colors.deepPurple,
         bgColor: Colors.deepPurple.shade50,
+        onTap: () => _showClassSelector(context, 'modules'),
       ),
       _TrainerToolItem(
         title: 'Instructional Videos',
@@ -376,6 +395,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         icon: Icons.video_library_rounded,
         color: Colors.purple,
         bgColor: Colors.purple.shade50,
+        onTap: () => _showClassSelector(context, 'videos'),
       ),
       _TrainerToolItem(
         title: 'Quizzes & Assessments',
@@ -383,13 +403,15 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         icon: Icons.quiz_rounded,
         color: Colors.blue.shade800,
         bgColor: Colors.blue.shade50,
+        onTap: () => _showClassSelector(context, 'quizzes'),
       ),
       _TrainerToolItem(
         title: 'Performance Activities',
-        subtitle: 'Hands-on CSS tasks',
+        subtitle: 'Create & manage assignments',
         icon: Icons.assignment_rounded,
         color: Colors.indigo,
         bgColor: Colors.indigo.shade50,
+        onTap: () => _showClassSelector(context, 'assignments'),
       ),
       _TrainerToolItem(
         title: 'Progress Tracker',
@@ -397,6 +419,14 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         icon: Icons.analytics_rounded,
         color: Colors.teal.shade700,
         bgColor: Colors.teal.shade50,
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Progress Tracker coming soon!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
       ),
       _TrainerToolItem(
         title: 'Competency Validation',
@@ -404,6 +434,14 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         icon: Icons.verified_user_rounded,
         color: Colors.green.shade700,
         bgColor: Colors.green.shade50,
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Competency Validation coming soon!'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
       ),
     ];
 
@@ -421,14 +459,281 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  // PROFILE TAB - Shows assigned classes here
+  // ✅ FIXED: Show Class Selector for Trainers - Uses their joined classes
+  void _showClassSelector(BuildContext context, String actionType) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) =>
+            // ✅ FIXED: Query trainer's joined classes from subcollection
+            StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('classes')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text('Error: ${snapshot.error}'),
+                  ],
+                ),
+              );
+            }
+
+            final classDocs = snapshot.data?.docs ?? [];
+
+            if (classDocs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.class_outlined,
+                      size: 64,
+                      color: Colors.grey.shade300,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No classes joined',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Join a class first to manage content',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const JoinClassPage(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add_circle_outline),
+                      label: const Text('Join a Class'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple.shade700,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final actionTitle = actionType == 'modules'
+                ? 'Modules'
+                : actionType == 'quizzes'
+                    ? 'Quizzes'
+                    : actionType == 'assignments'
+                        ? 'Assignments'
+                        : 'Content';
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade50,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        actionType == 'modules'
+                            ? Icons.menu_book_rounded
+                            : actionType == 'quizzes'
+                                ? Icons.quiz_rounded
+                                : actionType == 'assignments'
+                                    ? Icons.assignment_rounded
+                                    : Icons.video_library_rounded,
+                        color: Colors.purple,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Manage $actionTitle',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Select a class to manage',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: classDocs.length,
+                    itemBuilder: (context, index) {
+                      final doc = classDocs[index];
+                      final data = doc.data() as Map<String, dynamic>? ?? {};
+                      final className = data['className']?.toString() ??
+                          data['name']?.toString() ??
+                          'Unnamed Class';
+                      final classId = data['classId']?.toString() ?? '';
+                      final teacherName =
+                          data['teacherName']?.toString() ?? 'Unknown Teacher';
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.purple.shade100,
+                            child: Icon(
+                              actionType == 'modules'
+                                  ? Icons.menu_book_rounded
+                                  : actionType == 'quizzes'
+                                      ? Icons.quiz_rounded
+                                      : actionType == 'assignments'
+                                          ? Icons.assignment_rounded
+                                          : Icons.video_library_rounded,
+                              color: Colors.purple,
+                              size: 20,
+                            ),
+                          ),
+                          title: Text(
+                            className,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text('Teacher: $teacherName'),
+                          trailing:
+                              const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _navigateToAction(
+                                context, actionType, classId, className);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _navigateToAction(BuildContext context, String actionType,
+      String classId, String className) {
+    switch (actionType) {
+      case 'modules':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManageModulesPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+        break;
+      case 'quizzes':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManageQuizzesPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+        break;
+      case 'assignments':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ManageAssignmentsPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+        break;
+      case 'videos':
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Instructional Videos page coming soon!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        break;
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$actionType management coming soon!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+    }
+  }
+
   Widget _buildProfileContent(Map<String, dynamic>? profile, User user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Profile Header
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -495,8 +800,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // ASSIGNED CLASSES SECTION (Only in Profile)
           FutureBuilder<QuerySnapshot>(
             future: FirebaseFirestore.instance
                 .collection('users')
@@ -658,7 +961,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                                       ],
                                     ),
                                   ),
-                                  // ✅ REMOVED: Class code badge here
                                 ],
                               ),
                               if (schoolYear.isNotEmpty) ...[
@@ -793,13 +1095,13 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
   }
 }
 
-// Trainer Tool Item Widget
 class _TrainerToolItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
   final Color color;
   final Color bgColor;
+  final VoidCallback? onTap;
 
   const _TrainerToolItem({
     required this.title,
@@ -807,58 +1109,62 @@ class _TrainerToolItem extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.bgColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

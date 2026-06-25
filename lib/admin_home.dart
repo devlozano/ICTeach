@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'admin/create_staff_page.dart';
+import 'admin/manage_trainers_page.dart'; // ✅ ADD THIS IMPORT
+import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
+import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -35,8 +38,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
             final isWide = constraints.maxWidth >= 1000;
             return Scaffold(
               backgroundColor: const Color(0xffF8FAFC),
-              // Setup a GlobalKey or use context directly if needing to control the drawer.
-              // Scaffold automatically hooks up the menu button when a drawer is present.
               drawer: isWide
                   ? null
                   : Drawer(
@@ -46,7 +47,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           setState(() => _currentSelectedLabel = label);
                           Navigator.of(
                             context,
-                          ).pop(); // Close drawer on selection
+                          ).pop();
                         },
                       ),
                     ),
@@ -59,11 +60,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         onSelected: (label) {
                           setState(() => _currentSelectedLabel = label);
                         },
-                      ), // permanent left nav for wide screens
+                      ),
                     Expanded(
                       child: Column(
                         children: [
-                          // Pass isWide flag so the TopBar can show/hide the drawer menu button
                           _TopBar(name: name, showMenuButton: !isWide),
                           Expanded(
                             child: SingleChildScrollView(
@@ -101,10 +101,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                           ),
                                     ),
                                     const SizedBox(height: 18),
-
-                                    // ALIGNED: Render panel views dynamically using helper
                                     _buildActivePanelContent(),
-
                                     const SizedBox(height: 40),
                                   ],
                                 ),
@@ -124,6 +121,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
+  /// Helper to route layouts depending on navigation state selection
   /// Helper to route layouts depending on navigation state selection
   Widget _buildActivePanelContent() {
     if (_currentSelectedLabel == 'Dashboard') {
@@ -146,6 +144,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
       );
     }
 
+    // ✅ FIXED: Manage Users - Show Trainers and Teachers
+    if (_currentSelectedLabel == 'Manage Users') {
+      return _ManageUsersContent();
+    }
+
     // Secondary Management View Dynamic Call Fallbacks
     return Container(
       width: double.infinity,
@@ -164,6 +167,224 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
         ),
       ),
+    );
+  }
+
+  // ✅ NEW: Manage Users Content
+  // ✅ FIXED: Manage Users Content
+  Widget _ManageUsersContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Teacher Management Section
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFECECEC)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Teachers',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              CreateStaffPage(selectedRole: 'teacher'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Teacher'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0B2B4A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // ✅ FIXED: Teacher List with proper scope
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .where('role', isEqualTo: 'teacher')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error: ${snapshot.error}'),
+                    );
+                  }
+
+                  final teachers = snapshot.data?.docs ?? [];
+
+                  if (teachers.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Center(
+                        child: Text('No teachers found'),
+                      ),
+                    );
+                  }
+
+                  // ✅ FIXED: Now teachers is in scope for the if condition
+                  return Column(
+                    children: [
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: teachers.length > 3 ? 3 : teachers.length,
+                        itemBuilder: (context, index) {
+                          final doc = teachers[index];
+                          final data =
+                              doc.data() as Map<String, dynamic>? ?? {};
+                          final name = data['name']?.toString() ?? 'Unknown';
+                          final email = data['email']?.toString() ?? '';
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor:
+                                  const Color(0xFF2F80ED).withOpacity(0.1),
+                              child: const Icon(Icons.person_outline,
+                                  color: Color(0xFF2F80ED)),
+                            ),
+                            title: Text(name),
+                            subtitle: Text(email),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              // View teacher details
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Teacher details coming soon!'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      // ✅ FIXED: Now teachers is in scope here
+                      if (teachers.length > 3)
+                        TextButton(
+                          onPressed: () {
+                            // Navigate to full teacher list
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Full teacher list coming soon!'),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          child: const Text('View all teachers →'),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Trainer Management Section
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFECECEC)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Trainers',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              CreateStaffPage(selectedRole: 'trainer'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add Trainer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purple,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ManageTrainersPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.verified_user, color: Colors.purple),
+                  label: const Text('View All Trainers'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.purple,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    side: const BorderSide(color: Colors.purple),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Manage trainer accounts, assign to classes, and track their performance.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -372,6 +593,25 @@ class _TopBar extends StatelessWidget {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const Spacer(),
+          // ✅ ADD NOTIFICATION BADGE HERE
+          NotificationBadge(
+            child: IconButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationPage(),
+                  ),
+                );
+              },
+              icon: const Icon(
+                Icons.notifications_none_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+              tooltip: 'Notifications',
+            ),
+          ),
           Container(
             decoration: BoxDecoration(
               color: Colors.white,

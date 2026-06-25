@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
@@ -32,17 +31,13 @@ class _TeacherQuizResultsPageState extends State<TeacherQuizResultsPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // Export/Download button
           IconButton(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Export feature coming soon!'),
-                ),
-              );
+              // Refresh results
+              setState(() {});
             },
-            icon: const Icon(Icons.download),
-            tooltip: 'Export Results',
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
           ),
         ],
       ),

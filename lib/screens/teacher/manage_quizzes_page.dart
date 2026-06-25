@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
 import 'create_quiz_page.dart';
-import 'package:icteach/screens/teacher/quiz_results_page.dart'; // ✅ Add this import
+import '../teacher/quiz_results_page.dart';
 
 class ManageQuizzesPage extends StatefulWidget {
   final String classId;
@@ -155,7 +155,6 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
   }
 
   Future<void> _editQuiz(QuizModel quiz) async {
-    // Navigate to edit page (reuse CreateQuizPage with edit mode)
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Edit feature coming soon!')),
     );
@@ -228,7 +227,6 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
     }
   }
 
-  // ✅ UPDATED: View Results with proper navigation
   void _viewResults(QuizModel quiz) {
     Navigator.push(
       context,
@@ -243,6 +241,7 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
   }
 }
 
+// ✅ FIXED: Quiz Card with responsive layout
 class _QuizCard extends StatelessWidget {
   final QuizModel quiz;
   final VoidCallback onEdit;
@@ -260,7 +259,6 @@ class _QuizCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Count how many questions have explanations
     final questionsWithExplanation =
         quiz.questions.where((q) => q.explanation.isNotEmpty).length;
 
@@ -300,14 +298,41 @@ class _QuizCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      quiz.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            quiz.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // ✅ FIXED: Move status badge to the right of title
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: quiz.isPublished
+                                ? Colors.green.shade100
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            quiz.isPublished ? 'Published' : 'Draft',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: quiz.isPublished
+                                  ? Colors.green.shade800
+                                  : Colors.amber.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     Text(
                       '${quiz.questions.length} questions • ${quiz.totalPoints} points',
@@ -327,26 +352,6 @@ class _QuizCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: quiz.isPublished
-                      ? Colors.green.shade100
-                      : Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  quiz.isPublished ? 'Published' : 'Draft',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: quiz.isPublished
-                        ? Colors.green.shade800
-                        : Colors.amber.shade800,
-                  ),
-                ),
-              ),
             ],
           ),
           if (quiz.description.isNotEmpty) ...[
@@ -362,6 +367,7 @@ class _QuizCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
+          // ✅ FIXED: Wrap action buttons in a Row with proper spacing
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -404,47 +410,52 @@ class _QuizCard extends StatelessWidget {
                     ),
                 ],
               ),
-              // Action buttons
+              // ✅ FIXED: Action buttons with smaller size and spacing
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ✅ View Results Button
                   IconButton(
                     onPressed: onViewResults,
-                    icon: const Icon(Icons.assessment, size: 20),
+                    icon: const Icon(Icons.assessment, size: 18),
                     tooltip: 'View Results',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onTogglePublish,
                     icon: Icon(
                       quiz.isPublished
                           ? Icons.visibility
                           : Icons.visibility_off,
-                      size: 20,
+                      size: 18,
                       color: quiz.isPublished ? Colors.green : Colors.grey,
                     ),
                     tooltip: quiz.isPublished ? 'Unpublish' : 'Publish',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 20),
+                    icon: const Icon(Icons.edit_outlined, size: 18),
                     tooltip: 'Edit',
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    visualDensity: VisualDensity.compact,
                   ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline, size: 20),
+                    icon: const Icon(Icons.delete_outline, size: 18),
                     tooltip: 'Delete',
                     color: Colors.red,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),

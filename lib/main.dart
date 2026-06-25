@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ ADD THIS IMPORT
 
 // Official ICTeach Platform Screen Imports
 import 'splash.dart';
@@ -32,6 +33,11 @@ void main() async {
     await Firebase.initializeApp();
   }
 
+  // ✅ ENABLE OFFLINE PERSISTENCE
+  await FirebaseFirestore.instance.enablePersistence(
+    const PersistenceSettings(synchronizeTabs: true),
+  );
+
   runApp(const MyApp());
 }
 
@@ -51,6 +57,7 @@ class MyApp extends StatelessWidget {
             TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           },
         ),
+        useMaterial3: true,
       ),
       home: _AppEntry(),
     );
