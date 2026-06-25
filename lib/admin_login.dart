@@ -2,8 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'home_router.dart';
+import 'services/network_service.dart';
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -52,6 +52,12 @@ class _AdminLoginPageState extends State<AdminLoginPage>
   Future<void> _signInAdmin() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    final isConnected = await NetworkService().isConnected();
+    if (!isConnected) {
+      _showError('You appear to be offline. Please connect to the internet to log in.');
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
+import '../../services/network_service.dart';
 
 class SubmitAssignmentPage extends StatefulWidget {
   final String classId;
@@ -64,6 +65,17 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
   }
 
   Future<void> _uploadFile() async {
+    final isConnected = await NetworkService().isConnected();
+    if (!isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('❌ You must be online to upload files.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_selectedFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

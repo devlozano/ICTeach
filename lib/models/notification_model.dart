@@ -5,10 +5,11 @@ class NotificationModel {
   final String userId;
   final String title;
   final String message;
-  final String type; // 'assignment', 'quiz', 'grade', 'forum', 'system'
+  final String type;
   final String? referenceId;
   final bool isRead;
   final DateTime createdAt;
+  final DateTime? readAt;
 
   NotificationModel({
     required this.id,
@@ -19,21 +20,21 @@ class NotificationModel {
     this.referenceId,
     this.isRead = false,
     required this.createdAt,
+    this.readAt,
   });
 
-  factory NotificationModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final data = doc.data()!;
+  factory NotificationModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return NotificationModel(
       id: doc.id,
       userId: data['userId'] ?? '',
       title: data['title'] ?? '',
       message: data['message'] ?? '',
-      type: data['type'] ?? 'system',
+      type: data['type'] ?? 'general',
       referenceId: data['referenceId'],
       isRead: data['isRead'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      readAt: (data['readAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -45,7 +46,8 @@ class NotificationModel {
       'type': type,
       'referenceId': referenceId,
       'isRead': isRead,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdAt': createdAt,
+      'readAt': readAt,
     };
   }
 }

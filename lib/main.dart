@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ ADD THIS IMPORT
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Official ICTeach Platform Screen Imports
 import 'splash.dart';
 import 'admin_login.dart'; // Web Platform Gateway
 import 'login.dart'; // Mobile Platform Gateway (Handles Student, Teacher, Trainer)
-// Admin Dashboard (Management & Report Generation)
-// Teacher Dashboard (Lessons & Monitoring)
-// Student & Trainer Interface (Simulations & Tasks)
+import 'widgets/offline_indicator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  try {
+    await _initializeFirebase();
+  } catch (e) {
+    print('Firebase initialization error: $e');
+    // You might want to show an error screen here
+  }
+
+  runApp(const MyApp());
+}
+
+Future<void> _initializeFirebase() async {
   if (kIsWeb) {
     // Web Configuration Setup for the Admin Portal (icteach-free)
     await Firebase.initializeApp(
@@ -27,18 +36,21 @@ void main() async {
         measurementId: "G-S77WYVMF0N",
       ),
     );
+
+    // Enable persistence for Web
+    await FirebaseFirestore.instance.enablePersistence(
+      const PersistenceSettings(synchronizeTabs: true),
+    );
   } else {
-    // Mobile Configuration Setup for Students, Teachers, and Trainers
-    // This reads the localized google-services.json configuration file
+    // Mobile Configuration - reads google-services.json
     await Firebase.initializeApp();
+
+    // Enable offline persistence for Mobile
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
   }
-
-  // ✅ ENABLE OFFLINE PERSISTENCE
-  await FirebaseFirestore.instance.enablePersistence(
-    const PersistenceSettings(synchronizeTabs: true),
-  );
-
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -49,6 +61,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ICTeach',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => OfflineIndicator(child: child!),
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xffF8FAFC),
         pageTransitionsTheme: const PageTransitionsTheme(
@@ -59,14 +72,19 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: _AppEntry(),
+      home: const _AppEntry(),
     );
   }
 }
 
-class _AppEntry extends StatelessWidget {
-  _AppEntry();
+class _AppEntry extends StatefulWidget {
+  const _AppEntry();
 
+  @override
+  State<_AppEntry> createState() => _AppEntryState();
+}
+
+class _AppEntryState extends State<_AppEntry> {
   final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
 
   @override
@@ -78,16 +96,16 @@ class _AppEntry extends StatelessWidget {
           builder: (context) {
             return SplashPage(
               onFinished: () {
-                // Device Hardware Check Routing Gate (Aligned with Panel Scope)
+                // Device Hardware Check Routing Gate
                 if (kIsWeb) {
-                  // Web Browser -> Routes exclusively to Admin Management System
+                  // Web -> Admin Management System
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const AdminLoginPage(),
                     ),
                   );
                 } else {
-                  // Mobile Devices -> Routes to unified Student, Trainer, & Teacher Login
+                  // Mobile -> Student, Trainer, & Teacher Login
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const LoginPage(),

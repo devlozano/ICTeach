@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_router.dart';
 import 'register.dart';
+import 'services/network_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -31,6 +32,13 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _signIn() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    final isConnected = await NetworkService().isConnected();
+    if (!isConnected) {
+      _showErrorDialog('Offline', 'You appear to be offline. Please connect to the internet to log in.');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
