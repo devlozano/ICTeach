@@ -3,8 +3,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 // Official ICTeach Platform Screen Imports
 import 'splash.dart';
+import 'home_router.dart';
 import 'admin_login.dart'; // Web Platform Gateway
 import 'login.dart'; // Mobile Platform Gateway (Handles Student, Teacher, Trainer)
 import 'widgets/offline_indicator.dart';
@@ -96,6 +99,18 @@ class _AppEntryState extends State<_AppEntry> {
           builder: (context) {
             return SplashPage(
               onFinished: () {
+                final user = FirebaseAuth.instance.currentUser;
+
+                if (user != null) {
+                  // User is already logged in, navigate to HomeRouter directly
+                  _navKey.currentState?.pushReplacement(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const HomeRouter(),
+                    ),
+                  );
+                  return;
+                }
+
                 // Device Hardware Check Routing Gate
                 if (kIsWeb) {
                   // Web -> Admin Management System
