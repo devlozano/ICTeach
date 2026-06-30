@@ -6,9 +6,10 @@ import 'package:icteach/utils/app_navigation.dart';
 import 'package:icteach/screens/teacher/manage_modules_page.dart';
 import 'package:icteach/screens/teacher/manage_quizzes_page.dart';
 import 'package:icteach/screens/teacher/manage_assignments_page.dart';
-import 'package:icteach/screens/student/forums_page.dart'; // ✅ Added
-import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
-import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
+import 'package:icteach/screens/student/forums_page.dart';
+import 'package:icteach/screens/notification_page.dart';
+import 'package:icteach/widgets/notification_badge.dart';
+import 'package:icteach/screens/debug_page.dart';
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -46,14 +47,21 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
       return user.displayName ?? 'Teacher';
     }
 
+    // ✅ First try to get the full name from the 'name' field
+    if (profile['name'] != null && profile['name'].toString().isNotEmpty) {
+      return profile['name'].toString();
+    }
+
     final firstName = profile['firstName']?.toString().trim() ?? '';
+    final middleName = profile['middleName']?.toString().trim() ?? '';
     final lastName = profile['lastName']?.toString().trim() ?? '';
+    final extension = profile['extension']?.toString().trim() ?? '';
 
     if (firstName.isEmpty && lastName.isEmpty) {
       return user.displayName ?? 'Teacher';
     }
 
-    final parts = [firstName, lastName];
+    final parts = [firstName, middleName, lastName, extension];
     final fullName = parts.where((p) => p.isNotEmpty).join(' ');
 
     return fullName.isNotEmpty ? fullName : 'Teacher';
@@ -118,7 +126,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               child: ListTile(
                 title: Text(classData.className),
                 subtitle: Text(
-                  '${classData.enrolledStudentIds?.length ?? 0} students',
+                  '${classData.enrolledStudentIds?.length ?? 0} total enrolled',
                 ),
                 trailing: const Icon(Icons.arrow_forward),
                 onTap: () {
@@ -137,6 +145,113 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
           },
         );
       },
+    );
+  }
+
+  // ✅ Profile Tab
+  Widget _buildTeacherProfile(User user, Map<String, dynamic>? profile) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Profile Card
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.blue.shade100,
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 50,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _teacherName(profile, user),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user.email ?? 'No email',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Teacher',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Settings Section
+          Card(
+            child: Column(
+              children: [
+                // ✅ Debug Tools
+                ListTile(
+                  leading: const Icon(Icons.bug_report, color: Colors.purple),
+                  title: const Text('Debug Tools'),
+                  subtitle: const Text('Test notifications and debug data'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DebugPage(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: const Text(
+                    'Logout',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: _logout,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -164,10 +279,13 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 .map((doc) => _TeacherClassData.fromSnapshot(doc))
                 .toList();
             final classCount = classes.length;
-            final studentCount = classes.fold<int>(
+
+            // ✅ Count total enrolled users (students + trainers)
+            final totalEnrolled = classes.fold<int>(
               0,
               (total, item) => total + (item.enrolledStudentIds?.length ?? 0),
             );
+
             final pendingReviewCount = classes.fold<int>(
               0,
               (total, item) => total + (item.pendingReviews ?? 0),
@@ -179,11 +297,16 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 top: false,
                 child: Column(
                   children: [
-                    _TeacherHeader(name: name, onLogout: _logout),
+                    _TeacherHeader(
+                      name: name,
+                      onLogout: _logout,
+                      classStream: _classesStream,
+                    ),
                     Expanded(
                       child: IndexedStack(
                         index: _currentTabIndex,
                         children: [
+                          // Tab 0: Home
                           SingleChildScrollView(
                             padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
                             child: Column(
@@ -191,7 +314,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                               children: [
                                 _TeacherSummary(
                                   classStream: _classesStream,
-                                  studentCount: studentCount,
+                                  totalEnrolled: totalEnrolled,
                                   pendingReviewCount: pendingReviewCount,
                                 ),
                                 const SizedBox(height: 22),
@@ -214,14 +337,16 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                               ],
                             ),
                           ),
+                          // Tab 1: Classes
                           buildClassesTab(),
+                          // Tab 2: Discussion
                           const Center(child: Text('Discussion Forums')),
+                          // Tab 3: Analytics
                           const Center(
                             child: Text('Student Progress Analytics'),
                           ),
-                          const Center(
-                            child: Text('Teacher Profile Configurations'),
-                          ),
+                          // Tab 4: Profile
+                          _buildTeacherProfile(user, profile),
                         ],
                       ),
                     ),
@@ -258,6 +383,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
   }
 }
 
+// ✅ FIXED: _TeacherClassData now uses 'name' field
 class _TeacherClassData {
   final String classId;
   final String className;
@@ -279,7 +405,10 @@ class _TeacherClassData {
     final data = doc.data();
     return _TeacherClassData(
       classId: doc.id,
-      className: data['className'] ?? 'Untitled Class',
+      // ✅ FIXED: Use 'name' field, fallback to 'className' for backward compatibility
+      className: data['name']?.toString() ??
+          data['className']?.toString() ??
+          'Untitled Class',
       teacherId: data['teacherId'] ?? '',
       enrolledStudentIds: List<String>.from(data['enrolledStudentIds'] ?? []),
       pendingReviews: data['pendingReviews'] as int?,
@@ -288,10 +417,15 @@ class _TeacherClassData {
 }
 
 class _TeacherHeader extends StatelessWidget {
-  const _TeacherHeader({required this.name, required this.onLogout});
+  const _TeacherHeader({
+    required this.name,
+    required this.onLogout,
+    required this.classStream,
+  });
 
   final String name;
   final VoidCallback onLogout;
+  final Stream<QuerySnapshot<Map<String, dynamic>>> classStream;
 
   @override
   Widget build(BuildContext context) {
@@ -320,7 +454,7 @@ class _TeacherHeader extends StatelessWidget {
                 Text(
                   'Good Morning, Teacher',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.84),
+                    color: Colors.white.withValues(alpha: 0.84),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -350,7 +484,7 @@ class _TeacherHeader extends StatelessWidget {
               ],
             ),
           ),
-          // ✅ ADD NOTIFICATION BADGE HERE
+          // ✅ Notification Badge
           NotificationBadge(
             child: IconButton(
               onPressed: () {
@@ -384,54 +518,69 @@ class _TeacherHeader extends StatelessWidget {
   }
 }
 
+// ✅ UPDATED: _TeacherSummary with totalEnrolled
 class _TeacherSummary extends StatelessWidget {
   const _TeacherSummary({
     required this.classStream,
-    required this.studentCount,
+    required this.totalEnrolled,
     required this.pendingReviewCount,
   });
 
   final Stream<QuerySnapshot<Map<String, dynamic>>> classStream;
-  final int studentCount;
+  final int totalEnrolled;
   final int pendingReviewCount;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Overview',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _SummaryCard('Classes', '0', Colors.blue.shade300),
-              _SummaryCard(
-                'Students',
-                studentCount.toString(),
-                Colors.green.shade300,
-              ),
-              _SummaryCard(
-                'Pending',
-                pendingReviewCount.toString(),
-                Colors.orange.shade300,
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: classStream,
+      builder: (context, snapshot) {
+        final classCount = snapshot.data?.docs.length ?? 0;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 8,
               ),
             ],
           ),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Overview',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _SummaryCard(
+                    'Classes',
+                    classCount.toString(),
+                    Colors.blue.shade300,
+                  ),
+                  _SummaryCard(
+                    'Enrolled',
+                    totalEnrolled.toString(),
+                    Colors.green.shade300,
+                  ),
+                  _SummaryCard(
+                    'Pending',
+                    pendingReviewCount.toString(),
+                    Colors.orange.shade300,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -450,7 +599,7 @@ class _SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -553,7 +702,6 @@ class _TeacherToolGrid extends StatelessWidget {
             );
           },
         ),
-        // ✅ NEW: Forum Tool Card
         _ToolCard(
           icon: Icons.forum_rounded,
           title: 'Forums',
@@ -595,7 +743,10 @@ class _ToolCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+            ),
           ],
         ),
         child: Column(
@@ -694,30 +845,27 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ UPDATED: Title based on module type
     final title = widget.moduleType == 'quizzes'
         ? 'Quizzes'
         : widget.moduleType == 'assignments'
             ? 'Assignments'
-            : widget.moduleType == 'forums' // ✅ Added forums
+            : widget.moduleType == 'forums'
                 ? 'Forums'
                 : 'Modules';
 
-    // ✅ UPDATED: Subtitle based on module type
     final subtitle = widget.moduleType == 'quizzes'
         ? 'Select a class to manage quizzes'
         : widget.moduleType == 'assignments'
             ? 'Select a class to manage assignments'
-            : widget.moduleType == 'forums' // ✅ Added forums
+            : widget.moduleType == 'forums'
                 ? 'Select a class to manage discussions'
                 : 'Select a class to manage modules';
 
-    // ✅ UPDATED: Icon based on module type
     final icon = widget.moduleType == 'quizzes'
         ? Icons.quiz
         : widget.moduleType == 'assignments'
             ? Icons.assignment
-            : widget.moduleType == 'forums' // ✅ Added forums
+            : widget.moduleType == 'forums'
                 ? Icons.forum
                 : Icons.menu_book;
 
@@ -800,9 +948,9 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor:
-                              const Color(0xFF2F80ED).withOpacity(0.1),
+                              const Color(0xFF2F80ED).withValues(alpha: 0.1),
                           child: Icon(
-                            icon, // ✅ Now uses dynamic icon
+                            icon,
                             color: const Color(0xFF2F80ED),
                           ),
                         ),
@@ -813,11 +961,10 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                           ),
                         ),
                         subtitle: Text(
-                          '${classData.enrolledStudentIds?.length ?? 0} students',
+                          '${classData.enrolledStudentIds?.length ?? 0} total enrolled',
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
-                          // ✅ UPDATED: Navigate to the correct page based on moduleType
                           if (widget.moduleType == 'quizzes') {
                             Navigator.push(
                               context,
@@ -839,7 +986,6 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                               ),
                             );
                           } else if (widget.moduleType == 'forums') {
-                            // ✅ NEW: Navigate to ForumsPage
                             Navigator.push(
                               context,
                               MaterialPageRoute(

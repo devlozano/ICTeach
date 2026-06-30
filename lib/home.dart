@@ -6,8 +6,9 @@ import 'package:icteach/screens/student/module_view_page.dart';
 import 'package:icteach/screens/student/student_assignments_page.dart';
 import 'package:icteach/screens/student/student_quizzes_page.dart';
 import 'package:icteach/screens/student/instructional_videos_page.dart';
-import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
-import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
+import 'package:icteach/screens/notification_page.dart';
+import 'package:icteach/screens/debug_page.dart'; // ✅ ADD THIS
+import 'package:icteach/widgets/notification_badge.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import 'login.dart';
@@ -75,7 +76,6 @@ class _HomePageState extends State<HomePage> {
         final course = profile?['course'] as String? ??
             'CSS NC II - Computer System Servicing';
 
-        // Get class info for navigation
         return FutureBuilder<QuerySnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
@@ -89,8 +89,6 @@ class _HomePageState extends State<HomePage> {
               if (data != null) {
                 _classId = data['classId']?.toString() ?? '';
                 _className = data['className']?.toString() ?? 'My Class';
-
-                // ✅ Store class info for video access
               }
             }
 
@@ -107,7 +105,7 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           _buildHomeContent(course),
                           _buildModulesContent(),
-                          const Center(child: Text('Discussion Forums')),
+                          _buildForumContent(),
                           _buildProgressContent(user.uid),
                           _buildProfileContent(profile, user),
                         ],
@@ -124,6 +122,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ✅ UPDATED HEADER WITH NOTIFICATION BADGE
   Widget _buildHeader(String name, String? photoUrl) {
     final timeOfDay = DateTime.now().hour;
     String greeting = 'Good Morning';
@@ -161,7 +160,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   '$greeting,',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                   ),
@@ -180,7 +179,7 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          // ✅ ADD NOTIFICATION BADGE HERE
+          // ✅ NOTIFICATION BADGE WITH ICON
           NotificationBadge(
             child: IconButton(
               onPressed: () {
@@ -210,6 +209,275 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  // ✅ NEW: Forum Content Tab
+  Widget _buildForumContent() {
+    if (_classId == null || _classId!.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.forum_outlined,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No Class Joined',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Join a class to access discussion forums',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const JoinClassPage()),
+                );
+                if (result == true && mounted) {
+                  setState(() {});
+                }
+              },
+              icon: const Icon(Icons.add_circle_outline),
+              label: const Text('Join a Class'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF428DEB),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ForumsPage(
+      classId: _classId!,
+      className: _className ?? 'My Class',
+    );
+  }
+
+  // Modules Tab Content
+  Widget _buildModulesContent() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return FutureBuilder<QuerySnapshot>(
+      future: user != null
+          ? FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .collection('classes')
+              .get()
+          : null,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('Error: ${snapshot.error}'),
+              ],
+            ),
+          );
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+
+        if (classDocs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.menu_book_outlined,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No Class Joined',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Join a class to access learning modules',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const JoinClassPage()),
+                    );
+                    if (result == true && mounted) {
+                      setState(() {});
+                    }
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Join a Class'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF428DEB),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final classDoc = classDocs.first;
+        final data = classDoc.data() as Map<String, dynamic>?;
+        final classId = data?['classId']?.toString() ?? '';
+        final className = data?['className']?.toString() ?? 'My Class';
+
+        return ModuleViewPage(
+          classId: classId,
+          className: className,
+        );
+      },
+    );
+  }
+
+  // Quick Access Grid
+  Widget _buildQuickAccessGrid() {
+    final items = [
+      _QuickAccessItem(
+        icon: Icons.menu_book_rounded,
+        title: 'Learning Modules',
+        subtitle: '5 modules',
+        color: const Color(0xFF4F6DB8),
+        bgColor: const Color(0xFFDCE6FF),
+        onTap: () {
+          setState(() {
+            _currentTabIndex = 1;
+          });
+        },
+      ),
+      _QuickAccessItem(
+        icon: Icons.quiz_rounded,
+        title: 'Quizzes',
+        subtitle: 'Available • Practice Mode',
+        color: const Color(0xFF9C4FA1),
+        bgColor: const Color(0xFFE9C4EB),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentQuizzesPage(
+                  classId: _classId!,
+                  className: _className ?? 'My Class',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please join a class first to access quizzes'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+      ),
+      _QuickAccessItem(
+        icon: Icons.assignment_rounded,
+        title: 'Assignments',
+        subtitle: 'View assignments',
+        color: const Color(0xFFE76C31),
+        bgColor: const Color(0xFFFFD7C2),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => StudentAssignmentsPage(
+                  classId: _classId!,
+                  className: _className ?? 'My Class',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('Please join a class first to access assignments'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+      ),
+      _QuickAccessItem(
+        icon: Icons.science_rounded,
+        title: 'Simulations',
+        subtitle: '5 Labs • Interactive',
+        color: const Color(0xFF168D92),
+        bgColor: const Color(0xFFA6F4F5),
+      ),
+      _QuickAccessItem(
+        icon: Icons.video_library_rounded,
+        title: 'Instructional Videos',
+        subtitle: '2 New',
+        color: const Color(0xFFD97847),
+        bgColor: const Color(0xFFFFCFB1),
+        onTap: () {
+          _navigateToInstructionalVideos(context);
+        },
+      ),
+      _QuickAccessItem(
+        icon: Icons.forum_rounded,
+        title: 'Discussion Forums',
+        subtitle: 'Ask & Discuss',
+        color: const Color(0xFF249A38),
+        bgColor: const Color(0xFFC9F2CE),
+        onTap: () {
+          if (_classId != null && _classId!.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ForumsPage(
+                  classId: _classId!,
+                  className: _className ?? 'My Class',
+                ),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please join a class first to access forums'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+      ),
+    ];
+
+    return GridView.builder(
+      itemCount: items.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.15,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+      ),
+      itemBuilder: (context, index) => items[index],
     );
   }
 
@@ -313,7 +581,7 @@ class _HomePageState extends State<HomePage> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -330,7 +598,7 @@ class _HomePageState extends State<HomePage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF428DEB).withOpacity(0.1),
+                          color: const Color(0xFF428DEB).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(
@@ -477,239 +745,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ Modules Tab Content - Goes DIRECTLY to ModuleViewPage
-  Widget _buildModulesContent() {
-    final user = FirebaseAuth.instance.currentUser;
-
-    return FutureBuilder<QuerySnapshot>(
-      future: user != null
-          ? FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .collection('classes')
-              .get()
-          : null,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                Text('Error: ${snapshot.error}'),
-              ],
-            ),
-          );
-        }
-
-        final classDocs = snapshot.data?.docs ?? [];
-
-        if (classDocs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.menu_book_outlined,
-                  size: 64,
-                  color: Colors.grey.shade300,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'No Class Joined',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Join a class to access learning modules',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const JoinClassPage()),
-                    );
-                    if (result == true && mounted) {
-                      setState(() {});
-                    }
-                  },
-                  icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Join a Class'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF428DEB),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final classDoc = classDocs.first;
-        final data = classDoc.data() as Map<String, dynamic>?;
-        final classId = data?['classId']?.toString() ?? '';
-        final className = data?['className']?.toString() ?? 'My Class';
-
-        return ModuleViewPage(
-          classId: classId,
-          className: className,
-        );
-      },
-    );
-  }
-
-  // ✅ Updated Quick Access Grid with Instructional Videos
-  Widget _buildQuickAccessGrid() {
-    final items = [
-      _QuickAccessItem(
-        icon: Icons.menu_book_rounded,
-        title: 'Learning Modules',
-        subtitle: '5 modules',
-        color: const Color(0xFF4F6DB8),
-        bgColor: const Color(0xFFDCE6FF),
-        onTap: () {
-          setState(() {
-            _currentTabIndex = 1;
-          });
-        },
-      ),
-      _QuickAccessItem(
-        icon: Icons.quiz_rounded,
-        title: 'Quizzes',
-        subtitle: 'Available • Practice Mode',
-        color: const Color(0xFF9C4FA1),
-        bgColor: const Color(0xFFE9C4EB),
-        onTap: () {
-          if (_classId != null && _classId!.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StudentQuizzesPage(
-                  classId: _classId!,
-                  className: _className ?? 'My Class',
-                ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please join a class first to access quizzes'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        },
-      ),
-// Add this to the quick access items
-      _QuickAccessItem(
-        icon: Icons.assignment_rounded,
-        title: 'Assignments',
-        subtitle: 'View assignments',
-        color: const Color(0xFFE76C31),
-        bgColor: const Color(0xFFFFD7C2),
-        onTap: () {
-          if (_classId != null && _classId!.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StudentAssignmentsPage(
-                  classId: _classId!,
-                  className: _className ?? 'My Class',
-                ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content:
-                    Text('Please join a class first to access assignments'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        },
-      ),
-      _QuickAccessItem(
-        icon: Icons.science_rounded,
-        title: 'Simulations',
-        subtitle: '5 Labs • Interactive',
-        color: const Color(0xFF168D92),
-        bgColor: const Color(0xFFA6F4F5),
-      ),
-      // ✅ NEW: Instructional Videos - Now accessible from home
-      _QuickAccessItem(
-        icon: Icons.video_library_rounded,
-        title: 'Instructional Videos',
-        subtitle: '2 New',
-        color: const Color(0xFFD97847),
-        bgColor: const Color(0xFFFFCFB1),
-        onTap: () {
-          if (_classId != null && _classId!.isNotEmpty) {
-            // Fetch the first module's video or show a list
-            _navigateToInstructionalVideos(context);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please join a class first to access videos'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        },
-      ),
-// In _buildQuickAccessGrid() method
-      _QuickAccessItem(
-        icon: Icons.forum_rounded,
-        title: 'Discussion Forums',
-        subtitle: 'Ask & Discuss',
-        color: const Color(0xFF249A38),
-        bgColor: const Color(0xFFC9F2CE),
-        onTap: () {
-          if (_classId != null && _classId!.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ForumsPage(
-                  classId: _classId!,
-                  className: _className ?? 'My Class',
-                ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please join a class first to access forums'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        },
-      ),
-    ];
-
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.15,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-      ),
-      itemBuilder: (context, index) => items[index],
-    );
-  }
-
-  // ✅ Navigate to Instructional Videos
-  // ✅ Updated: Navigate to Instructional Videos
   Future<void> _navigateToInstructionalVideos(BuildContext context) async {
     if (_classId == null || _classId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -721,8 +756,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    // ✅ Navigate directly to InstructionalVideosPage
-    // The page will handle loading videos itself
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -734,7 +767,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ Updated Progress Content with QuizService
   Widget _buildProgressContent(String userId) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -746,8 +778,6 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-
-          // ✅ Progress Stats with Quiz Scores
           FutureBuilder<List<QuizResult>>(
             future: _quizService.getStudentQuizResults(userId),
             builder: (context, quizSnapshot) {
@@ -766,7 +796,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -812,8 +842,6 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           const SizedBox(height: 16),
-
-          // ✅ Quiz Results List
           FutureBuilder<List<QuizResult>>(
             future: _quizService.getStudentQuizResults(userId),
             builder: (context, snapshot) {
@@ -833,7 +861,7 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -859,7 +887,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -883,8 +911,6 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           const SizedBox(height: 16),
-
-          // Leaderboard
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -892,7 +918,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -939,8 +965,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Achievements
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -948,7 +972,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -984,7 +1008,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ✅ Helper: Build Quiz Result Tile
   Widget _buildQuizResultTile(QuizResult result) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1074,7 +1097,7 @@ class _HomePageState extends State<HomePage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: const Color(0xFF428DEB).withOpacity(0.1),
+            color: const Color(0xFF428DEB).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -1124,7 +1147,7 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -1176,12 +1199,14 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ✅ UPDATED: Profile Content with Debug Tools
   Widget _buildProfileContent(Map<String, dynamic>? profile, User user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Profile Card
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(24),
@@ -1190,7 +1215,7 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -1200,7 +1225,8 @@ class _HomePageState extends State<HomePage> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundColor: const Color(0xFF428DEB).withOpacity(0.1),
+                  backgroundColor:
+                      const Color(0xFF428DEB).withValues(alpha: 0.1),
                   backgroundImage: user.photoURL != null
                       ? NetworkImage(user.photoURL!)
                       : null,
@@ -1235,7 +1261,7 @@ class _HomePageState extends State<HomePage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF428DEB).withOpacity(0.1),
+                    color: const Color(0xFF428DEB).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
@@ -1251,6 +1277,8 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // Class Info Card
           FutureBuilder<QuerySnapshot>(
             future: FirebaseFirestore.instance
                 .collection('users')
@@ -1293,7 +1321,7 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1307,7 +1335,8 @@ class _HomePageState extends State<HomePage> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF428DEB).withOpacity(0.1),
+                            color:
+                                const Color(0xFF428DEB).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
@@ -1435,6 +1464,38 @@ class _HomePageState extends State<HomePage> {
               );
             },
           ),
+
+          // ✅ ADDED: Debug Tools Section
+          const SizedBox(height: 16),
+          Card(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.bug_report, color: Colors.purple),
+                  title: const Text('Debug Tools'),
+                  subtitle: const Text('Test notifications and debug data'),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DebugPage(),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: const Text(
+                    'Logout',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: _logout,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1459,7 +1520,7 @@ class _HomePageState extends State<HomePage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -1579,7 +1640,7 @@ class _QuickAccessItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

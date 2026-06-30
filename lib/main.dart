@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 
 // Official ICTeach Platform Screen Imports
@@ -19,7 +18,7 @@ void main() async {
     await _initializeFirebase();
   } catch (e) {
     print('Firebase initialization error: $e');
-    // You might want to show an error screen here
+    // Continue even if Firebase fails - the app will show error screens
   }
 
   runApp(const MyApp());
@@ -74,8 +73,18 @@ class MyApp extends StatelessWidget {
           },
         ),
         useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0B2B4A),
+          primary: const Color(0xFF0B2B4A),
+        ),
       ),
       home: const _AppEntry(),
+      // ✅ Add routes for easier navigation
+      routes: {
+        '/home': (context) => const HomeRouter(),
+        '/login': (context) => const LoginPage(),
+        '/admin-login': (context) => const AdminLoginPage(),
+      },
     );
   }
 }
@@ -99,6 +108,7 @@ class _AppEntryState extends State<_AppEntry> {
           builder: (context) {
             return SplashPage(
               onFinished: () {
+                // Check if user is already logged in
                 final user = FirebaseAuth.instance.currentUser;
 
                 if (user != null) {

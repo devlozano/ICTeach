@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
+import '../../services/notification_service.dart'; // ✅ ADD THIS
 import 'create_assignment_page.dart';
 import 'assignment_submissions_page.dart';
 
@@ -21,6 +22,8 @@ class ManageAssignmentsPage extends StatefulWidget {
 
 class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
   final AssignmentService _assignmentService = AssignmentService();
+  final NotificationService _notificationService =
+      NotificationService(); // ✅ ADD THIS
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +40,10 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => CreateAssignmentPage(classId: widget.classId),
+                  builder: (_) => CreateAssignmentPage(
+                    classId: widget.classId,
+                    className: widget.className, // ✅ Pass class name
+                  ),
                 ),
               );
               if (result == true && mounted) {
@@ -99,8 +105,10 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              CreateAssignmentPage(classId: widget.classId),
+                          builder: (_) => CreateAssignmentPage(
+                            classId: widget.classId,
+                            className: widget.className, // ✅ Pass class name
+                          ),
                         ),
                       );
                       if (result == true && mounted) {
@@ -140,7 +148,10 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => CreateAssignmentPage(classId: widget.classId),
+              builder: (_) => CreateAssignmentPage(
+                classId: widget.classId,
+                className: widget.className, // ✅ Pass class name
+              ),
             ),
           );
           if (result == true && mounted) {
@@ -202,32 +213,53 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
     }
   }
 
+  // ✅ UPDATED: Toggle Publish with Notification
   Future<void> _togglePublish(AssignmentModel assignment) async {
     try {
+      final newPublishState = !assignment.isPublished;
+
       await _assignmentService.togglePublish(
         widget.classId,
         assignment.id,
-        !assignment.isPublished,
+        newPublishState,
       );
+
+      // ✅ SEND NOTIFICATION WHEN PUBLISHED
+      if (newPublishState) {
+        try {
+          await _notificationService.notifyNewAssignment(
+            widget.classId,
+            assignment.title,
+          );
+          print('✅ Notification sent to students for: ${assignment.title}');
+        } catch (e) {
+          print('❌ Error sending notification: $e');
+          // Don't fail the toggle if notification fails
+        }
+      }
+
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            assignment.isPublished
-                ? 'Assignment unpublished'
-                : 'Assignment published',
+            newPublishState
+                ? '✅ Assignment published and notifications sent to students!'
+                : '📝 Assignment unpublished',
           ),
-          backgroundColor:
-              assignment.isPublished ? Colors.orange : Colors.green,
+          backgroundColor: newPublishState ? Colors.green : Colors.orange,
+          duration: const Duration(seconds: 3),
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -275,7 +307,7 @@ class _AssignmentCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -289,7 +321,7 @@ class _AssignmentCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B2B4A).withOpacity(0.1),
+                  color: const Color(0xFF0B2B4A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -316,7 +348,7 @@ class _AssignmentCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // ✅ FIXED: Status badge moved next to title
+                        // Status badge
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
@@ -413,7 +445,6 @@ class _AssignmentCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
-          // ✅ FIXED: Wrapped in Row with proper spacing
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -425,10 +456,10 @@ class _AssignmentCard extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              // ✅ FIXED: Action buttons with smaller size
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // View Submissions
                   IconButton(
                     onPressed: onViewSubmissions,
                     icon: const Icon(Icons.assessment, size: 18),
@@ -438,6 +469,7 @@ class _AssignmentCard extends StatelessWidget {
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     visualDensity: VisualDensity.compact,
                   ),
+                  // Toggle Publish
                   IconButton(
                     onPressed: onTogglePublish,
                     icon: Icon(
@@ -454,6 +486,7 @@ class _AssignmentCard extends StatelessWidget {
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     visualDensity: VisualDensity.compact,
                   ),
+                  // Edit
                   IconButton(
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined, size: 18),
@@ -463,6 +496,7 @@ class _AssignmentCard extends StatelessWidget {
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     visualDensity: VisualDensity.compact,
                   ),
+                  // Delete
                   IconButton(
                     onPressed: onDelete,
                     icon: const Icon(Icons.delete_outline, size: 18),
@@ -477,6 +511,29 @@ class _AssignmentCard extends StatelessWidget {
               ),
             ],
           ),
+          // ✅ ADDED: Notification indicator when published
+          if (assignment.isPublished)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active,
+                    size: 12,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Students have been notified',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

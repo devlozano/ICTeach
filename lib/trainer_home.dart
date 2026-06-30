@@ -10,8 +10,9 @@ import '../screens/teacher/create_quiz_page.dart';
 import '../screens/teacher/manage_quizzes_page.dart';
 import '../screens/teacher/create_assignment_page.dart';
 import '../screens/teacher/manage_assignments_page.dart';
-import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
-import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
+import 'package:icteach/screens/notification_page.dart';
+import 'package:icteach/widgets/notification_badge.dart';
+import 'package:icteach/screens/student/forums_page.dart';
 
 class TrainerHomePage extends StatefulWidget {
   const TrainerHomePage({super.key});
@@ -120,7 +121,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
               ),
             ),
             actions: [
-              // ✅ ADD NOTIFICATION BADGE HERE
+              // ✅ Notification Badge
               NotificationBadge(
                 child: IconButton(
                   onPressed: () {
@@ -150,7 +151,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
             index: _selectedIndex,
             children: [
               _buildHomeContent(primaryColor, trainerName, user.uid),
-              const Center(child: Text('Discussion Forums')),
+              _buildDiscussionForums(primaryColor),
               _buildProfileContent(profile, user),
             ],
           ),
@@ -271,7 +272,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: const Text(
@@ -327,13 +328,25 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
       builder: (context, snapshot) {
         final classCount = snapshot.data?.docs.length ?? 0;
 
+        // Calculate total students from all classes
+        int totalStudents = 0;
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          for (final doc in snapshot.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>? ?? {};
+            final studentCount = data['studentCount'] as int? ?? 0;
+            totalStudents += studentCount;
+          }
+        }
+
         return Row(
           children: [
             Expanded(
               child: _buildStatCard('My Classes', '$classCount', primaryColor),
             ),
             const SizedBox(width: 12),
-            Expanded(child: _buildStatCard('Students', '0', primaryColor)),
+            Expanded(
+              child: _buildStatCard('Students', '$totalStudents', primaryColor),
+            ),
           ],
         );
       },
@@ -348,7 +361,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -459,7 +472,100 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  // ✅ FIXED: Show Class Selector for Trainers - Uses their joined classes
+  // ✅ Discussion Forums Tab
+  Widget _buildDiscussionForums(Color primaryColor) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .collection('classes')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+
+        if (classDocs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.forum_outlined,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No forums available',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Join a class to participate in discussions',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: classDocs.length,
+          itemBuilder: (context, index) {
+            final doc = classDocs[index];
+            final data = doc.data() as Map<String, dynamic>? ?? {};
+            final className = data['className']?.toString() ??
+                data['name']?.toString() ??
+                'Unnamed Class';
+            final classId = data['classId']?.toString() ?? '';
+            final teacherName =
+                data['teacherName']?.toString() ?? 'Unknown Teacher';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: primaryColor.withValues(alpha: 0.1),
+                  child: Icon(Icons.forum_rounded, color: primaryColor),
+                ),
+                title: Text(
+                  className,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text('Teacher: $teacherName'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  // Navigate to forums page for this class
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ForumsPage(
+                        classId: classId,
+                        className: className,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ✅ Fixed: Show Class Selector for Trainers
   void _showClassSelector(BuildContext context, String actionType) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -475,9 +581,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         minChildSize: 0.3,
         maxChildSize: 0.9,
         expand: false,
-        builder: (context, scrollController) =>
-            // ✅ FIXED: Query trainer's joined classes from subcollection
-            StreamBuilder<QuerySnapshot>(
+        builder: (context, scrollController) => StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
@@ -742,7 +846,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -825,7 +929,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -1123,7 +1227,7 @@ class _TrainerToolItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

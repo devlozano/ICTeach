@@ -19,11 +19,15 @@ class ClassRosterPage extends StatefulWidget {
 class _ClassRosterPageState extends State<ClassRosterPage> {
   String _classCode = '';
   String _teacherName = '';
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _students = [];
+  List<Map<String, dynamic>> _trainers = [];
 
   @override
   void initState() {
     super.initState();
     _fetchClassData();
+    _loadRoster();
   }
 
   Future<void> _fetchClassData() async {
@@ -38,7 +42,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
         if (data != null) {
           setState(() {
             _classCode = data['classCode']?.toString() ?? '';
-            // ✅ Get teacher name from class data
             _teacherName = data['teacherName']?.toString() ?? 'Unknown Teacher';
           });
         }
@@ -48,15 +51,173 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
     }
   }
 
+  Future<void> _loadRoster() async {
+    setState(() => _isLoading = true);
+    try {
+      // ✅ Get the class document to get all enrolled IDs
+      final classDoc = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .get();
+
+      if (!classDoc.exists) {
+        print('❌ Class document not found');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final data = classDoc.data() as Map<String, dynamic>? ?? {};
+      final enrolledIds = List<String>.from(data['enrolledStudentIds'] ?? []);
+
+      print('📊 Total enrolled IDs: ${enrolledIds.length}');
+      print('📊 Enrolled IDs: $enrolledIds');
+
+      if (enrolledIds.isEmpty) {
+        print('⚠️ No enrolled users found');
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      // ✅ Fetch ALL users from the users collection to get their names
+      final allUsersSnapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+
+      // Create a map of userId -> userData for quick lookup
+      final Map<String, Map<String, dynamic>> usersMap = {};
+      for (final doc in allUsersSnapshot.docs) {
+        final userData = doc.data() as Map<String, dynamic>? ?? {};
+        final uid = userData['uid']?.toString() ?? doc.id;
+        usersMap[uid] = userData;
+        usersMap[doc.id] = userData; // Also index by document ID
+      }
+
+      print('📊 Found ${usersMap.length} users in users collection');
+      print('📊 User IDs: ${usersMap.keys.join(', ')}');
+
+      // ✅ Separate students and trainers
+      final List<Map<String, dynamic>> students = [];
+      final List<Map<String, dynamic>> trainers = [];
+
+      for (final userId in enrolledIds) {
+        print('🔍 Looking for user: $userId');
+
+        // Try to find the user in the usersMap
+        Map<String, dynamic>? userData = usersMap[userId];
+
+        // If not found, try to find by checking if any user has this as their uid field
+        if (userData == null) {
+          for (final entry in usersMap.entries) {
+            if (entry.value['uid']?.toString() == userId) {
+              userData = entry.value;
+              print(
+                  '   ✅ Found user by uid field: ${userData?['displayName']}');
+              break;
+            }
+          }
+        }
+
+        if (userData != null) {
+          // ✅ User found - get their name from the users collection
+          String name = userData['displayName']?.toString() ?? '';
+          if (name.isEmpty) {
+            name = userData['name']?.toString() ?? '';
+          }
+          if (name.isEmpty) {
+            // Try building from firstName + lastName
+            final firstName = userData['firstName']?.toString() ?? '';
+            final lastName = userData['lastName']?.toString() ?? '';
+            if (firstName.isNotEmpty || lastName.isNotEmpty) {
+              name = '$firstName $lastName'.trim();
+            }
+          }
+          if (name.isEmpty) {
+            name = 'Unknown User';
+          }
+
+          final email = userData['email']?.toString() ?? '';
+          final role = userData['role']?.toString() ?? 'student';
+
+          print('   👤 Found: $name, Role: $role, Email: $email');
+
+          final userInfo = {
+            'id': userId,
+            'name': name,
+            'email': email,
+            'role': role,
+            'data': userData,
+          };
+
+          if (role.toLowerCase() == 'trainer') {
+            trainers.add(userInfo);
+          } else {
+            students.add(userInfo);
+          }
+        } else {
+          // ✅ User not found - try checking the students subcollection
+          print(
+              '   ⚠️ User not found in users collection, checking subcollection...');
+
+          final subDoc = await FirebaseFirestore.instance
+              .collection('classes')
+              .doc(widget.classId)
+              .collection('students')
+              .doc(userId)
+              .get();
+
+          String name = 'Unknown User';
+          String email = '';
+
+          if (subDoc.exists) {
+            final subData = subDoc.data() as Map<String, dynamic>? ?? {};
+            name = subData['name']?.toString() ?? 'Unknown User';
+            email = subData['email']?.toString() ?? '';
+            print('   📋 Found in subcollection: $name');
+          } else {
+            name = 'Student ${userId.substring(0, 6)}';
+            print('   📋 No data found, using: $name');
+          }
+
+          students.add({
+            'id': userId,
+            'name': name,
+            'email': email,
+            'role': 'student',
+            'data': {},
+          });
+        }
+      }
+
+      // ✅ Sort students by name
+      students
+          .sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
+      trainers
+          .sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
+
+      setState(() {
+        _students = students;
+        _trainers = trainers;
+        _isLoading = false;
+      });
+
+      print(
+          '📊 Final counts - Students: ${students.length}, Trainers: ${trainers.length}');
+      print('📊 Student names: ${students.map((s) => s['name']).join(', ')}');
+      print('📊 Trainer names: ${trainers.map((t) => t['name']).join(', ')}');
+    } catch (e) {
+      print('❌ Error loading roster: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> deleteStudent(BuildContext context, String studentId) async {
     if (studentId.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Invalid student ID")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Invalid user ID")));
       return;
     }
 
     try {
+      // Delete from subcollection
       await FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)
@@ -64,6 +225,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           .doc(studentId)
           .delete();
 
+      // Delete from user's classes subcollection if exists
       await FirebaseFirestore.instance
           .collection('users')
           .doc(studentId)
@@ -71,15 +233,26 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           .doc(widget.classId)
           .delete();
 
+      // Remove from enrolledStudentIds array
+      await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .update({
+        'enrolledStudentIds': FieldValue.arrayRemove([studentId]),
+      });
+
+      // Refresh the list
+      await _loadRoster();
+
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Student removed from class")),
+        const SnackBar(content: Text("User removed from class")),
       );
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error removing student: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error removing user: $e")),
+      );
     }
   }
 
@@ -89,24 +262,23 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
     Map<String, dynamic> data,
   ) {
     if (studentId.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Invalid student ID")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text("Invalid user ID")));
       return;
     }
 
     final nameController = TextEditingController(
-      text: data['name']?.toString() ?? '',
+      text: data['displayName']?.toString() ?? data['name']?.toString() ?? '',
     );
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Edit Student"),
+          title: const Text("Edit User"),
           content: TextField(
             controller: nameController,
-            decoration: const InputDecoration(labelText: "Student Name"),
+            decoration: const InputDecoration(labelText: "Name"),
           ),
           actions: [
             TextButton(
@@ -124,15 +296,30 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
                 }
 
                 try {
+                  // Update in users collection
                   await FirebaseFirestore.instance
                       .collection('users')
                       .doc(studentId)
+                      .update({
+                    'displayName': newName,
+                    'name': newName,
+                  });
+
+                  // Update in students subcollection if exists
+                  await FirebaseFirestore.instance
+                      .collection('classes')
+                      .doc(widget.classId)
+                      .collection('students')
+                      .doc(studentId)
                       .update({'name': newName});
+
+                  // Refresh the list
+                  await _loadRoster();
 
                   if (!context.mounted) return;
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Student name updated")),
+                    const SnackBar(content: Text("Name updated")),
                   );
                 } catch (e) {
                   if (!context.mounted) return;
@@ -151,9 +338,8 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
 
   void _copyClassCode(BuildContext context) {
     if (_classCode.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("No class code available")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No class code available")));
       return;
     }
 
@@ -189,7 +375,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
               widget.className,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            // ✅ Display teacher name below class name
             if (_teacherName.isNotEmpty)
               Row(
                 children: [
@@ -327,202 +512,234 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           ),
         ),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('classes')
-            .doc(widget.classId)
-            .collection('students')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text("Error loading students: ${snapshot.error}"),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      setState(() {});
-                    },
-                    child: const Text("Retry"),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(child: Text("No data available"));
-          }
-
-          final students = snapshot.data!.docs;
-
-          if (students.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 64,
-                    color: Colors.grey.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "No students joined yet",
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Share the class code to invite students",
-                    style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: students.length,
-            itemBuilder: (context, index) {
-              final student = students[index];
-              final studentId = student.id;
-
-              if (studentId.isEmpty) {
-                return const SizedBox();
-              }
-
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(studentId)
-                    .get(),
-                builder: (context, userSnap) {
-                  if (userSnap.connectionState == ConnectionState.waiting) {
-                    return const Card(
-                      child: ListTile(
-                        leading: CircleAvatar(child: Icon(Icons.person)),
-                        title: Text("Loading..."),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : (_students.isEmpty && _trainers.isEmpty)
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        size: 64,
+                        color: Colors.grey.shade300,
                       ),
-                    );
-                  }
-
-                  if (userSnap.hasError ||
-                      !userSnap.hasData ||
-                      userSnap.data == null) {
-                    return Card(
-                      elevation: 2,
-                      child: ListTile(
-                        leading: const CircleAvatar(child: Icon(Icons.person)),
-                        title: Text(studentId),
-                        subtitle: const Text("Student data not available"),
-                        trailing: PopupMenuButton(
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: "delete",
-                              child: Text("Remove"),
-                            ),
-                          ],
-                          onSelected: (value) {
-                            if (value == "delete") {
-                              deleteStudent(context, studentId);
-                            }
-                          },
-                        ),
-                      ),
-                    );
-                  }
-
-                  final user = userSnap.data!;
-                  final data = user.data() as Map<String, dynamic>? ?? {};
-
-                  final name = data['name']?.toString() ?? "Student";
-                  final email = data['email']?.toString() ?? "";
-
-                  return Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(
-                          0xFF428DEB,
-                        ).withOpacity(0.1),
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: const TextStyle(
-                            color: Color(0xFF428DEB),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: Text(
-                        email,
+                      const SizedBox(height: 16),
+                      Text(
+                        "No users joined yet",
                         style: TextStyle(
                           color: Colors.grey.shade600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Share the class code to invite students and trainers",
+                        style: TextStyle(
+                          color: Colors.grey.shade400,
                           fontSize: 13,
                         ),
                       ),
-                      trailing: PopupMenuButton(
-                        icon: const Icon(Icons.more_vert),
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: "edit",
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.edit,
-                                  size: 18,
-                                  color: Color(0xFF428DEB),
+                    ],
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    // Trainers Section
+                    if (_trainers.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Trainers (${_trainers.length})',
+                                style: TextStyle(
+                                  color: Colors.purple.shade800,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
-                                SizedBox(width: 8),
-                                Text("Edit"),
-                              ],
+                              ),
                             ),
-                          ),
-                          const PopupMenuItem(
-                            value: "delete",
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.delete_outline,
-                                  size: 18,
-                                  color: Colors.red,
-                                ),
-                                SizedBox(width: 8),
-                                Text("Remove"),
-                              ],
+                            const Spacer(),
+                            Text(
+                              '👑 Class Trainers',
+                              style: TextStyle(
+                                color: Colors.purple.shade600,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                        ],
-                        onSelected: (value) {
-                          if (value == "edit") {
-                            editStudent(context, studentId, data);
-                          } else if (value == "delete") {
-                            deleteStudent(context, studentId);
-                          }
-                        },
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
+                      ..._trainers.map((trainer) => _buildUserCard(
+                            context,
+                            trainer,
+                            isTrainer: true,
+                          )),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Students Section
+                    if (_students.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Students (${_students.length})',
+                                style: TextStyle(
+                                  color: Colors.blue.shade800,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '🎓 Enrolled Students',
+                              style: TextStyle(
+                                color: Colors.blue.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ..._students.map((student) => _buildUserCard(
+                            context,
+                            student,
+                            isTrainer: false,
+                          )),
+                    ],
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildUserCard(
+    BuildContext context,
+    Map<String, dynamic> user, {
+    required bool isTrainer,
+  }) {
+    final userId = user['id'] ?? '';
+    final name = user['name'] ?? 'Unknown User';
+    final email = user['email'] ?? '';
+    final data = user['data'] ?? {};
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: isTrainer
+              ? Colors.purple.shade100
+              : const Color(0xFF428DEB).withValues(alpha: 0.1),
+          child: Text(
+            name.isNotEmpty ? name[0].toUpperCase() : '?',
+            style: TextStyle(
+              color:
+                  isTrainer ? Colors.purple.shade700 : const Color(0xFF428DEB),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isTrainer)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '👑 Trainer',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade800,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        subtitle: Text(
+          email.isNotEmpty ? email : 'No email',
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 13,
+          ),
+        ),
+        trailing: PopupMenuButton(
+          icon: const Icon(Icons.more_vert),
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: "edit",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.edit,
+                    size: 18,
+                    color: Color(0xFF428DEB),
+                  ),
+                  SizedBox(width: 8),
+                  Text("Edit"),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: "delete",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.delete_outline,
+                    size: 18,
+                    color: Colors.red,
+                  ),
+                  SizedBox(width: 8),
+                  Text("Remove"),
+                ],
+              ),
+            ),
+          ],
+          onSelected: (value) {
+            if (value == "edit") {
+              editStudent(context, userId, data);
+            } else if (value == "delete") {
+              deleteStudent(context, userId);
+            }
+          },
+        ),
       ),
     );
   }

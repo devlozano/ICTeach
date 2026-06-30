@@ -41,9 +41,16 @@ class _CreateClassPageState extends State<CreateClassPage> {
   Future<String> _generateUniqueClassCode() async {
     String code;
     bool isUnique;
+    int attempts = 0;
     do {
       code = _generateClassCode();
       isUnique = await _isClassCodeUnique(code);
+      attempts++;
+      if (attempts > 10) {
+        // If we can't generate a unique code after 10 attempts, add timestamp
+        code = '${code}${DateTime.now().millisecondsSinceEpoch % 1000}';
+        break;
+      }
     } while (!isUnique);
     return code;
   }
@@ -83,10 +90,11 @@ class _CreateClassPageState extends State<CreateClassPage> {
 
       if (existing.docs.isNotEmpty) {
         _showMessage("You already created this class.");
+        setState(() => _isLoading = false);
         return;
       }
 
-      // ✅ FIX: Get the teacher's full name from Firestore users collection
+      // ✅ Get the teacher's full name from Firestore users collection
       final teacherDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(teacher.uid)
@@ -107,10 +115,14 @@ class _CreateClassPageState extends State<CreateClassPage> {
         else {
           final firstName = teacherData['firstName']?.toString() ?? '';
           final middleInitial = teacherData['middleInitial']?.toString() ?? '';
+          final middleName = teacherData['middleName']?.toString() ?? '';
           final lastName = teacherData['lastName']?.toString() ?? '';
           final extension = teacherData['extension']?.toString() ?? '';
 
-          final parts = [firstName, middleInitial, lastName, extension];
+          // If middleName exists, use it instead of middleInitial
+          final middlePart = middleName.isNotEmpty ? middleName : middleInitial;
+
+          final parts = [firstName, middlePart, lastName, extension];
           teacherName = parts.where((p) => p.isNotEmpty).join(' ');
           print('✅ Built teacher name from parts: $teacherName');
 
@@ -133,10 +145,10 @@ class _CreateClassPageState extends State<CreateClassPage> {
       // Get current school year
       final schoolYear = _getCurrentSchoolYear();
 
-      // ✅ Use the proper teacher name
+      // Use the proper teacher name
       String teacherEmail = teacher.email ?? "No email provided";
 
-      // Create class data with ALL non-nullable strings
+      // ✅ Create class data with ALL fields
       final classData = {
         "id": classRef.id,
         "classCode": classCode,
@@ -144,7 +156,7 @@ class _CreateClassPageState extends State<CreateClassPage> {
         "description": description,
         "sectionCode": sectionCode,
         "teacherId": teacher.uid,
-        "teacherName": teacherName, // ✅ Now using the full name from Firestore
+        "teacherName": teacherName,
         "teacherEmail": teacherEmail,
         "enrolledStudentIds": [],
         "pendingReviews": 0,
@@ -161,6 +173,7 @@ class _CreateClassPageState extends State<CreateClassPage> {
 
       if (!mounted) return;
 
+      // Show success message with class details
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Column(
@@ -203,6 +216,7 @@ class _CreateClassPageState extends State<CreateClassPage> {
     final now = DateTime.now();
     final year = now.year;
     final month = now.month;
+    // Philippine school year starts in June
     if (month >= 6) {
       return '$year-${year + 1}';
     } else {
@@ -212,9 +226,13 @@ class _CreateClassPageState extends State<CreateClassPage> {
 
   void _showMessage(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override

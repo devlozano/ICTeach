@@ -4,11 +4,17 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
+import '../../services/notification_service.dart'; // ✅ ADD THIS
 
 class CreateAssignmentPage extends StatefulWidget {
   final String classId;
+  final String className; // ✅ ADD THIS - to show class name in notification
 
-  const CreateAssignmentPage({super.key, required this.classId});
+  const CreateAssignmentPage({
+    super.key,
+    required this.classId,
+    this.className = '', // Optional with default
+  });
 
   @override
   State<CreateAssignmentPage> createState() => _CreateAssignmentPageState();
@@ -17,6 +23,8 @@ class CreateAssignmentPage extends StatefulWidget {
 class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
   final _formKey = GlobalKey<FormState>();
   final AssignmentService _assignmentService = AssignmentService();
+  final NotificationService _notificationService =
+      NotificationService(); // ✅ ADD THIS
 
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -45,6 +53,8 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
     }
   }
 
+// In _saveAssignment method, add more logging:
+
   Future<void> _saveAssignment() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -64,24 +74,50 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
       );
 
       await _assignmentService.createAssignment(assignment);
+      print('✅ Assignment created: ${assignment.title}');
+
+      // SEND NOTIFICATION TO STUDENTS IF PUBLISHED
+      if (_isPublished) {
+        print('📢 Attempting to send notifications...');
+        try {
+          await _notificationService.notifyNewAssignment(
+            widget.classId,
+            _titleController.text.trim(),
+          );
+          print('✅ Notification sent to students');
+        } catch (e) {
+          print('❌ Error sending notification: $e');
+          // Don't fail the assignment creation if notification fails
+        }
+      } else {
+        print('ℹ️ Assignment saved as draft - no notifications sent');
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Assignment created successfully!'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(
+            _isPublished
+                ? '✅ Assignment published!'
+                : '✅ Assignment saved as draft!',
+          ),
+          backgroundColor: _isPublished ? Colors.green : Colors.orange,
+          duration: const Duration(seconds: 3),
         ),
       );
 
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error creating assignment: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('❌ Error creating assignment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error creating assignment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -116,6 +152,33 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Class Name (optional info)
+              if (widget.className.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.class_, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Creating assignment for: ${widget.className}',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Title
               TextFormField(
                 controller: _titleController,
@@ -240,24 +303,68 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                         : Colors.amber.shade200,
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      _isPublished ? Icons.public : Icons.lock,
-                      color: _isPublished ? Colors.green : Colors.amber,
+                    Row(
+                      children: [
+                        Icon(
+                          _isPublished ? Icons.public : Icons.lock,
+                          color: _isPublished ? Colors.green : Colors.amber,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _isPublished
+                              ? 'Published - Students can see this'
+                              : 'Draft - Students cannot see this',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: _isPublished
+                                ? Colors.green.shade800
+                                : Colors.amber.shade800,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _isPublished
-                          ? 'Published - Students can see this'
-                          : 'Draft - Students cannot see this',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color: _isPublished
-                            ? Colors.green.shade800
-                            : Colors.amber.shade800,
+                    if (_isPublished) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.notifications_active,
+                            size: 16,
+                            color: Colors.green.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Students will be notified when published',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.amber.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Toggle the switch to publish and notify students',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -285,9 +392,9 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                             strokeWidth: 2.5,
                           ),
                         )
-                      : const Text(
-                          'Create Assignment',
-                          style: TextStyle(
+                      : Text(
+                          _isPublished ? 'Publish Assignment' : 'Save as Draft',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),

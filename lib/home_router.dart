@@ -24,7 +24,6 @@ class HomeRouter extends StatelessWidget {
           .collection('users')
           .doc(user.uid)
           .snapshots(),
-
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(

@@ -3,11 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
+import '../../services/notification_service.dart'; // ✅ ADD THIS
 
 class CreateQuizPage extends StatefulWidget {
   final String classId;
+  final String className; // ✅ ADD THIS
 
-  const CreateQuizPage({super.key, required this.classId});
+  const CreateQuizPage({
+    super.key,
+    required this.classId,
+    this.className = '', // ✅ ADD THIS with default
+  });
 
   @override
   State<CreateQuizPage> createState() => _CreateQuizPageState();
@@ -16,6 +22,8 @@ class CreateQuizPage extends StatefulWidget {
 class _CreateQuizPageState extends State<CreateQuizPage> {
   final _formKey = GlobalKey<FormState>();
   final QuizService _quizService = QuizService();
+  final NotificationService _notificationService =
+      NotificationService(); // ✅ ADD THIS
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _timeLimitController = TextEditingController();
@@ -100,11 +108,23 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
 
       await _quizService.createQuiz(quiz);
 
+      // ✅ SEND NOTIFICATION TO STUDENTS IF PUBLISHED
+      if (_isPublished) {
+        await _notificationService.notifyNewQuiz(
+          widget.classId,
+          _titleController.text.trim(),
+        );
+      }
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Quiz created successfully!'),
+        SnackBar(
+          content: Text(
+            _isPublished
+                ? '✅ Quiz published and notifications sent to students!'
+                : '✅ Quiz saved as draft!',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -155,6 +175,34 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Class Name Display (if available)
+              if (widget.className.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.class_, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Class: ${widget.className}',
+                          style: TextStyle(
+                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Title
               TextFormField(
                 controller: _titleController,
@@ -335,6 +383,35 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
               ),
               const SizedBox(height: 24),
 
+              // ✅ Notification Info (if published)
+              if (_isPublished) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.notifications_active,
+                          color: Colors.green.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Students will be notified about this quiz when you save it.',
+                          style: TextStyle(
+                            color: Colors.green.shade800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Save Button
               SizedBox(
                 width: double.infinity,
@@ -357,9 +434,9 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                             strokeWidth: 2.5,
                           ),
                         )
-                      : const Text(
-                          'Create Quiz',
-                          style: TextStyle(
+                      : Text(
+                          _isPublished ? 'Publish Quiz' : 'Save as Draft',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -439,7 +516,7 @@ class _QuestionCardState extends State<_QuestionCard> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -453,7 +530,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B2B4A).withOpacity(0.1),
+                  color: const Color(0xFF0B2B4A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

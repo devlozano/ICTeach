@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
+import '../../services/notification_service.dart';
 
 class GradeSubmissionPage extends StatefulWidget {
   final String classId;
@@ -24,6 +25,7 @@ class GradeSubmissionPage extends StatefulWidget {
 
 class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
   final AssignmentService _assignmentService = AssignmentService();
+  final NotificationService _notificationService = NotificationService();
   final TextEditingController _scoreController = TextEditingController();
   final TextEditingController _feedbackController = TextEditingController();
   bool _isSubmitting = false;
@@ -39,12 +41,30 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _scoreController.dispose();
+    _feedbackController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submitGrade() async {
     final score = int.tryParse(_scoreController.text.trim());
     if (score == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please enter a valid score'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Validate score range
+    if (score < 0 || score > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Score must be between 0 and 100'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -64,6 +84,13 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
         _feedbackController.text.trim(),
       );
 
+      // ✅ SEND NOTIFICATION TO STUDENT - CORRECT WAY
+      await _notificationService.notifyGrade(
+        widget.submission.studentId, // studentId
+        widget.assignmentTitle, // assignmentTitle
+        score, // score
+      );
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,12 +102,14 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
 
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error grading submission: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error grading submission: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -109,7 +138,7 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -153,7 +182,7 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                               ),
                             ),
                             Text(
-                              'Submitted: ${widget.submission.submittedAt.day}/${widget.submission.submittedAt.month}/${widget.submission.submittedAt.year} at ${widget.submission.submittedAt.hour}:${widget.submission.submittedAt.minute.toString().padLeft(2, '0')}',
+                              'Submitted: ${_formatDate(widget.submission.submittedAt)}',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade600,
@@ -170,12 +199,12 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                             color: Colors.green.shade100,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Text(
-                            'Graded',
+                          child: Text(
+                            'Graded: ${widget.submission.score}/100',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: Colors.green,
+                              color: Colors.green.shade700,
                             ),
                           ),
                         ),
@@ -194,7 +223,7 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -216,6 +245,7 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
                     ),
                     child: Text(
                       widget.submission.content.isNotEmpty
@@ -239,7 +269,14 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                                 mode: LaunchMode.externalApplication);
                           }
                         } catch (e) {
-                          print('Error opening attachment: $e');
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error opening file: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
                       },
                       child: Container(
@@ -281,7 +318,7 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -302,18 +339,31 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                   TextFormField(
                     controller: _scoreController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Score',
-                      hintText: 'Enter score (max 100)',
-                      prefixIcon: Icon(Icons.score),
-                      border: OutlineInputBorder(
+                    decoration: InputDecoration(
+                      labelText: 'Score (out of 100)',
+                      hintText: 'Enter score (0-100)',
+                      prefixIcon: const Icon(Icons.score),
+                      border: const OutlineInputBorder(
                         borderRadius: BorderRadius.all(Radius.circular(12)),
                       ),
+                      suffixText: '/ 100',
+                      suffixStyle: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      helperText: 'Enter a score between 0 and 100',
+                      helperStyle: TextStyle(color: Colors.grey.shade500),
                     ),
                     onChanged: (value) {
                       _selectedScore = int.tryParse(value);
+                      setState(() {});
                     },
                   ),
+                  // Score visual indicator
+                  if (_selectedScore != null) ...[
+                    const SizedBox(height: 12),
+                    _buildScoreIndicator(_selectedScore!),
+                  ],
                   const SizedBox(height: 16),
                   // Feedback Input
                   TextFormField(
@@ -329,45 +379,54 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                       alignLabelWithHint: true,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   // Quick feedback buttons
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       _QuickFeedbackChip(
-                        label: 'Excellent work!',
+                        label: '🌟 Excellent!',
                         onTap: () {
                           setState(() {
                             _feedbackController.text =
-                                'Excellent work! Keep up the great effort. 🎉';
+                                'Excellent work! You demonstrated a thorough understanding of the topic. Keep up the great effort! 🌟🎉';
                           });
                         },
                       ),
                       _QuickFeedbackChip(
-                        label: 'Good job!',
+                        label: '💪 Good job!',
                         onTap: () {
                           setState(() {
                             _feedbackController.text =
-                                'Good job! You showed a solid understanding of the topic. Keep learning! 💪';
+                                'Good job! You showed a solid understanding of the concepts. Keep learning and practicing to improve further! 💪✨';
                           });
                         },
                       ),
                       _QuickFeedbackChip(
-                        label: 'Needs improvement',
+                        label: '📚 Needs review',
                         onTap: () {
                           setState(() {
                             _feedbackController.text =
-                                'You showed some understanding, but there are areas that need improvement. Please review the material and try again. 📚';
+                                'You showed some understanding, but there are areas that need improvement. Please review the material and try again. I\'m here to help! 📚🤝';
                           });
                         },
                       ),
                       _QuickFeedbackChip(
-                        label: 'Great effort!',
+                        label: '⭐ Great effort!',
                         onTap: () {
                           setState(() {
                             _feedbackController.text =
-                                'Great effort! I can see you put time into this. Keep practicing and you\'ll improve even more! ⭐';
+                                'Great effort! I can see you put time and thought into this. Continue practicing and you\'ll improve even more! ⭐💫';
+                          });
+                        },
+                      ),
+                      _QuickFeedbackChip(
+                        label: '🎯 Well done!',
+                        onTap: () {
+                          setState(() {
+                            _feedbackController.text =
+                                'Well done! Your work shows good understanding and attention to detail. Keep pushing forward! 🎯👏';
                           });
                         },
                       ),
@@ -386,6 +445,7 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: 2,
                       ),
                       child: _isSubmitting
                           ? const SizedBox(
@@ -407,6 +467,19 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
                             ),
                     ),
                   ),
+                  if (widget.submission.isGraded) ...[
+                    const SizedBox(height: 12),
+                    Center(
+                      child: Text(
+                        'This submission was previously graded. Updating will overwrite the existing grade.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade700,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -414,6 +487,79 @@ class _GradeSubmissionPageState extends State<GradeSubmissionPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildScoreIndicator(int score) {
+    Color color;
+    String label;
+    IconData icon;
+
+    if (score >= 90) {
+      color = Colors.green;
+      label = 'Excellent';
+      icon = Icons.emoji_events;
+    } else if (score >= 75) {
+      color = Colors.blue;
+      label = 'Good';
+      icon = Icons.thumb_up;
+    } else if (score >= 60) {
+      color = Colors.orange;
+      label = 'Satisfactory';
+      icon = Icons.check_circle;
+    } else {
+      color = Colors.red;
+      label = 'Needs Improvement';
+      icon = Icons.warning;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  'Score: $score/100',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '$score%',
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
 

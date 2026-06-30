@@ -52,7 +52,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
       final classData = classDoc.data();
       final classId = classDoc.id;
 
-      // Check if student is already enrolled
+      // Check if user is already enrolled
       final enrolledStudents = List<String>.from(
         classData['enrolledStudentIds'] ?? [],
       );
@@ -86,52 +86,88 @@ class _JoinClassPageState extends State<JoinClassPage> {
       final teacherEmail = classData['teacherEmail']?.toString() ?? '';
       final schoolYear = classData['schoolYear']?.toString() ?? '';
 
-      // Add student to class
+      // ✅ Get user role from users collection
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      final userRole = userData['role']?.toString() ?? 'student';
+      final userName =
+          userData['name']?.toString() ?? user.displayName ?? 'User';
+      final userEmail = user.email ?? '';
+
+      print('👤 User joining class: $userName');
+      print('👤 User role: $userRole');
+      print('📚 Class: $className');
+
+      // ✅ STEP 1: Add user to class's students subcollection (for notifications & roster)
+      await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(classId)
+          .collection('students')
+          .doc(user.uid)
+          .set({
+        'uid': user.uid,
+        'name': userName,
+        'email': userEmail,
+        'role': userRole, // ✅ Store the role (student/trainer)
+        'joinedAt': FieldValue.serverTimestamp(),
+        'status': 'active',
+      });
+
+      print('✅ Added user to class subcollection with role: $userRole');
+
+      // ✅ STEP 2: Update enrolledStudentIds array in class document
       await classDoc.reference.update({
         'enrolledStudentIds': FieldValue.arrayUnion([user.uid]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ✅ Store ALL class data in student's subcollection with proper teacher name
+      print('✅ Updated enrolledStudentIds array');
+
+      // ✅ STEP 3: Store ALL class data in user's subcollection
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('classes')
           .doc(classId)
           .set({
-            'classId': classId,
-            'className': className,
-            'description': description,
-            'sectionCode': sectionCode,
-            'classCode': classCodeValue,
-            'teacherId': teacherId,
-            'teacherName':
-                teacherName, // ✅ Now using the proper teacher name from class data
-            'teacherEmail': teacherEmail,
-            'schoolYear': schoolYear,
-            'joinedAt': FieldValue.serverTimestamp(),
-            'status': 'active',
-          });
+        'classId': classId,
+        'className': className,
+        'description': description,
+        'sectionCode': sectionCode,
+        'classCode': classCodeValue,
+        'teacherId': teacherId,
+        'teacherName': teacherName,
+        'teacherEmail': teacherEmail,
+        'schoolYear': schoolYear,
+        'joinedAt': FieldValue.serverTimestamp(),
+        'status': 'active',
+      });
 
-      // ✅ Also update the user's main document with class info if needed
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      print('✅ Added class to user\'s subcollection');
 
+      // ✅ STEP 4: Update the user's main document with class info
       if (userDoc.exists) {
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .update({
-              'currentClassId': classId,
-              'currentClassName': className,
-              'currentTeacherName': teacherName,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
+          'currentClassId': classId,
+          'currentClassName': className,
+          'currentTeacherName': teacherName,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        print('✅ Updated user main document');
       }
 
       if (!mounted) return;
+
+      // Show success message
+      final roleEmoji = userRole == 'trainer' ? '👑' : '🎓';
+      final roleLabel = userRole == 'trainer' ? 'Trainer' : 'Student';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -139,9 +175,9 @@ class _JoinClassPageState extends State<JoinClassPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                '✅ Successfully joined class!',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                '✅ Successfully joined class as $roleLabel!',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text('Class: $className', style: const TextStyle(fontSize: 13)),
@@ -149,10 +185,14 @@ class _JoinClassPageState extends State<JoinClassPage> {
                 'Teacher: $teacherName',
                 style: const TextStyle(fontSize: 12),
               ),
+              Text(
+                '$roleEmoji Role: $roleLabel',
+                style: const TextStyle(fontSize: 12),
+              ),
             ],
           ),
           backgroundColor: Colors.green.shade700,
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 4),
         ),
       );
 
@@ -170,7 +210,11 @@ class _JoinClassPageState extends State<JoinClassPage> {
   void _showMessage(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red.shade700),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade700,
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -270,6 +314,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
                         ),
                         filled: true,
                         fillColor: Colors.grey.shade50,
+                        counterText: '', // Hide character counter
                       ),
                       textCapitalization: TextCapitalization.characters,
                       maxLength: 7,
