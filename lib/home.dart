@@ -7,7 +7,6 @@ import 'package:icteach/screens/student/student_assignments_page.dart';
 import 'package:icteach/screens/student/student_quizzes_page.dart';
 import 'package:icteach/screens/student/instructional_videos_page.dart';
 import 'package:icteach/screens/notification_page.dart';
-import 'package:icteach/screens/debug_page.dart'; // ✅ ADD THIS
 import 'package:icteach/widgets/notification_badge.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
@@ -1470,20 +1469,6 @@ class _HomePageState extends State<HomePage> {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.bug_report, color: Colors.purple),
-                  title: const Text('Debug Tools'),
-                  subtitle: const Text('Test notifications and debug data'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DebugPage(),
-                      ),
-                    );
-                  },
-                ),
                 const Divider(height: 1),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),

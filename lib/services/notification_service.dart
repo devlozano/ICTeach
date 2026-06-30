@@ -5,7 +5,7 @@ import '../models/notification_model.dart';
 class NotificationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Get notifications for current user - Fixed without orderBy
+  // Get notifications for current user
   Stream<List<NotificationModel>> getNotifications() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -46,146 +46,6 @@ class NotificationService {
       print('🔔 getUnreadCount: ${snapshot.docs.length} unread');
       return snapshot.docs.length;
     });
-  }
-  // Add these methods to your NotificationService class
-
-// Debug: Check all classes for the current teacher
-  Future<void> debugAllClasses() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        print('❌ No user logged in');
-        return;
-      }
-
-      print('🔍 ===== DEBUG: Checking all classes for teacher =====');
-      print('👤 Teacher UID: ${user.uid}');
-      print('📧 Teacher Email: ${user.email}');
-
-      // Get all classes for this teacher
-      final classesSnapshot = await _firestore
-          .collection('classes')
-          .where('teacherId', isEqualTo: user.uid)
-          .get();
-
-      print('📊 Found ${classesSnapshot.docs.length} classes');
-
-      if (classesSnapshot.docs.isEmpty) {
-        print('⚠️ No classes found for this teacher');
-        return;
-      }
-
-      for (final classDoc in classesSnapshot.docs) {
-        final classId = classDoc.id;
-        final classData = classDoc.data();
-        final className = classData['className'] ?? 'Unnamed Class';
-
-        print('\n📚 Class: $className (ID: $classId)');
-        print('   Teacher ID: ${classData['teacherId']}');
-
-        // Check students in this class
-        await debugClassStudents(classId);
-      }
-
-      print('\n🔍 ===== DEBUG COMPLETE =====');
-    } catch (e) {
-      print('❌ Debug error: $e');
-    }
-  }
-
-// Debug: Check students in a specific class
-  Future<void> debugClassStudents(String classId) async {
-    try {
-      print('   📋 Checking students for class: $classId');
-
-      // Method 1: Check subcollection
-      final studentsSnapshot = await _firestore
-          .collection('classes')
-          .doc(classId)
-          .collection('students')
-          .get();
-
-      print('   📊 Students in subcollection: ${studentsSnapshot.docs.length}');
-
-      if (studentsSnapshot.docs.isNotEmpty) {
-        for (final doc in studentsSnapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>? ?? {};
-          print('      👤 Student ID: ${doc.id}');
-          print('         Name: ${data['name'] ?? 'Unknown'}');
-          print('         UID: ${data['uid'] ?? 'Not set'}');
-          print('         Email: ${data['email'] ?? 'Not set'}');
-          print('         Data: ${data.keys.join(', ')}');
-        }
-      }
-
-      // Method 2: Check if students are in the class document
-      final classDoc =
-          await _firestore.collection('classes').doc(classId).get();
-      if (classDoc.exists) {
-        final classData = classDoc.data() as Map<String, dynamic>? ?? {};
-        final enrolledStudents = classData['enrolledStudentIds'] as List? ?? [];
-        print('   📊 enrolledStudentIds array: ${enrolledStudents.length}');
-        if (enrolledStudents.isNotEmpty) {
-          print('      Students: ${enrolledStudents.join(', ')}');
-        }
-      }
-
-      print('   ✅ Class debug complete');
-    } catch (e) {
-      print('   ❌ Error debugging class: $e');
-    }
-  }
-
-// Debug: Check notifications for a specific user
-  Future<void> debugUserNotifications(String userId) async {
-    try {
-      print('🔍 ===== DEBUG: Checking notifications for user $userId =====');
-
-      final snapshot = await _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      print('📊 Found ${snapshot.docs.length} notifications');
-
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        print('   📬 Notification: ${data['title']}');
-        print('      Type: ${data['type']}');
-        print('      Read: ${data['isRead']}');
-        print('      Created: ${data['createdAt']}');
-      }
-
-      print('🔍 ===== DEBUG COMPLETE =====');
-    } catch (e) {
-      print('❌ Debug error: $e');
-    }
-  }
-
-// Debug: Check if a notification exists for a class
-  Future<void> debugClassNotifications(String classId) async {
-    try {
-      print('🔍 ===== DEBUG: Checking notifications for class $classId =====');
-
-      final snapshot = await _firestore
-          .collection('notifications')
-          .where('referenceId', isEqualTo: classId)
-          .get();
-
-      print('📊 Found ${snapshot.docs.length} notifications for this class');
-
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        print('   📬 Notification: ${data['title']}');
-        print('      User: ${data['userId']}');
-        print('      Type: ${data['type']}');
-        print('      Read: ${data['isRead']}');
-      }
-
-      print('🔍 ===== DEBUG COMPLETE =====');
-    } catch (e) {
-      print('❌ Debug error: $e');
-    }
   }
 
   // Mark notification as read
@@ -251,41 +111,151 @@ class NotificationService {
     }
   }
 
-  // ✅ FIXED: Send assignment notification to ALL students in class
+  // ✅ FIXED: Forum notification - includes teacher, excludes poster
+  Future<void> notifyNewForumPost(
+    String classId,
+    String postTitle,
+    String authorName,
+    String excludeUserId,
+  ) async {
+    try {
+      print('📢 notifyNewForumPost: Starting for class $classId');
+
+      final classDoc =
+          await _firestore.collection('classes').doc(classId).get();
+      if (!classDoc.exists) {
+        print('❌ Class not found');
+        return;
+      }
+
+      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
+      final enrolledIds =
+          List<String>.from(classData['enrolledStudentIds'] ?? []);
+
+      // ✅ ADD THE TEACHER TO THE LIST
+      final teacherId = classData['teacherId']?.toString() ?? '';
+      if (teacherId.isNotEmpty && !enrolledIds.contains(teacherId)) {
+        enrolledIds.add(teacherId);
+        print('📢 Added teacher to notification list: $teacherId');
+      }
+
+      // ✅ ADD TRAINERS FROM THE STUDENTS SUBCOLLECTION (they might be in there)
+      final trainersSnapshot = await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('students')
+          .where('role', isEqualTo: 'trainer')
+          .get();
+
+      for (final doc in trainersSnapshot.docs) {
+        final trainerId = doc.id;
+        if (!enrolledIds.contains(trainerId)) {
+          enrolledIds.add(trainerId);
+          print('📢 Added trainer to notification list: $trainerId');
+        }
+      }
+
+      print('📊 Found ${enrolledIds.length} total users to notify');
+
+      if (enrolledIds.isEmpty) {
+        print('⚠️ No users found in class');
+        return;
+      }
+
+      final batch = _firestore.batch();
+      final notificationsRef = _firestore.collection('notifications');
+      int count = 0;
+      int skipped = 0;
+
+      for (final userId in enrolledIds) {
+        if (userId == excludeUserId) {
+          skipped++;
+          print('   ⏭️ Skipping poster: $userId');
+          continue;
+        }
+
+        final userDoc = await _firestore.collection('users').doc(userId).get();
+        if (!userDoc.exists) {
+          print('   ⚠️ User document not found for: $userId');
+          continue;
+        }
+
+        final docRef = notificationsRef.doc();
+        batch.set(docRef, {
+          'userId': userId,
+          'title': '💬 New Forum Post: $postTitle',
+          'message': '$authorName posted a new discussion in the forum.',
+          'type': 'forum',
+          'referenceId': classId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        count++;
+      }
+
+      await batch.commit();
+      print(
+          '✅ notifyNewForumPost: Created $count notifications, skipped $skipped (poster)');
+    } catch (e) {
+      print('❌ notifyNewForumPost error: $e');
+    }
+  }
+
+  // ✅ FIXED: Assignment notification - includes trainers, excludes teacher
   Future<void> notifyNewAssignment(
       String classId, String assignmentTitle) async {
     try {
       print('📢 notifyNewAssignment: Starting for class $classId');
 
-      // Get all students in the class
-      final studentsSnapshot = await _firestore
-          .collection('classes')
-          .doc(classId)
-          .collection('students')
-          .get();
-
-      print('📊 Found ${studentsSnapshot.docs.length} students');
-
-      if (studentsSnapshot.docs.isEmpty) {
-        print('⚠️ No students found in class');
+      final classDoc =
+          await _firestore.collection('classes').doc(classId).get();
+      if (!classDoc.exists) {
+        print('❌ Class not found');
         return;
       }
 
-      // Create notifications for each student
+      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
+      final teacherId = classData['teacherId']?.toString() ?? '';
+      final enrolledIds =
+          List<String>.from(classData['enrolledStudentIds'] ?? []);
+
+      // ✅ ADD TRAINERS FROM THE STUDENTS SUBCOLLECTION
+      final trainersSnapshot = await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('students')
+          .where('role', isEqualTo: 'trainer')
+          .get();
+
+      for (final doc in trainersSnapshot.docs) {
+        final trainerId = doc.id;
+        if (!enrolledIds.contains(trainerId)) {
+          enrolledIds.add(trainerId);
+          print('📢 Added trainer to notification list: $trainerId');
+        }
+      }
+
+      print('📊 Found ${enrolledIds.length} total users to notify');
+
+      if (enrolledIds.isEmpty) {
+        print('⚠️ No users found in class');
+        return;
+      }
+
       final batch = _firestore.batch();
       final notificationsRef = _firestore.collection('notifications');
       int count = 0;
 
-      for (final studentDoc in studentsSnapshot.docs) {
-        final studentId = studentDoc.id;
-        // Also check if studentId is in the data
-        final data = studentDoc.data() as Map<String, dynamic>? ?? {};
-        final uid = data['uid']?.toString() ?? studentId;
+      for (final userId in enrolledIds) {
+        if (userId == teacherId) {
+          print('   ⏭️ Skipping teacher: $userId');
+          continue;
+        }
 
         final docRef = notificationsRef.doc();
         batch.set(docRef, {
-          'userId': uid,
-          'title': 'New Assignment: $assignmentTitle',
+          'userId': userId,
+          'title': '📝 New Assignment: $assignmentTitle',
           'message': 'A new assignment has been posted. Check it out!',
           'type': 'assignment',
           'referenceId': classId,
@@ -299,25 +269,46 @@ class NotificationService {
       print('✅ notifyNewAssignment: Created $count notifications');
     } catch (e) {
       print('❌ notifyNewAssignment error: $e');
-      // Don't throw - we don't want to break the assignment creation
     }
   }
 
-  // Send quiz notification
+  // ✅ FIXED: Quiz notification - includes trainers, excludes teacher
   Future<void> notifyNewQuiz(String classId, String quizTitle) async {
     try {
       print('📢 notifyNewQuiz: Starting for class $classId');
 
-      final studentsSnapshot = await _firestore
+      final classDoc =
+          await _firestore.collection('classes').doc(classId).get();
+      if (!classDoc.exists) {
+        print('❌ Class not found');
+        return;
+      }
+
+      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
+      final teacherId = classData['teacherId']?.toString() ?? '';
+      final enrolledIds =
+          List<String>.from(classData['enrolledStudentIds'] ?? []);
+
+      // ✅ ADD TRAINERS FROM THE STUDENTS SUBCOLLECTION
+      final trainersSnapshot = await _firestore
           .collection('classes')
           .doc(classId)
           .collection('students')
+          .where('role', isEqualTo: 'trainer')
           .get();
 
-      print('📊 Found ${studentsSnapshot.docs.length} students');
+      for (final doc in trainersSnapshot.docs) {
+        final trainerId = doc.id;
+        if (!enrolledIds.contains(trainerId)) {
+          enrolledIds.add(trainerId);
+          print('📢 Added trainer to notification list: $trainerId');
+        }
+      }
 
-      if (studentsSnapshot.docs.isEmpty) {
-        print('⚠️ No students found in class');
+      print('📊 Found ${enrolledIds.length} total users to notify');
+
+      if (enrolledIds.isEmpty) {
+        print('⚠️ No users found in class');
         return;
       }
 
@@ -325,15 +316,16 @@ class NotificationService {
       final notificationsRef = _firestore.collection('notifications');
       int count = 0;
 
-      for (final studentDoc in studentsSnapshot.docs) {
-        final studentId = studentDoc.id;
-        final data = studentDoc.data() as Map<String, dynamic>? ?? {};
-        final uid = data['uid']?.toString() ?? studentId;
+      for (final userId in enrolledIds) {
+        if (userId == teacherId) {
+          print('   ⏭️ Skipping teacher: $userId');
+          continue;
+        }
 
         final docRef = notificationsRef.doc();
         batch.set(docRef, {
-          'userId': uid,
-          'title': 'New Quiz: $quizTitle',
+          'userId': userId,
+          'title': '📝 New Quiz: $quizTitle',
           'message': 'A new quiz is available. Take it now!',
           'type': 'quiz',
           'referenceId': classId,
@@ -347,6 +339,77 @@ class NotificationService {
       print('✅ notifyNewQuiz: Created $count notifications');
     } catch (e) {
       print('❌ notifyNewQuiz error: $e');
+    }
+  }
+
+  // ✅ FIXED: Module notification - includes trainers, excludes teacher
+  Future<void> notifyNewModule(String classId, String moduleTitle) async {
+    try {
+      print('📢 notifyNewModule: Starting for class $classId');
+
+      final classDoc =
+          await _firestore.collection('classes').doc(classId).get();
+      if (!classDoc.exists) {
+        print('❌ Class not found');
+        return;
+      }
+
+      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
+      final teacherId = classData['teacherId']?.toString() ?? '';
+      final enrolledIds =
+          List<String>.from(classData['enrolledStudentIds'] ?? []);
+
+      // ✅ ADD TRAINERS FROM THE STUDENTS SUBCOLLECTION
+      final trainersSnapshot = await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('students')
+          .where('role', isEqualTo: 'trainer')
+          .get();
+
+      for (final doc in trainersSnapshot.docs) {
+        final trainerId = doc.id;
+        if (!enrolledIds.contains(trainerId)) {
+          enrolledIds.add(trainerId);
+          print('📢 Added trainer to notification list: $trainerId');
+        }
+      }
+
+      print('📊 Found ${enrolledIds.length} total users to notify');
+
+      if (enrolledIds.isEmpty) {
+        print('⚠️ No users found in class');
+        return;
+      }
+
+      final batch = _firestore.batch();
+      final notificationsRef = _firestore.collection('notifications');
+      int count = 0;
+
+      for (final userId in enrolledIds) {
+        if (userId == teacherId) {
+          print('   ⏭️ Skipping teacher: $userId');
+          continue;
+        }
+
+        final docRef = notificationsRef.doc();
+        batch.set(docRef, {
+          'userId': userId,
+          'title': '📚 New Module: $moduleTitle',
+          'message':
+              'A new learning module has been added. Start learning now!',
+          'type': 'module',
+          'referenceId': classId,
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        count++;
+      }
+
+      await batch.commit();
+      print('✅ notifyNewModule: Created $count notifications');
+    } catch (e) {
+      print('❌ notifyNewModule error: $e');
     }
   }
 
@@ -381,8 +444,7 @@ class NotificationService {
     }
   }
 
-  // In notification_service.dart
-// Delete all notifications for a user
+  // Delete all notifications for a user
   Future<void> deleteAllNotifications() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -394,7 +456,6 @@ class NotificationService {
       print(
           '🗑️ deleteAllNotifications: Deleting all notifications for ${user.uid}');
 
-      // Get all notifications for the user
       final snapshot = await _firestore
           .collection('notifications')
           .where('userId', isEqualTo: user.uid)
@@ -408,7 +469,6 @@ class NotificationService {
       print(
           '📊 deleteAllNotifications: Found ${snapshot.docs.length} notifications to delete');
 
-      // Use batch delete for better performance
       final batch = _firestore.batch();
       for (final doc in snapshot.docs) {
         batch.delete(doc.reference);
@@ -419,12 +479,11 @@ class NotificationService {
           '✅ deleteAllNotifications: Successfully deleted ${snapshot.docs.length} notifications');
     } catch (e) {
       print('❌ deleteAllNotifications error: $e');
-      rethrow; // Re-throw to be caught by the caller
+      rethrow;
     }
   }
 
-  // In notification_service.dart
-// Check if user has any notifications
+  // Check if user has any notifications
   Future<bool> hasNotifications() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -443,7 +502,7 @@ class NotificationService {
     }
   }
 
-// Get notification count
+  // Get notification count
   Future<int> getNotificationCount() async {
     try {
       final user = FirebaseAuth.instance.currentUser;

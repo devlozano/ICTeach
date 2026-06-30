@@ -9,7 +9,6 @@ import 'package:icteach/screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/screens/student/forums_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
-import 'package:icteach/screens/debug_page.dart';
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -148,7 +147,8 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     );
   }
 
-  // ✅ Profile Tab
+// In teacher_home.dart, the _buildTeacherProfile method should now be:
+
   Widget _buildTeacherProfile(User user, Map<String, dynamic>? profile) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -218,36 +218,21 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             ),
           ),
           const SizedBox(height: 16),
-
-          // Settings Section
-          Card(
-            child: Column(
-              children: [
-                // ✅ Debug Tools
-                ListTile(
-                  leading: const Icon(Icons.bug_report, color: Colors.purple),
-                  title: const Text('Debug Tools'),
-                  subtitle: const Text('Test notifications and debug data'),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DebugPage(),
-                      ),
-                    );
-                  },
+          // Logout Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _logout,
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('Logout'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red.shade600,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text(
-                    'Logout',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: _logout,
-                ),
-              ],
+              ),
             ),
           ),
         ],

@@ -1,9 +1,9 @@
+// screens/student/create_post_page.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/forum_model.dart';
 import '../../services/forum_service.dart';
-import 'package:image_picker/image_picker.dart';
 
 class CreatePostPage extends StatefulWidget {
   final String classId;
@@ -27,71 +27,84 @@ class _CreatePostPageState extends State<CreatePostPage> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-  }
-
   Future<void> _submitPost() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      _showSnackBar('Please login first', Colors.orange);
+      return;
+    }
 
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
     if (title.isEmpty || content.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill in all fields'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackBar('Please fill in all fields', Colors.orange);
+      return;
+    }
+
+    if (title.length < 5) {
+      _showSnackBar('Title must be at least 5 characters', Colors.orange);
+      return;
+    }
+
+    if (content.length < 10) {
+      _showSnackBar('Content must be at least 10 characters', Colors.orange);
       return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
+      // Get user info
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-      final userName = userDoc.data()?['name'] ?? user.displayName ?? 'Student';
+
+      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      final authorName = userData['displayName']?.toString() ??
+          userData['name']?.toString() ??
+          user.displayName ??
+          'Student';
+      final authorRole = userData['role']?.toString() ?? 'student';
 
       final post = ForumPost(
         id: '',
         classId: widget.classId,
-        authorId: user.uid,
-        authorName: userName,
         title: title,
         content: content,
-        replies: [],
+        authorId: user.uid,
+        authorName: authorName,
+        authorRole: authorRole,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
+        likeCount: 0,
+        likedBy: [],
+        viewCount: 0,
+        replyCount: 0,
       );
 
       await _forumService.createPost(post);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Post created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
+      _showSnackBar('✅ Post created and notifications sent!', Colors.green);
       Navigator.pop(context, true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error creating post: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackBar('❌ Error creating post: $e', Colors.red);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -125,6 +138,8 @@ class _CreatePostPageState extends State<CreatePostPage> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Title Field
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -134,13 +149,17 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
+                counterText: '',
               ),
               maxLength: 100,
             ),
             const SizedBox(height: 16),
+
+            // Content Field
             TextFormField(
               controller: _contentController,
               maxLines: 10,
+              minLines: 5,
               decoration: const InputDecoration(
                 labelText: 'Content',
                 hintText: 'Write your post here...',
@@ -151,7 +170,36 @@ class _CreatePostPageState extends State<CreatePostPage> {
                 alignLabelWithHint: true,
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Info about notifications
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_active, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'All students in this class will be notified when you post.',
+                      style: TextStyle(
+                        color: Colors.blue.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
+
+            // Submit Button
             SizedBox(
               width: double.infinity,
               height: 55,

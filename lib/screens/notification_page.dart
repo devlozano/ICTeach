@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
+import '../screens/student/student_quizzes_page.dart';
+import '../screens/student/student_assignments_page.dart';
+import '../screens/student/module_view_page.dart';
+import '../screens/student/forums_page.dart';
+import '../screens/teacher/manage_quizzes_page.dart';
+import '../screens/teacher/manage_assignments_page.dart';
+import '../screens/teacher/manage_modules_page.dart';
+import '../screens/teacher/quiz_results_page.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -11,6 +21,33 @@ class NotificationPage extends StatefulWidget {
 
 class _NotificationPageState extends State<NotificationPage> {
   final NotificationService _notificationService = NotificationService();
+  String? _userRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserRole();
+  }
+
+  Future<void> _getUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data() as Map<String, dynamic>?;
+          setState(() {
+            _userRole = data?['role']?.toString() ?? 'student';
+          });
+        }
+      } catch (e) {
+        print('Error getting user role: $e');
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,42 +144,240 @@ class _NotificationPageState extends State<NotificationPage> {
     // Mark as read
     await _notificationService.markAsRead(notification.id);
 
+    // Get user's class ID
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Navigator.pop(context);
+      return;
+    }
+
+    // Get the user's class
+    String? classId;
+    String? className;
+    try {
+      final classesSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('classes')
+          .limit(1)
+          .get();
+
+      if (classesSnapshot.docs.isNotEmpty) {
+        final data = classesSnapshot.docs.first.data();
+        classId = data['classId']?.toString();
+        className = data['className']?.toString() ?? 'My Class';
+      }
+    } catch (e) {
+      print('Error getting class: $e');
+    }
+
     // Navigate based on notification type
     switch (notification.type) {
-      case 'assignment':
-        // Navigate to assignment details
-        Navigator.pushNamed(
-          context,
-          '/assignment_detail',
-          arguments: notification.referenceId,
-        );
-        break;
       case 'quiz':
-        // Navigate to quiz
-        Navigator.pushNamed(
-          context,
-          '/quiz_detail',
-          arguments: notification.referenceId,
-        );
+        _navigateToQuiz(context, notification, classId, className);
         break;
-      case 'grade':
-        // Navigate to grades
-        Navigator.pushNamed(
-          context,
-          '/grades',
-        );
+      case 'assignment':
+        _navigateToAssignment(context, notification, classId, className);
         break;
       case 'forum':
-        // Navigate to forum
-        Navigator.pushNamed(
-          context,
-          '/forum',
-        );
+        _navigateToForum(context, notification, classId, className);
+        break;
+      case 'module':
+        _navigateToModule(context, notification, classId, className);
+        break;
+      case 'grade':
+        _navigateToGrade(context, notification);
         break;
       default:
         // Just close the notification
         Navigator.pop(context);
     }
+  }
+
+  void _navigateToQuiz(BuildContext context, NotificationModel notification,
+      String? classId, String? className) {
+    if (classId == null || classId.isEmpty) {
+      _showErrorSnackbar('Please join a class first');
+      Navigator.pop(context);
+      return;
+    }
+
+    // Try to get quiz ID from referenceId
+    final quizId = notification.referenceId;
+
+    // Close notification page
+    Navigator.pop(context);
+
+    // Navigate to quizzes
+    Future.delayed(const Duration(milliseconds: 100), () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StudentQuizzesPage(
+            classId: classId,
+            className: className ?? 'My Class',
+          ),
+        ),
+      );
+    });
+  }
+
+  void _navigateToAssignment(BuildContext context,
+      NotificationModel notification, String? classId, String? className) {
+    if (classId == null || classId.isEmpty) {
+      _showErrorSnackbar('Please join a class first');
+      Navigator.pop(context);
+      return;
+    }
+
+    // Close notification page
+    Navigator.pop(context);
+
+    // Navigate to assignments
+    Future.delayed(const Duration(milliseconds: 100), () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => StudentAssignmentsPage(
+            classId: classId,
+            className: className ?? 'My Class',
+          ),
+        ),
+      );
+    });
+  }
+
+  void _navigateToForum(BuildContext context, NotificationModel notification,
+      String? classId, String? className) {
+    if (classId == null || classId.isEmpty) {
+      _showErrorSnackbar('Please join a class first');
+      Navigator.pop(context);
+      return;
+    }
+
+    // Close notification page
+    Navigator.pop(context);
+
+    // Navigate to forums
+    Future.delayed(const Duration(milliseconds: 100), () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ForumsPage(
+            classId: classId,
+            className: className ?? 'My Class',
+          ),
+        ),
+      );
+    });
+  }
+
+  void _navigateToModule(BuildContext context, NotificationModel notification,
+      String? classId, String? className) {
+    if (classId == null || classId.isEmpty) {
+      _showErrorSnackbar('Please join a class first');
+      Navigator.pop(context);
+      return;
+    }
+
+    // Close notification page
+    Navigator.pop(context);
+
+    // Navigate to modules
+    Future.delayed(const Duration(milliseconds: 100), () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ModuleViewPage(
+            classId: classId,
+            className: className ?? 'My Class',
+          ),
+        ),
+      );
+    });
+  }
+
+  void _navigateToGrade(BuildContext context, NotificationModel notification) {
+    // Close notification page
+    Navigator.pop(context);
+
+    // Navigate to grades/progress page
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // You can navigate to a progress page or show a dialog with grade details
+      _showGradeDialog(context, notification);
+    });
+  }
+
+  void _showGradeDialog(BuildContext context, NotificationModel notification) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('📊 Grade Update'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              notification.title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(notification.message),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Check your grades in the Progress tab',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              // Navigate to progress page
+              // You can add navigation to progress page here
+            },
+            icon: const Icon(Icons.trending_up),
+            label: const Text('View Progress'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF428DEB),
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _deleteNotification(String id) async {
@@ -256,12 +491,36 @@ class _NotificationCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      _formatDate(notification.createdAt),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade500,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          _formatDate(notification.createdAt),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getTypeColor(notification.type)
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _getTypeLabel(notification.type),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: _getTypeColor(notification.type),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -292,6 +551,8 @@ class _NotificationCard extends StatelessWidget {
         return Icons.grade_rounded;
       case 'forum':
         return Icons.forum_rounded;
+      case 'module':
+        return Icons.menu_book_rounded;
       default:
         return Icons.notifications_rounded;
     }
@@ -307,8 +568,31 @@ class _NotificationCard extends StatelessWidget {
         return Colors.green;
       case 'forum':
         return Colors.blue;
+      case 'module':
+        return Colors.teal;
       default:
         return Colors.grey;
+    }
+  }
+
+  Color _getTypeColor(String type) {
+    return _getColor(type);
+  }
+
+  String _getTypeLabel(String type) {
+    switch (type) {
+      case 'assignment':
+        return 'Assignment';
+      case 'quiz':
+        return 'Quiz';
+      case 'grade':
+        return 'Grade';
+      case 'forum':
+        return 'Forum';
+      case 'module':
+        return 'Module';
+      default:
+        return 'General';
     }
   }
 
