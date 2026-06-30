@@ -35,6 +35,7 @@ dependencies:
   webview_flutter: ^4.4.2
 
   connectivity_plus: ^5.0.1  # ✅ For network connectivity
+  youtube_player_flutter: ^10.0.1
 
   # ❌ REMOVED: webview_flutter (caused build errors)
   # Use url_launcher instead – more reliable and free-plan friendly

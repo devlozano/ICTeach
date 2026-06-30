@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
@@ -721,45 +721,25 @@ class YouTubePlayerPage extends StatefulWidget {
 }
 
 class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
-  late final WebViewController _controller;
-  bool _isLoading = true;
-  bool _hasError = false;
-  String _errorMessage = '';
+  late final YoutubePlayerController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.videoId,
+      autoPlay: true,
+      params: const YoutubePlayerParams(
+        showFullscreenButton: true,
+        mute: false,
+      ),
+    );
+  }
 
-    final embedUrl =
-        'https://www.youtube.com/embed/${widget.videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1';
-
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.black)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (url) {
-            setState(() {
-              _isLoading = true;
-              _hasError = false;
-              _errorMessage = '';
-            });
-          },
-          onPageFinished: (url) {
-            setState(() {
-              _isLoading = false;
-            });
-          },
-          onWebResourceError: (error) {
-            setState(() {
-              _isLoading = false;
-              _hasError = true;
-              _errorMessage = error.description ?? 'Unknown error';
-            });
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(embedUrl));
+  @override
+  void dispose() {
+    _controller.close();
+    super.dispose();
   }
 
   void _openInBrowser(String url) async {
@@ -769,13 +749,13 @@ class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      print('Error opening browser: $e');
+      // ignore
     }
   }
 
   void _openInYouTubeApp() async {
     try {
-      final youtubeUri = Uri.parse('vnd.youtube://watch?v=${widget.videoId}');
+      final youtubeUri = Uri.parse('vnd.youtube://watch?v=');
       if (await canLaunchUrl(youtubeUri)) {
         await launchUrl(youtubeUri, mode: LaunchMode.externalApplication);
       } else {
@@ -812,113 +792,44 @@ class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
           IconButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: widget.originalUrl));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('✅ URL copied'),
-                    duration: Duration(seconds: 2)),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('? URL copied'),
+                      duration: Duration(seconds: 2)),
+                );
+              }
             },
             icon: const Icon(Icons.copy),
             tooltip: 'Copy URL',
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text('Loading video…',
-                      style: TextStyle(color: Colors.white70)),
-                ],
-              ),
-            ),
-          if (_hasError)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.red, size: 48),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Unable to load video',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _errorMessage.isNotEmpty
-                          ? _errorMessage
-                          : 'Try opening in YouTube app or browser.',
-                      style:
-                          TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _openInYouTubeApp,
-                          icon: const Icon(Icons.youtube_searched_for),
-                          label: const Text('YouTube App'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade700,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          onPressed: () => _openInBrowser(widget.originalUrl),
-                          icon: const Icon(Icons.open_in_browser),
-                          label: const Text('Browser'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
+      body: Center(
+        child: YoutubePlayer(
+          controller: _controller,
+        ),
       ),
-      bottomNavigationBar: !_hasError
-          ? Container(
-              padding: const EdgeInsets.all(12),
-              color: Colors.grey.shade900,
-              child: SafeArea(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.youtube_searched_for,
-                        color: Colors.red, size: 16),
-                    const SizedBox(width: 8),
-                    const Text('Playing inside the app',
-                        style: TextStyle(color: Colors.white, fontSize: 12)),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close',
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.all(12),
+        color: Colors.grey.shade900,
+        child: SafeArea(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.youtube_searched_for, color: Colors.red, size: 16),
+              const SizedBox(width: 8),
+              const Text('Playing inside the app',
+                  style: TextStyle(color: Colors.white, fontSize: 12)),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close', style: TextStyle(color: Colors.white)),
               ),
-            )
-          : null,
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

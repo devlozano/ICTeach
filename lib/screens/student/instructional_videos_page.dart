@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
@@ -28,45 +28,12 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
   String? _selectedVideoUrl;
   String? _selectedVideoTitle;
   bool _isPlaying = false;
-  bool _hasError = false;
-  String _errorMessage = '';
-  late final WebViewController _webController;
-  bool _isWebViewLoading = true;
+  YoutubePlayerController? _youtubeController;
 
   @override
   void initState() {
     super.initState();
     _loadVideos();
-    _initWebController();
-  }
-
-  void _initWebController() {
-    _webController = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.black)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (url) {
-            setState(() {
-              _isWebViewLoading = true;
-              _hasError = false;
-              _errorMessage = '';
-            });
-          },
-          onPageFinished: (url) {
-            setState(() {
-              _isWebViewLoading = false;
-            });
-          },
-          onWebResourceError: (error) {
-            setState(() {
-              _isWebViewLoading = false;
-              _hasError = true;
-              _errorMessage = error.description ?? 'Unknown error';
-            });
-          },
-        ),
-      );
   }
 
   // ✅ FIXED: Properly load videos using Stream subscription
@@ -124,18 +91,30 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       _selectedVideoUrl = videoUrl;
       _selectedVideoTitle = module.title;
       _isPlaying = false;
-      _hasError = false;
     });
 
-    // If it's a YouTube link, use embed
     if (videoId.isNotEmpty) {
-      final embedUrl =
-          'https://www.youtube.com/embed/$videoId?autoplay=1&rel=0&modestbranding=1&playsinline=1';
-      _webController.loadRequest(Uri.parse(embedUrl));
+      if (_youtubeController == null) {
+        _youtubeController = YoutubePlayerController.fromVideoId(
+          videoId: videoId,
+          autoPlay: true,
+          params: const YoutubePlayerParams(
+            showFullscreenButton: true,
+            mute: false,
+          ),
+        );
+      } else {
+        _youtubeController!.loadVideoById(videoId: videoId);
+      }
     } else {
-      // For other links (Google Drive, etc.), open in browser
       _openInBrowser(videoUrl);
     }
+  }
+
+  @override
+  void dispose() {
+    _youtubeController?.close();
+    super.dispose();
   }
 
   String _extractYouTubeId(String url) {
@@ -156,43 +135,12 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       final uri = Uri.parse(url);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        setState(() {
-          _hasError = true;
-          _errorMessage = 'Cannot open URL';
-        });
       }
     } catch (e) {
-      setState(() {
-        _hasError = true;
-        _errorMessage = e.toString();
-      });
+      print('Error launching url: $e');
     }
   }
 
-  void _openInYouTubeApp(String videoId) async {
-    try {
-      final youtubeUri = Uri.parse('vnd.youtube://watch?v=$videoId');
-      if (await canLaunchUrl(youtubeUri)) {
-        await launchUrl(youtubeUri, mode: LaunchMode.externalApplication);
-      } else {
-        _openInBrowser('https://www.youtube.com/watch?v=$videoId');
-      }
-    } catch (e) {
-      _openInBrowser('https://www.youtube.com/watch?v=$videoId');
-    }
-  }
-
-  void _togglePlayPause() {
-    setState(() {
-      _isPlaying = !_isPlaying;
-      _webController.runJavaScript(
-        _isPlaying
-            ? 'document.querySelector("video")?.play();'
-            : 'document.querySelector("video")?.pause();',
-      );
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -326,7 +274,7 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       color: Colors.black,
       child: Stack(
         children: [
-          if (isYouTube) WebViewWidget(controller: _webController),
+          if (isYouTube && _youtubeController != null) YoutubePlayer(controller: _youtubeController!),
           if (!isYouTube)
             Center(
               child: Column(
@@ -357,148 +305,6 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          if (_isWebViewLoading && isYouTube)
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 12),
-                  Text(
-                    'Loading video…',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-          if (!_isWebViewLoading && !_hasError && isYouTube)
-            Positioned(
-              bottom: 12,
-              right: 12,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      onPressed: _togglePlayPause,
-                      icon: Icon(
-                        _isPlaying
-                            ? Icons.pause_rounded
-                            : Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'HD',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      onPressed: () {
-                        if (videoId.isNotEmpty) {
-                          _openInYouTubeApp(videoId);
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.youtube_searched_for,
-                        color: Colors.red,
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          if (_hasError)
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.red, size: 40),
-                    const SizedBox(height: 8),
-                    Text(
-                      _errorMessage.isNotEmpty
-                          ? _errorMessage
-                          : 'Unable to load video',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _hasError = false;
-                              _isWebViewLoading = true;
-                              if (_selectedVideoUrl != null) {
-                                final module = _videos.firstWhere(
-                                  (m) => m.videoUrl == _selectedVideoUrl,
-                                  orElse: () => _videos.first,
-                                );
-                                _playVideo(module);
-                              }
-                            });
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2F80ED),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text('Retry'),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (_selectedVideoUrl != null) {
-                              _openInBrowser(_selectedVideoUrl!);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: const Text('Open in Browser'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
         ],
