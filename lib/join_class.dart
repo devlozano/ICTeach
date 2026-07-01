@@ -61,18 +61,34 @@ class _JoinClassPageState extends State<JoinClassPage> {
         return;
       }
 
-      // Check if user already has a class (1 student = 1 class)
-      final existingClasses = await FirebaseFirestore.instance
+      // ✅ Get user role from users collection
+      final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .collection('classes')
           .get();
 
-      if (existingClasses.docs.isNotEmpty) {
-        _showMessage(
-          "You are already enrolled in a class. You can only join one class.",
-        );
-        return;
+      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      final userRole = userData['role']?.toString() ?? 'student';
+      final userName = userData['name']?.toString() ??
+          userData['displayName']?.toString() ??
+          user.displayName ??
+          'User';
+      final userEmail = user.email ?? '';
+
+      // ✅ Check if user already has a class (only for students, not trainers)
+      if (userRole != 'trainer') {
+        final existingClasses = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('classes')
+            .get();
+
+        if (existingClasses.docs.isNotEmpty) {
+          _showMessage(
+            "You are already enrolled in a class. You can only join one class.",
+          );
+          return;
+        }
       }
 
       // ✅ Get teacher name from class data
@@ -85,18 +101,6 @@ class _JoinClassPageState extends State<JoinClassPage> {
       final teacherId = classData['teacherId']?.toString() ?? '';
       final teacherEmail = classData['teacherEmail']?.toString() ?? '';
       final schoolYear = classData['schoolYear']?.toString() ?? '';
-
-      // ✅ Get user role from users collection
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
-      final userRole = userData['role']?.toString() ?? 'student';
-      final userName =
-          userData['name']?.toString() ?? user.displayName ?? 'User';
-      final userEmail = user.email ?? '';
 
       print('👤 User joining class: $userName');
       print('👤 User role: $userRole');
@@ -112,7 +116,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
         'uid': user.uid,
         'name': userName,
         'email': userEmail,
-        'role': userRole, // ✅ Store the role (student/trainer)
+        'role': userRole,
         'joinedAt': FieldValue.serverTimestamp(),
         'status': 'active',
       });
@@ -162,6 +166,9 @@ class _JoinClassPageState extends State<JoinClassPage> {
         });
         print('✅ Updated user main document');
       }
+
+      // ✅ STEP 5: Also update the class document with user's info (optional but helpful)
+      // This helps with quick lookups
 
       if (!mounted) return;
 
@@ -279,7 +286,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              "Enter the 7-character class code. You can only join one class at a time.",
+                              "Enter the 7-character class code. Students can only join one class, while trainers can join multiple.",
                               style: TextStyle(
                                 color: Colors.amber.shade900,
                                 fontSize: 13,

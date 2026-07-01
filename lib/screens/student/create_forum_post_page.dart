@@ -35,6 +35,8 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
 
   // In create_forum_post_page.dart, update the _createPost method:
 
+// In create_forum_post_page.dart, update the success message:
+
   Future<void> _createPost() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -47,7 +49,6 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Get user info
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -60,7 +61,6 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
           'Student';
       final authorRole = userData['role']?.toString() ?? 'student';
 
-      // Create post object
       final post = ForumPost(
         id: '',
         classId: widget.classId,
@@ -82,8 +82,9 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
       if (!mounted) return;
 
       _showSnackBar(
-          '✅ Post created! Notifications sent to everyone except you.',
-          Colors.green);
+        '✅ Post created! Notifications sent to all students, teachers, and trainers (except you).',
+        Colors.green,
+      );
       Navigator.pop(context, true);
     } catch (e) {
       _showSnackBar('❌ Error creating post: $e', Colors.red);

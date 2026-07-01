@@ -1,3 +1,4 @@
+// screens/notification_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,6 +12,7 @@ import '../screens/teacher/manage_quizzes_page.dart';
 import '../screens/teacher/manage_assignments_page.dart';
 import '../screens/teacher/manage_modules_page.dart';
 import '../screens/teacher/quiz_results_page.dart';
+import '../screens/student/post_detail_page.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -22,16 +24,18 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState extends State<NotificationPage> {
   final NotificationService _notificationService = NotificationService();
   String? _userRole;
+  String? _userId;
 
   @override
   void initState() {
     super.initState();
-    _getUserRole();
+    _getCurrentUser();
   }
 
-  Future<void> _getUserRole() async {
+  Future<void> _getCurrentUser() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      _userId = user.uid;
       try {
         final doc = await FirebaseFirestore.instance
             .collection('users')
@@ -144,34 +148,32 @@ class _NotificationPageState extends State<NotificationPage> {
     // Mark as read
     await _notificationService.markAsRead(notification.id);
 
-    // Get user's class ID
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Navigator.pop(context);
+    // ✅ Get the class ID from the notification's referenceId
+    final classId = notification.referenceId;
+
+    if (classId == null || classId.isEmpty) {
+      _showErrorSnackbar('Class information not available');
       return;
     }
 
-    // Get the user's class
-    String? classId;
-    String? className;
+    // ✅ Get class name from the class document
+    String className = 'Class';
     try {
-      final classesSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
+      final classDoc = await FirebaseFirestore.instance
           .collection('classes')
-          .limit(1)
+          .doc(classId)
           .get();
-
-      if (classesSnapshot.docs.isNotEmpty) {
-        final data = classesSnapshot.docs.first.data();
-        classId = data['classId']?.toString();
-        className = data['className']?.toString() ?? 'My Class';
+      if (classDoc.exists) {
+        final data = classDoc.data() as Map<String, dynamic>?;
+        className = data?['name']?.toString() ??
+            data?['className']?.toString() ??
+            'Class';
       }
     } catch (e) {
-      print('Error getting class: $e');
+      print('Error getting class name: $e');
     }
 
-    // Navigate based on notification type
+    // Navigate based on notification type and user role
     switch (notification.type) {
       case 'quiz':
         _navigateToQuiz(context, notification, classId, className);
@@ -189,83 +191,89 @@ class _NotificationPageState extends State<NotificationPage> {
         _navigateToGrade(context, notification);
         break;
       default:
-        // Just close the notification
         Navigator.pop(context);
     }
   }
 
   void _navigateToQuiz(BuildContext context, NotificationModel notification,
-      String? classId, String? className) {
-    if (classId == null || classId.isEmpty) {
-      _showErrorSnackbar('Please join a class first');
-      Navigator.pop(context);
-      return;
-    }
-
-    // Try to get quiz ID from referenceId
-    final quizId = notification.referenceId;
-
+      String classId, String className) {
     // Close notification page
     Navigator.pop(context);
 
-    // Navigate to quizzes
+    // Navigate based on user role
     Future.delayed(const Duration(milliseconds: 100), () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StudentQuizzesPage(
-            classId: classId,
-            className: className ?? 'My Class',
+      if (_userRole == 'teacher' || _userRole == 'trainer') {
+        // Teacher/Trainer: Go to manage quizzes
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ManageQuizzesPage(
+              classId: classId,
+              className: className,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Student: Go to take quizzes
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StudentQuizzesPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+      }
     });
   }
 
   void _navigateToAssignment(BuildContext context,
-      NotificationModel notification, String? classId, String? className) {
-    if (classId == null || classId.isEmpty) {
-      _showErrorSnackbar('Please join a class first');
-      Navigator.pop(context);
-      return;
-    }
-
+      NotificationModel notification, String classId, String className) {
     // Close notification page
     Navigator.pop(context);
 
-    // Navigate to assignments
+    // Navigate based on user role
     Future.delayed(const Duration(milliseconds: 100), () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => StudentAssignmentsPage(
-            classId: classId,
-            className: className ?? 'My Class',
+      if (_userRole == 'teacher' || _userRole == 'trainer') {
+        // Teacher/Trainer: Go to manage assignments
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ManageAssignmentsPage(
+              classId: classId,
+              className: className,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Student: Go to view assignments
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => StudentAssignmentsPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+      }
     });
   }
 
   void _navigateToForum(BuildContext context, NotificationModel notification,
-      String? classId, String? className) {
-    if (classId == null || classId.isEmpty) {
-      _showErrorSnackbar('Please join a class first');
-      Navigator.pop(context);
-      return;
-    }
-
+      String classId, String className) {
     // Close notification page
     Navigator.pop(context);
 
-    // Navigate to forums
+    // ✅ Navigate to forums for all roles
     Future.delayed(const Duration(milliseconds: 100), () {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ForumsPage(
             classId: classId,
-            className: className ?? 'My Class',
+            className: className,
           ),
         ),
       );
@@ -273,27 +281,35 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 
   void _navigateToModule(BuildContext context, NotificationModel notification,
-      String? classId, String? className) {
-    if (classId == null || classId.isEmpty) {
-      _showErrorSnackbar('Please join a class first');
-      Navigator.pop(context);
-      return;
-    }
-
+      String classId, String className) {
     // Close notification page
     Navigator.pop(context);
 
-    // Navigate to modules
+    // Navigate based on user role
     Future.delayed(const Duration(milliseconds: 100), () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ModuleViewPage(
-            classId: classId,
-            className: className ?? 'My Class',
+      if (_userRole == 'teacher' || _userRole == 'trainer') {
+        // Teacher/Trainer: Go to manage modules
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ManageModulesPage(
+              classId: classId,
+              className: className,
+            ),
           ),
-        ),
-      );
+        );
+      } else {
+        // Student: Go to view modules
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ModuleViewPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+      }
     });
   }
 
@@ -301,9 +317,8 @@ class _NotificationPageState extends State<NotificationPage> {
     // Close notification page
     Navigator.pop(context);
 
-    // Navigate to grades/progress page
+    // Show grade dialog
     Future.delayed(const Duration(milliseconds: 100), () {
-      // You can navigate to a progress page or show a dialog with grade details
       _showGradeDialog(context, notification);
     });
   }
@@ -352,19 +367,6 @@ class _NotificationPageState extends State<NotificationPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              // Navigate to progress page
-              // You can add navigation to progress page here
-            },
-            icon: const Icon(Icons.trending_up),
-            label: const Text('View Progress'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF428DEB),
-              foregroundColor: Colors.white,
-            ),
-          ),
         ],
       ),
     );
@@ -406,6 +408,7 @@ class _NotificationPageState extends State<NotificationPage> {
   }
 }
 
+// Notification Card Widget
 class _NotificationCard extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onTap;

@@ -37,8 +37,7 @@ class ForumService {
     return ForumPost.fromFirestore(doc);
   }
 
-  // In forum_service.dart, update the createPost method:
-
+  // Create a new forum post with notification
   Future<void> createPost(ForumPost post) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -75,13 +74,16 @@ class ForumService {
 
     await postRef.set(newPost.toFirestore());
 
-    // ✅ Send notification to all students EXCEPT the poster
+    // ✅ Send notification to all users EXCEPT the poster
     await _notificationService.notifyNewForumPost(
       post.classId,
       post.title,
       authorName,
-      user.uid, // ✅ Exclude the poster
+      user.uid,
     );
+
+    // Debug: Check if notifications were created
+    await _notificationService.debugClassUsers(post.classId);
   }
 
   // Like a post
@@ -136,19 +138,22 @@ class ForumService {
         .collection('forum_posts')
         .doc(postId)
         .collection('replies')
-        .orderBy('createdAt', descending: false) // ✅ Fixed: ascending order
+        .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) => ForumReply.fromFirestore(doc)).toList();
     });
   }
 
-  // Add a reply
+  // Add a reply with notification
   Future<void> addReply(String classId, String postId, String content) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    // Get user role
+    // Get post to know the author
+    final post = await getForumPost(classId, postId);
+
+    // Get user role and name
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     final userData = userDoc.data() as Map<String, dynamic>? ?? {};
     final authorRole = userData['role']?.toString() ?? 'student';
@@ -190,6 +195,17 @@ class ForumService {
       'replyCount': FieldValue.increment(1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // ✅ Send notification to all users in class EXCEPT the replier
+    await _notificationService.notifyNewForumReply(
+      classId,
+      post.title,
+      authorName,
+      post.authorId,
+      user.uid,
+    );
+
+    print('✅ Reply notification sent for post: ${post.title}');
   }
 
   // Like a reply
