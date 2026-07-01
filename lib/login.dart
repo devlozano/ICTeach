@@ -35,7 +35,8 @@ class _LoginPageState extends State<LoginPage> {
 
     final isConnected = await NetworkService().isConnected();
     if (!isConnected) {
-      _showErrorDialog('Offline', 'You appear to be offline. Please connect to the internet to log in.');
+      _showErrorDialog('Offline',
+          'You appear to be offline. Please connect to the internet to log in.');
       return;
     }
 
@@ -447,26 +448,23 @@ class _LoginPageState extends State<LoginPage> {
                 }
                 return null;
               },
-              decoration:
-                  _fieldDecoration(
-                    borderColor: inputBorder,
-                    hintText: 'Password',
-                    icon: Icons.lock_outline_rounded,
-                  ).copyWith(
-                    suffixIcon: IconButton(
-                      tooltip: _obscurePassword
-                          ? 'Show password'
-                          : 'Hide password',
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: Colors.black.withValues(alpha: 0.7),
-                      ),
-                    ),
+              decoration: _fieldDecoration(
+                borderColor: inputBorder,
+                hintText: 'Password',
+                icon: Icons.lock_outline_rounded,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.black.withValues(alpha: 0.7),
                   ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 8),

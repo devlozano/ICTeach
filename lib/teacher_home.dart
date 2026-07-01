@@ -46,7 +46,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
       return user.displayName ?? 'Teacher';
     }
 
-    // ✅ First try to get the full name from the 'name' field
     if (profile['name'] != null && profile['name'].toString().isNotEmpty) {
       return profile['name'].toString();
     }
@@ -122,12 +121,32 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             final classData = classes[index];
             return Card(
               margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: ListTile(
-                title: Text(classData.className),
+                leading: CircleAvatar(
+                  backgroundColor:
+                      const Color(0xFF2F80ED).withValues(alpha: 0.1),
+                  child: Text(
+                    classData.className.isNotEmpty
+                        ? classData.className[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Color(0xFF2F80ED),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  classData.className,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text(
                   '${classData.enrolledStudentIds?.length ?? 0} total enrolled',
                 ),
-                trailing: const Icon(Icons.arrow_forward),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -147,22 +166,28 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     );
   }
 
-// In teacher_home.dart, the _buildTeacherProfile method should now be:
-
   Widget _buildTeacherProfile(User user, Map<String, dynamic>? profile) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          // Profile Card
+          // Profile Card with gradient
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF2F80ED),
+                  const Color(0xFF1A5FA8),
+                ],
+              ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -171,28 +196,29 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             child: Column(
               children: [
                 CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.blue.shade100,
+                  radius: 45,
+                  backgroundColor: Colors.white,
                   child: Icon(
                     Icons.person_rounded,
                     size: 50,
-                    color: Colors.blue.shade700,
+                    color: const Color(0xFF2F80ED),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   _teacherName(profile, user),
                   style: const TextStyle(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   user.email ?? 'No email',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade600,
+                    color: Colors.white70,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -202,13 +228,16 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: const Text(
-                    'Teacher',
+                    '👨‍🏫 Teacher',
                     style: TextStyle(
-                      color: Colors.blue,
+                      color: Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
                     ),
@@ -218,20 +247,84 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // ✅ Fixed: Stats Card
+          FutureBuilder<QuerySnapshot>(
+            future: FirebaseFirestore.instance
+                .collection('classes')
+                .where('teacherId', isEqualTo: user.uid)
+                .get(),
+            builder: (context, snapshot) {
+              final classCount =
+                  snapshot.hasData ? snapshot.data!.docs.length : 0;
+
+              int totalStudents = 0;
+              int pendingReviews = 0;
+              if (snapshot.hasData && snapshot.data != null) {
+                for (final doc in snapshot.data!.docs) {
+                  final data = doc.data() as Map<String, dynamic>? ?? {};
+                  final enrolledIds =
+                      List<String>.from(data['enrolledStudentIds'] ?? []);
+                  totalStudents += enrolledIds.length;
+                  pendingReviews += data['pendingReviews'] as int? ?? 0;
+                }
+              }
+
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _ProfileStat(
+                      label: 'Classes',
+                      value: '$classCount',
+                      icon: Icons.class_,
+                      color: const Color(0xFF2F80ED),
+                    ),
+                    _ProfileStat(
+                      label: 'Students',
+                      value: '$totalStudents',
+                      icon: Icons.people,
+                      color: Colors.green,
+                    ),
+                    _ProfileStat(
+                      label: 'Pending',
+                      value: '$pendingReviews',
+                      icon: Icons.pending,
+                      color: Colors.orange,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+
           // Logout Button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
+            child: OutlinedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout_rounded),
               label: const Text('Logout'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.red.shade600,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                side: BorderSide(color: Colors.red.shade300),
               ),
             ),
           ),
@@ -264,13 +357,10 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 .map((doc) => _TeacherClassData.fromSnapshot(doc))
                 .toList();
             final classCount = classes.length;
-
-            // ✅ Count total enrolled users (students + trainers)
             final totalEnrolled = classes.fold<int>(
               0,
               (total, item) => total + (item.enrolledStudentIds?.length ?? 0),
             );
-
             final pendingReviewCount = classes.fold<int>(
               0,
               (total, item) => total + (item.pendingReviews ?? 0),
@@ -292,44 +382,14 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                         index: _currentTabIndex,
                         children: [
                           // Tab 0: Home
-                          SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _TeacherSummary(
-                                  classStream: _classesStream,
-                                  totalEnrolled: totalEnrolled,
-                                  pendingReviewCount: pendingReviewCount,
-                                ),
-                                const SizedBox(height: 22),
-                                Text(
-                                  'Teacher Tools',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w900),
-                                ),
-                                const SizedBox(height: 10),
-                                _TeacherToolGrid(
-                                  classCount: classCount,
-                                  onManageClasses: () {
-                                    setState(() {
-                                      _currentTabIndex = 1;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                          _buildHomeTab(context, classCount, totalEnrolled,
+                              pendingReviewCount),
                           // Tab 1: Classes
                           buildClassesTab(),
                           // Tab 2: Discussion
-                          const Center(child: Text('Discussion Forums')),
+                          _buildDiscussionTab(),
                           // Tab 3: Analytics
-                          const Center(
-                            child: Text('Student Progress Analytics'),
-                          ),
+                          _buildAnalyticsTab(),
                           // Tab 4: Profile
                           _buildTeacherProfile(user, profile),
                         ],
@@ -346,24 +406,168 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                   });
                 },
               ),
-              floatingActionButton: FloatingActionButton(
-                heroTag: "createClass",
-                child: const Icon(Icons.add),
-                onPressed: () async {
-                  final result = await AppNavigation.push(
-                    context,
-                    const CreateClassPage(),
-                  );
+              floatingActionButton:
+                  _currentTabIndex == 0 || _currentTabIndex == 1
+                      ? FloatingActionButton(
+                          heroTag: "createClass",
+                          backgroundColor: const Color(0xFF2F80ED),
+                          foregroundColor: Colors.white,
+                          child: const Icon(Icons.add),
+                          onPressed: () async {
+                            final result = await AppNavigation.push(
+                              context,
+                              const CreateClassPage(),
+                            );
 
-                  if (result == true && mounted) {
-                    setState(() {});
-                  }
+                            if (result == true && mounted) {
+                              setState(() {});
+                            }
+                          },
+                        )
+                      : null,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildHomeTab(BuildContext context, int classCount, int totalEnrolled,
+      int pendingReviewCount) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _TeacherSummary(
+            classStream: _classesStream,
+            totalEnrolled: totalEnrolled,
+            pendingReviewCount: pendingReviewCount,
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Teacher Tools',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 10),
+          _TeacherToolGrid(
+            classCount: classCount,
+            onManageClasses: () {
+              setState(() {
+                _currentTabIndex = 1;
+              });
+            },
+            // ✅ Fixed: Added callback for switching tabs
+            onSwitchTab: () {
+              setState(() {
+                _currentTabIndex = 1;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiscussionTab() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _classesStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+        if (classDocs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.forum_outlined,
+                    size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                const Text(
+                  'No classes created',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Create a class to start discussions',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final classes = classDocs
+            .map((doc) => _TeacherClassData.fromSnapshot(doc))
+            .toList();
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: classes.length,
+          itemBuilder: (context, index) {
+            final classData = classes[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor:
+                      const Color(0xFF2F80ED).withValues(alpha: 0.1),
+                  child:
+                      Icon(Icons.forum_rounded, color: const Color(0xFF2F80ED)),
+                ),
+                title: Text(
+                  classData.className,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text('View discussions'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ForumsPage(
+                        classId: classData.classId,
+                        className: classData.className,
+                      ),
+                    ),
+                  );
                 },
               ),
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildAnalyticsTab() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.analytics_rounded, size: 64, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            'Student Progress Analytics',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Track student performance and class progress',
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -390,7 +594,6 @@ class _TeacherClassData {
     final data = doc.data();
     return _TeacherClassData(
       classId: doc.id,
-      // ✅ FIXED: Use 'name' field, fallback to 'className' for backward compatibility
       className: data['name']?.toString() ??
           data['className']?.toString() ??
           'Untitled Class',
@@ -417,17 +620,37 @@ class _TeacherHeader extends StatelessWidget {
     return Container(
       height: 170,
       width: double.infinity,
-      color: const Color(0xFF2F80ED),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF2F80ED),
+            const Color(0xFF1A5FA8),
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
       padding: const EdgeInsets.fromLTRB(23, 48, 23, 24),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 33,
-            backgroundColor: Colors.white,
-            child: Icon(
-              Icons.co_present_rounded,
-              color: Color(0xFF2F80ED),
-              size: 36,
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const CircleAvatar(
+              radius: 30,
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.co_present_rounded,
+                color: Color(0xFF2F80ED),
+                size: 32,
+              ),
             ),
           ),
           const SizedBox(width: 13),
@@ -451,8 +674,8 @@ class _TeacherHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -461,7 +684,7 @@ class _TeacherHeader extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Colors.white70,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -469,7 +692,6 @@ class _TeacherHeader extends StatelessWidget {
               ],
             ),
           ),
-          // ✅ Notification Badge
           NotificationBadge(
             child: IconButton(
               onPressed: () {
@@ -483,7 +705,7 @@ class _TeacherHeader extends StatelessWidget {
               icon: const Icon(
                 Icons.notifications_none_rounded,
                 color: Colors.white,
-                size: 28,
+                size: 26,
               ),
               tooltip: 'Notifications',
             ),
@@ -493,7 +715,7 @@ class _TeacherHeader extends StatelessWidget {
             icon: const Icon(
               Icons.logout_rounded,
               color: Colors.white,
-              size: 28,
+              size: 26,
             ),
             tooltip: 'Logout',
           ),
@@ -548,17 +770,20 @@ class _TeacherSummary extends StatelessWidget {
                   _SummaryCard(
                     'Classes',
                     classCount.toString(),
-                    Colors.blue.shade300,
+                    const Color(0xFF2F80ED),
+                    Icons.class_,
                   ),
                   _SummaryCard(
                     'Enrolled',
                     totalEnrolled.toString(),
-                    Colors.green.shade300,
+                    Colors.green,
+                    Icons.people,
                   ),
                   _SummaryCard(
                     'Pending',
                     pendingReviewCount.toString(),
-                    Colors.orange.shade300,
+                    Colors.orange,
+                    Icons.pending,
                   ),
                 ],
               ),
@@ -571,11 +796,12 @@ class _TeacherSummary extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard(this.label, this.value, this.color);
+  const _SummaryCard(this.label, this.value, this.color, this.icon);
 
   final String label;
   final String value;
   final Color color;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -584,11 +810,13 @@ class _SummaryCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
@@ -597,10 +825,10 @@ class _SummaryCard extends StatelessWidget {
                 color: color,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ],
         ),
@@ -609,15 +837,17 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-// ✅ UPDATED: Teacher Tool Grid with Forums
+// ✅ FIXED: _TeacherToolGrid with onSwitchTab callback
 class _TeacherToolGrid extends StatelessWidget {
   const _TeacherToolGrid({
     required this.classCount,
     required this.onManageClasses,
+    required this.onSwitchTab,
   });
 
   final int classCount;
   final VoidCallback onManageClasses;
+  final VoidCallback onSwitchTab;
 
   @override
   Widget build(BuildContext context) {
@@ -627,31 +857,27 @@ class _TeacherToolGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
+      childAspectRatio: 1.1,
       children: [
         _ToolCard(
           icon: Icons.class_,
           title: 'Manage Classes',
           subtitle: '$classCount classes',
+          color: const Color(0xFF2F80ED),
           onTap: onManageClasses,
         ),
         _ToolCard(
           icon: Icons.people,
           title: 'Student Roster',
           subtitle: 'View all students',
-          onTap: () {
-            // Navigate to Classes tab
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Go to Classes tab to view roster'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
+          color: Colors.green,
+          onTap: onSwitchTab,
         ),
         _ToolCard(
           icon: Icons.menu_book_rounded,
-          title: 'Learning Modules',
-          subtitle: 'Create & manage modules',
+          title: 'Modules',
+          subtitle: 'Create & manage',
+          color: Colors.purple,
           onTap: () {
             Navigator.push(
               context,
@@ -664,7 +890,8 @@ class _TeacherToolGrid extends StatelessWidget {
         _ToolCard(
           icon: Icons.quiz_rounded,
           title: 'Quizzes',
-          subtitle: 'Create & manage quizzes',
+          subtitle: 'Create & manage',
+          color: Colors.orange,
           onTap: () {
             Navigator.push(
               context,
@@ -678,6 +905,7 @@ class _TeacherToolGrid extends StatelessWidget {
           icon: Icons.assignment_rounded,
           title: 'Assignments',
           subtitle: 'Create & manage',
+          color: Colors.red.shade400,
           onTap: () {
             Navigator.push(
               context,
@@ -691,6 +919,7 @@ class _TeacherToolGrid extends StatelessWidget {
           icon: Icons.forum_rounded,
           title: 'Forums',
           subtitle: 'Manage discussions',
+          color: Colors.teal,
           onTap: () {
             Navigator.push(
               context,
@@ -710,12 +939,14 @@ class _ToolCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.color,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color color;
   final VoidCallback onTap;
 
   @override
@@ -723,7 +954,7 @@ class _ToolCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -737,14 +968,24 @@ class _ToolCard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 32, color: const Color(0xFF2F80ED)),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 28, color: color),
+            ),
             const SizedBox(height: 8),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               subtitle,
               textAlign: TextAlign.center,
@@ -768,36 +1009,89 @@ class _TeacherBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: currentIndex,
-      onTap: onTabChanged,
-      selectedItemColor: const Color(0xFF2F80ED),
-      unselectedItemColor: Colors.grey.shade400,
-      type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.class_rounded),
-          label: 'Classes',
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: onTabChanged,
+        selectedItemColor: const Color(0xFF2F80ED),
+        unselectedItemColor: Colors.grey.shade400,
+        type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_rounded),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.class_rounded),
+            label: 'Classes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.forum_rounded),
+            label: 'Discussion',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_rounded),
+            label: 'Analytics',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_rounded),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Profile Stat Widget
+class _ProfileStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _ProfileStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, size: 22, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.forum_rounded),
-          label: 'Discussion',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.bar_chart_rounded),
-          label: 'Analytics',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_rounded),
-          label: 'Profile',
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: Colors.grey),
         ),
       ],
     );
   }
 }
 
-// ✅ UPDATED: Module Class Selector with Forums Support
+// Module Class Selector with Forums Support
 class _ModuleClassSelector extends StatefulWidget {
   final String moduleType;
 
@@ -854,12 +1148,21 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                 ? Icons.forum
                 : Icons.menu_book;
 
+    final color = widget.moduleType == 'quizzes'
+        ? Colors.orange
+        : widget.moduleType == 'assignments'
+            ? Colors.red.shade400
+            : widget.moduleType == 'forums'
+                ? Colors.teal
+                : Colors.purple;
+
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
         title: Text('Manage $title'),
         backgroundColor: const Color(0xFF2F80ED),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _classesStream,
@@ -896,6 +1199,10 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                     },
                     icon: const Icon(Icons.arrow_back),
                     label: const Text('Go Back'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2F80ED),
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ],
               ),
@@ -932,11 +1239,10 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor:
-                              const Color(0xFF2F80ED).withValues(alpha: 0.1),
+                          backgroundColor: color.withValues(alpha: 0.1),
                           child: Icon(
                             icon,
-                            color: const Color(0xFF2F80ED),
+                            color: color,
                           ),
                         ),
                         title: Text(
