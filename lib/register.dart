@@ -25,6 +25,35 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  // List of values that should be treated as "no extension"
+  static const List<String> _noExtensionValues = [
+    'none',
+    'n/a',
+    'na',
+    'n.a',
+    'n.a.',
+    'none',
+    'NONE',
+    'None',
+    'N/A',
+    'n/a',
+    'null',
+    'NULL',
+    'Null',
+    'no',
+    'NO',
+    'No',
+    '0',
+    'zero',
+    'ZERO',
+    'none.',
+    'NONE.',
+    'None.',
+    'na',
+    'NA',
+    'Na',
+  ];
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -37,6 +66,97 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  // Function to clean extension value
+  String _cleanExtension(String value) {
+    final trimmed = value.trim();
+
+    // Check if the value is in the "no extension" list
+    if (_noExtensionValues.contains(trimmed.toLowerCase())) {
+      return '';
+    }
+
+    // Check if it's just special characters
+    if (RegExp(r'^[^a-zA-Z]+$').hasMatch(trimmed)) {
+      return '';
+    }
+
+    // Check if it's just numbers
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return '';
+    }
+
+    // Check if it's a single letter that's not a valid suffix
+    if (trimmed.length == 1 &&
+        !['J', 'S', 'R', 'V', 'X', 'Z'].contains(trimmed.toUpperCase())) {
+      return '';
+    }
+
+    // If it's a valid extension, capitalize it properly
+    return _capitalizeExtension(trimmed);
+  }
+
+  // Function to properly format extension
+  String _capitalizeExtension(String value) {
+    // Common suffix patterns
+    final suffixes = {
+      'jr': 'Jr.',
+      'jr.': 'Jr.',
+      'sr': 'Sr.',
+      'sr.': 'Sr.',
+      'i': 'I',
+      'ii': 'II',
+      'iii': 'III',
+      'iv': 'IV',
+      'v': 'V',
+      'vi': 'VI',
+      'vii': 'VII',
+      'viii': 'VIII',
+      'ix': 'IX',
+      'x': 'X',
+    };
+
+    final lower = value.toLowerCase();
+    if (suffixes.containsKey(lower)) {
+      return suffixes[lower]!;
+    }
+
+    // If it's already properly formatted (e.g., "Jr.", "Sr.", "III")
+    if (RegExp(r'^(Jr\.|Sr\.|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$')
+        .hasMatch(value)) {
+      return value;
+    }
+
+    // Default: capitalize first letter
+    return value[0].toUpperCase() + value.substring(1).toLowerCase();
+  }
+
+  // Validate extension
+  String? _validateExtension(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null; // Extension is optional
+    }
+
+    final cleaned = _cleanExtension(value);
+    if (cleaned.isEmpty) {
+      return null; // Treat as empty if cleaned is empty
+    }
+
+    // Check if it's a valid suffix format
+    final validPatterns = [
+      r'^(Jr\.|Sr\.|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$',
+      r'^[A-Z][a-z]?\.?$', // Single letter with optional period
+      r'^[A-Z]{2,3}$', // Multiple letters
+    ];
+
+    for (final pattern in validPatterns) {
+      if (RegExp(pattern).hasMatch(cleaned)) {
+        return null; // Valid
+      }
+    }
+
+    return 'Please enter a valid suffix (e.g., Jr., Sr., III) or leave blank.';
+  }
+
   Future<void> _register() async {
     FocusScope.of(context).unfocus();
 
@@ -47,11 +167,11 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
       final user = credential.user;
       if (user == null) {
@@ -64,7 +184,11 @@ class _RegisterPageState extends State<RegisterPage> {
       final firstName = _firstNameController.text.trim();
       final middleName = _middleNameController.text.trim();
       final lastName = _lastNameController.text.trim();
-      final extension = _extensionController.text.trim();
+
+      // Clean extension before saving
+      final extensionRaw = _extensionController.text.trim();
+      final extension = _cleanExtension(extensionRaw);
+
       final displayName = _displayName(
         firstName: firstName,
         middleName: middleName,
@@ -202,9 +326,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     alignment: Alignment.centerLeft,
                     child: IconButton(
                       tooltip: 'Back',
-                      onPressed: _isLoading
-                          ? null
-                          : () => Navigator.of(context).pop(),
+                      onPressed:
+                          _isLoading ? null : () => Navigator.of(context).pop(),
                       icon: const Icon(
                         Icons.arrow_back_rounded,
                         color: Colors.white,
@@ -335,16 +458,17 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           const SizedBox(height: 18),
           _LabeledField(
-            label: 'Extension',
+            label: 'Extension (Optional)',
             child: TextFormField(
               controller: _extensionController,
               textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.characters,
+              textCapitalization: TextCapitalization.words,
               decoration: _fieldDecoration(
                 borderColor: inputBorder,
                 hintText: 'Jr., Sr., III',
                 icon: Icons.person_add_alt_1_outlined,
               ),
+              validator: _validateExtension,
             ),
           ),
           const SizedBox(height: 18),
@@ -389,19 +513,24 @@ class _RegisterPageState extends State<RegisterPage> {
                 }
                 return null;
               },
-              decoration:
-                  _fieldDecoration(
-                    borderColor: inputBorder,
-                    hintText: 'Create a password',
-                    icon: Icons.lock_outline_rounded,
-                  ).copyWith(
-                    suffixIcon: _visibilityButton(
-                      isObscured: _obscurePassword,
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
+              decoration: _fieldDecoration(
+                borderColor: inputBorder,
+                hintText: 'Create a password',
+                icon: Icons.lock_outline_rounded,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.black.withValues(alpha: 0.7),
                   ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -422,22 +551,27 @@ class _RegisterPageState extends State<RegisterPage> {
                 }
                 return null;
               },
-              decoration:
-                  _fieldDecoration(
-                    borderColor: inputBorder,
-                    hintText: 'Re-enter your password',
-                    icon: Icons.verified_user_outlined,
-                  ).copyWith(
-                    suffixIcon: _visibilityButton(
-                      isObscured: _obscureConfirmPassword,
-                      onPressed: () {
-                        setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        );
-                      },
-                    ),
+              decoration: _fieldDecoration(
+                borderColor: inputBorder,
+                hintText: 'Re-enter your password',
+                icon: Icons.verified_user_outlined,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.black.withValues(alpha: 0.7),
                   ),
+                  onPressed: () {
+                    setState(() =>
+                        _obscureConfirmPassword = !_obscureConfirmPassword);
+                  },
+                  tooltip: _obscureConfirmPassword
+                      ? 'Show password'
+                      : 'Hide password',
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -480,20 +614,6 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _visibilityButton({
-    required bool isObscured,
-    required VoidCallback onPressed,
-  }) {
-    return IconButton(
-      tooltip: isObscured ? 'Show password' : 'Hide password',
-      onPressed: onPressed,
-      icon: Icon(
-        isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-        color: Colors.black.withValues(alpha: 0.7),
       ),
     );
   }
@@ -545,7 +665,6 @@ class _RegisterPageState extends State<RegisterPage> {
       'createdAt': FieldValue.serverTimestamp(),
     };
 
-    // Save profile document to "students" collection using uid as document id
     await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
     return true;
   }

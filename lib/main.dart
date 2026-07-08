@@ -7,9 +7,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 // Official ICTeach Platform Screen Imports
 import 'splash.dart';
 import 'home_router.dart';
-import 'admin_login.dart'; // Web Platform Gateway
-import 'login.dart'; // Mobile Platform Gateway (Handles Student, Teacher, Trainer)
+import 'admin_login.dart';
+import 'login.dart';
 import 'widgets/offline_indicator.dart';
+import 'services/navigation_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +19,6 @@ void main() async {
     await _initializeFirebase();
   } catch (e) {
     print('Firebase initialization error: $e');
-    // Continue even if Firebase fails - the app will show error screens
   }
 
   runApp(const MyApp());
@@ -26,7 +26,6 @@ void main() async {
 
 Future<void> _initializeFirebase() async {
   if (kIsWeb) {
-    // Web Configuration Setup for the Admin Portal (icteach-free)
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyDCnNrIz2g2Ovq5XnocJVBVl5S065vOB2g",
@@ -38,16 +37,11 @@ Future<void> _initializeFirebase() async {
         measurementId: "G-S77WYVMF0N",
       ),
     );
-
-    // Enable persistence for Web
     await FirebaseFirestore.instance.enablePersistence(
       const PersistenceSettings(synchronizeTabs: true),
     );
   } else {
-    // Mobile Configuration - reads google-services.json
     await Firebase.initializeApp();
-
-    // Enable offline persistence for Mobile
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
@@ -63,6 +57,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ICTeach',
       debugShowCheckedModeBanner: false,
+      navigatorKey: NavigationService.navigatorKey, // ✅ Add navigator key
       builder: (context, child) => OfflineIndicator(child: child!),
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xffF8FAFC),
@@ -79,7 +74,6 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const _AppEntry(),
-      // ✅ Add routes for easier navigation
       routes: {
         '/home': (context) => const HomeRouter(),
         '/login': (context) => const LoginPage(),
@@ -108,11 +102,9 @@ class _AppEntryState extends State<_AppEntry> {
           builder: (context) {
             return SplashPage(
               onFinished: () {
-                // Check if user is already logged in
                 final user = FirebaseAuth.instance.currentUser;
 
                 if (user != null) {
-                  // User is already logged in, navigate to HomeRouter directly
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const HomeRouter(),
@@ -121,16 +113,13 @@ class _AppEntryState extends State<_AppEntry> {
                   return;
                 }
 
-                // Device Hardware Check Routing Gate
                 if (kIsWeb) {
-                  // Web -> Admin Management System
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const AdminLoginPage(),
                     ),
                   );
                 } else {
-                  // Mobile -> Student, Trainer, & Teacher Login
                   _navKey.currentState?.pushReplacement(
                     MaterialPageRoute<void>(
                       builder: (context) => const LoginPage(),

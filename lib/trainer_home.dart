@@ -107,84 +107,93 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         final profile = snapshot.data?.data();
         final trainerName = _trainerName(profile, user);
 
-        return Scaffold(
-          backgroundColor: const Color(0xffF8FAFC),
-          appBar: AppBar(
-            backgroundColor: primaryColor,
-            elevation: 0,
-            title: const Text(
-              "ICTEACH",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-              ),
-            ),
-            actions: [
-              // ✅ Notification Badge
-              NotificationBadge(
-                child: IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NotificationPage(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.notifications_none_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                  tooltip: 'Notifications',
+        return PopScope(
+          // Allow pop only when on the home tab (tab 0)
+          canPop: _selectedIndex == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            // Not on home tab → go back to home tab
+            setState(() => _selectedIndex = 0);
+          },
+          child: Scaffold(
+            backgroundColor: const Color(0xffF8FAFC),
+            appBar: AppBar(
+              backgroundColor: primaryColor,
+              elevation: 0,
+              title: const Text(
+                "ICTEACH",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                onPressed: _logout,
-                tooltip: 'Logout',
-              ),
-            ],
-          ),
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: [
-              _buildHomeContent(primaryColor, trainerName, user.uid),
-              _buildDiscussionForums(primaryColor),
-              _buildProfileContent(profile, user),
-            ],
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            currentIndex: _selectedIndex,
-            onTap: (index) {
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: primaryColor,
-            unselectedItemColor: Colors.grey.shade500,
-            showUnselectedLabels: true,
-            selectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+              actions: [
+                // ✅ Notification Badge
+                NotificationBadge(
+                  child: IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    tooltip: 'Notifications',
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
+                  onPressed: _logout,
+                  tooltip: 'Logout',
+                ),
+              ],
             ),
-            unselectedLabelStyle: const TextStyle(fontSize: 12),
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_rounded),
-                label: 'Home',
+            body: IndexedStack(
+              index: _selectedIndex,
+              children: [
+                _buildHomeContent(primaryColor, trainerName, user.uid),
+                _buildDiscussionForums(primaryColor),
+                _buildProfileContent(profile, user),
+              ],
+            ),
+            bottomNavigationBar: BottomNavigationBar(
+              currentIndex: _selectedIndex,
+              onTap: (index) {
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: primaryColor,
+              unselectedItemColor: Colors.grey.shade500,
+              showUnselectedLabels: true,
+              selectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.forum_rounded),
-                label: 'Discussions',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_rounded),
-                label: 'Profile',
-              ),
-            ],
+              unselectedLabelStyle: const TextStyle(fontSize: 12),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.home_rounded),
+                  label: 'Home',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.forum_rounded),
+                  label: 'Discussions',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.person_rounded),
+                  label: 'Profile',
+                ),
+              ],
+            ),
           ),
         );
       },

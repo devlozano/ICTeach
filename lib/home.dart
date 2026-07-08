@@ -91,29 +91,39 @@ class _HomePageState extends State<HomePage> {
               }
             }
 
-            return Scaffold(
-              backgroundColor: const Color(0xFFF5F7FA),
-              body: SafeArea(
-                top: false,
-                child: Column(
-                  children: [
-                    _buildHeader(fullName, user.photoURL),
-                    Expanded(
-                      child: IndexedStack(
-                        index: _currentTabIndex,
-                        children: [
-                          _buildHomeContent(course),
-                          _buildModulesContent(),
-                          _buildForumContent(),
-                          _buildProgressContent(user.uid),
-                          _buildProfileContent(profile, user),
-                        ],
+            return PopScope(
+              // Allow pop only when on the home tab (tab 0) so the
+              // exit dialog in home_router.dart can handle it.
+              canPop: _currentTabIndex == 0,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) return;
+                // Not on home tab → go back to home tab
+                setState(() => _currentTabIndex = 0);
+              },
+              child: Scaffold(
+                backgroundColor: const Color(0xFFF5F7FA),
+                body: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: [
+                      _buildHeader(fullName, user.photoURL),
+                      Expanded(
+                        child: IndexedStack(
+                          index: _currentTabIndex,
+                          children: [
+                            _buildHomeContent(course),
+                            _buildModulesContent(),
+                            _buildForumContent(),
+                            _buildProgressContent(user.uid),
+                            _buildProfileContent(profile, user),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                bottomNavigationBar: _buildBottomNavBar(),
               ),
-              bottomNavigationBar: _buildBottomNavBar(),
             );
           },
         );

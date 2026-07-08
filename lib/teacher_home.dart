@@ -366,65 +366,74 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               (total, item) => total + (item.pendingReviews ?? 0),
             );
 
-            return Scaffold(
-              backgroundColor: const Color(0xffF8FAFC),
-              body: SafeArea(
-                top: false,
-                child: Column(
-                  children: [
-                    _TeacherHeader(
-                      name: name,
-                      onLogout: _logout,
-                      classStream: _classesStream,
-                    ),
-                    Expanded(
-                      child: IndexedStack(
-                        index: _currentTabIndex,
-                        children: [
-                          // Tab 0: Home
-                          _buildHomeTab(context, classCount, totalEnrolled,
-                              pendingReviewCount),
-                          // Tab 1: Classes
-                          buildClassesTab(),
-                          // Tab 2: Discussion
-                          _buildDiscussionTab(),
-                          // Tab 3: Analytics
-                          _buildAnalyticsTab(),
-                          // Tab 4: Profile
-                          _buildTeacherProfile(user, profile),
-                        ],
+            return PopScope(
+              // Allow pop only when on the home tab (tab 0)
+              canPop: _currentTabIndex == 0,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) return;
+                // Not on home tab → go back to home tab
+                setState(() => _currentTabIndex = 0);
+              },
+              child: Scaffold(
+                backgroundColor: const Color(0xffF8FAFC),
+                body: SafeArea(
+                  top: false,
+                  child: Column(
+                    children: [
+                      _TeacherHeader(
+                        name: name,
+                        onLogout: _logout,
+                        classStream: _classesStream,
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: IndexedStack(
+                          index: _currentTabIndex,
+                          children: [
+                            // Tab 0: Home
+                            _buildHomeTab(context, classCount, totalEnrolled,
+                                pendingReviewCount),
+                            // Tab 1: Classes
+                            buildClassesTab(),
+                            // Tab 2: Discussion
+                            _buildDiscussionTab(),
+                            // Tab 3: Analytics
+                            _buildAnalyticsTab(),
+                            // Tab 4: Profile
+                            _buildTeacherProfile(user, profile),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              bottomNavigationBar: _TeacherBottomNavBar(
-                currentIndex: _currentTabIndex,
-                onTabChanged: (index) {
-                  setState(() {
-                    _currentTabIndex = index;
-                  });
-                },
-              ),
-              floatingActionButton:
-                  _currentTabIndex == 0 || _currentTabIndex == 1
-                      ? FloatingActionButton(
-                          heroTag: "createClass",
-                          backgroundColor: const Color(0xFF2F80ED),
-                          foregroundColor: Colors.white,
-                          child: const Icon(Icons.add),
-                          onPressed: () async {
-                            final result = await AppNavigation.push(
-                              context,
-                              const CreateClassPage(),
-                            );
+                bottomNavigationBar: _TeacherBottomNavBar(
+                  currentIndex: _currentTabIndex,
+                  onTabChanged: (index) {
+                    setState(() {
+                      _currentTabIndex = index;
+                    });
+                  },
+                ),
+                floatingActionButton:
+                    _currentTabIndex == 0 || _currentTabIndex == 1
+                        ? FloatingActionButton(
+                            heroTag: "createClass",
+                            backgroundColor: const Color(0xFF2F80ED),
+                            foregroundColor: Colors.white,
+                            child: const Icon(Icons.add),
+                            onPressed: () async {
+                              final result = await AppNavigation.push(
+                                context,
+                                const CreateClassPage(),
+                              );
 
-                            if (result == true && mounted) {
-                              setState(() {});
-                            }
-                          },
-                        )
-                      : null,
+                              if (result == true && mounted) {
+                                setState(() {});
+                              }
+                            },
+                          )
+                        : null,
+              ),
             );
           },
         );
