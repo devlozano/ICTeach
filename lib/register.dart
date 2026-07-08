@@ -32,17 +32,9 @@ class _RegisterPageState extends State<RegisterPage> {
     'na',
     'n.a',
     'n.a.',
-<<<<<<< HEAD
-    'none',
     'NONE',
     'None',
     'N/A',
-    'n/a',
-=======
-    'NONE',
-    'None',
-    'N/A',
->>>>>>> feature/admin-week2
     'null',
     'NULL',
     'Null',
@@ -55,10 +47,6 @@ class _RegisterPageState extends State<RegisterPage> {
     'none.',
     'NONE.',
     'None.',
-<<<<<<< HEAD
-    'na',
-=======
->>>>>>> feature/admin-week2
     'NA',
     'Na',
   ];
@@ -75,59 +63,139 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  // ✅ Check if string contains emojis or special symbols
+  bool _containsEmoji(String text) {
+    // Unicode ranges for emojis and symbols - Fixed regex
+    final emojiRegex = RegExp(
+      r'[\u{1F600}-\u{1F64F}]'
+      r'|[\u{1F300}-\u{1F5FF}]'
+      r'|[\u{1F680}-\u{1F6FF}]'
+      r'|[\u{1F700}-\u{1F77F}]'
+      r'|[\u{1F780}-\u{1F7FF}]'
+      r'|[\u{1F800}-\u{1F8FF}]'
+      r'|[\u{1F900}-\u{1F9FF}]'
+      r'|[\u{1FA00}-\u{1FA6F}]'
+      r'|[\u{1FA70}-\u{1FAFF}]'
+      r'|[\u{2600}-\u{26FF}]'
+      r'|[\u{2700}-\u{27BF}]'
+      r'|[\u{FE00}-\u{FEFF}]'
+      r'|[\u{1F1E6}-\u{1F1FF}]'
+      r'|[\u{1F200}-\u{1F2FF}]'
+      r'|[\u{1F0A0}-\u{1F0FF}]'
+      r'|[\u{1F004}-\u{1F004}]'
+      r'|[\u{1F550}-\u{1F567}]'
+      r'|[\u{1F5E8}-\u{1F5E8}]'
+      r'|[\u{1FA70}-\u{1FAFF}]'
+      r'|[\u{1FBC0}-\u{1FBFF}]'
+      r'|[\u{1F000}-\u{1F02F}]',
+      unicode: true,
+    );
+    return emojiRegex.hasMatch(text);
+  }
+
+// ✅ Check if string contains special characters (for names)
+  bool _containsSpecialCharacters(String text) {
+    // Allow letters, spaces, hyphens, apostrophes, and periods
+    final regex = RegExp(r"^[a-zA-Z\s\-.']+$");
+    return !regex.hasMatch(text);
+  }
+
+  // ✅ Check if string contains numbers
+  bool _containsNumbers(String text) {
+    return RegExp(r'\d').hasMatch(text);
+  }
+
+  // ✅ Strong password validation
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Password is required.';
+    }
+
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters.';
+    }
+
+    // Check for at least one uppercase letter
+    if (!RegExp(r'[A-Z]').hasMatch(value)) {
+      return 'Password must contain at least one uppercase letter.';
+    }
+
+    // Check for at least one lowercase letter
+    if (!RegExp(r'[a-z]').hasMatch(value)) {
+      return 'Password must contain at least one lowercase letter.';
+    }
+
+    // Check for at least one number
+    if (!RegExp(r'[0-9]').hasMatch(value)) {
+      return 'Password must contain at least one number.';
+    }
+
+    // Check for at least one special character
+    if (!RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(value)) {
+      return 'Password must contain at least one special character (!@#\$%^&*).';
+    }
+
+    return null;
+  }
+
+  // ✅ Validate name fields
+  String? _validateName(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName is required.';
+    }
+
+    final trimmed = value.trim();
+
+    if (trimmed.length < 2) {
+      return '$fieldName must be at least 2 characters.';
+    }
+
+    if (trimmed.length > 50) {
+      return '$fieldName must be less than 50 characters.';
+    }
+
+    if (_containsEmoji(trimmed)) {
+      return 'Emojis are not allowed in $fieldName.';
+    }
+
+    if (_containsSpecialCharacters(trimmed)) {
+      return 'Only letters, spaces, hyphens, apostrophes, and periods are allowed.';
+    }
+
+    if (_containsNumbers(trimmed)) {
+      return 'Numbers are not allowed in $fieldName.';
+    }
+
+    return null;
+  }
+
   // Function to clean extension value
   String _cleanExtension(String value) {
     final trimmed = value.trim();
 
-<<<<<<< HEAD
-    // Check if the value is in the "no extension" list
-=======
     if (trimmed.isEmpty) return '';
 
->>>>>>> feature/admin-week2
     if (_noExtensionValues.contains(trimmed.toLowerCase())) {
       return '';
     }
 
-<<<<<<< HEAD
-    // Check if it's just special characters
-=======
->>>>>>> feature/admin-week2
     if (RegExp(r'^[^a-zA-Z]+$').hasMatch(trimmed)) {
       return '';
     }
 
-<<<<<<< HEAD
-    // Check if it's just numbers
-=======
->>>>>>> feature/admin-week2
     if (RegExp(r'^\d+$').hasMatch(trimmed)) {
       return '';
     }
 
-<<<<<<< HEAD
-    // Check if it's a single letter that's not a valid suffix
-=======
->>>>>>> feature/admin-week2
     if (trimmed.length == 1 &&
         !['J', 'S', 'R', 'V', 'X', 'Z'].contains(trimmed.toUpperCase())) {
       return '';
     }
 
-<<<<<<< HEAD
-    // If it's a valid extension, capitalize it properly
-    return _capitalizeExtension(trimmed);
-  }
-
-  // Function to properly format extension
-  String _capitalizeExtension(String value) {
-    // Common suffix patterns
-=======
     return _capitalizeExtension(trimmed);
   }
 
   String _capitalizeExtension(String value) {
->>>>>>> feature/admin-week2
     final suffixes = {
       'jr': 'Jr.',
       'jr.': 'Jr.',
@@ -150,63 +218,37 @@ class _RegisterPageState extends State<RegisterPage> {
       return suffixes[lower]!;
     }
 
-<<<<<<< HEAD
-    // If it's already properly formatted (e.g., "Jr.", "Sr.", "III")
-=======
->>>>>>> feature/admin-week2
     if (RegExp(r'^(Jr\.|Sr\.|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$')
         .hasMatch(value)) {
       return value;
     }
 
-<<<<<<< HEAD
-    // Default: capitalize first letter
-    return value[0].toUpperCase() + value.substring(1).toLowerCase();
-  }
-
-  // Validate extension
-  String? _validateExtension(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return null; // Extension is optional
-=======
     return value[0].toUpperCase() + value.substring(1).toLowerCase();
   }
 
   String? _validateExtension(String? value) {
     if (value == null || value.trim().isEmpty) {
       return null;
->>>>>>> feature/admin-week2
     }
 
     final cleaned = _cleanExtension(value);
     if (cleaned.isEmpty) {
-<<<<<<< HEAD
-      return null; // Treat as empty if cleaned is empty
+      return null;
     }
 
-    // Check if it's a valid suffix format
-    final validPatterns = [
-      r'^(Jr\.|Sr\.|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$',
-      r'^[A-Z][a-z]?\.?$', // Single letter with optional period
-      r'^[A-Z]{2,3}$', // Multiple letters
-=======
-      return null;
+    if (_containsEmoji(cleaned)) {
+      return 'Emojis are not allowed in extension.';
     }
 
     final validPatterns = [
       r'^(Jr\.|Sr\.|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$',
       r'^[A-Z][a-z]?\.?$',
       r'^[A-Z]{2,3}$',
->>>>>>> feature/admin-week2
     ];
 
     for (final pattern in validPatterns) {
       if (RegExp(pattern).hasMatch(cleaned)) {
-<<<<<<< HEAD
-        return null; // Valid
-=======
         return null;
->>>>>>> feature/admin-week2
       }
     }
 
@@ -240,13 +282,9 @@ class _RegisterPageState extends State<RegisterPage> {
       final firstName = _firstNameController.text.trim();
       final middleName = _middleNameController.text.trim();
       final lastName = _lastNameController.text.trim();
-<<<<<<< HEAD
-
-      // Clean extension before saving
-=======
->>>>>>> feature/admin-week2
       final extensionRaw = _extensionController.text.trim();
       final extension = _cleanExtension(extensionRaw);
+      final email = _emailController.text.trim();
 
       final displayName = _displayName(
         firstName: firstName,
@@ -256,13 +294,14 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       await user.updateDisplayName(displayName);
-      await _saveStudentProfile(
+      await _saveUserProfile(
         uid: user.uid,
         firstName: firstName,
         middleName: middleName,
         lastName: lastName,
         extension: extension,
         displayName: displayName,
+        email: email,
       );
 
       if (!mounted) return;
@@ -298,7 +337,7 @@ class _RegisterPageState extends State<RegisterPage> {
       case 'configuration-not-found':
         return 'Firebase Auth is not configured. Enable Email/Password sign-in in Firebase Console.';
       case 'weak-password':
-        return 'Password is too weak.';
+        return 'Password is too weak. It must be at least 8 characters with uppercase, lowercase, number, and special character.';
       case 'network-request-failed':
         return 'Network error. Check your internet connection.';
       case 'missing-user':
@@ -320,7 +359,9 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   bool _isValidEmail(String value) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+    // More strict email validation
+    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        .hasMatch(value);
   }
 
   String _displayName({
@@ -374,15 +415,8 @@ class _RegisterPageState extends State<RegisterPage> {
                       tooltip: 'Back',
                       onPressed:
                           _isLoading ? null : () => Navigator.of(context).pop(),
-<<<<<<< HEAD
-                      icon: const Icon(
-                        Icons.arrow_back_rounded,
-                        color: Colors.white,
-                      ),
-=======
                       icon: const Icon(Icons.arrow_back_rounded,
                           color: Colors.white),
->>>>>>> feature/admin-week2
                     ),
                   ),
                 ),
@@ -439,18 +473,39 @@ class _RegisterPageState extends State<RegisterPage> {
               fontSize: 15,
             ),
           ),
+          // ✅ Password Requirements Info
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.security_rounded,
+                    color: Colors.blue.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Password must be 8+ characters with uppercase, lowercase, number, and special character.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
           _buildTextField(
             label: 'First Name',
             controller: _firstNameController,
             hintText: 'Juan',
             icon: Icons.person_outline_rounded,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty)
-                return 'First name is required.';
-              if (value.trim().length < 2) return 'Enter your first name.';
-              return null;
-            },
+            validator: (value) => _validateName(value, 'First name'),
           ),
           const SizedBox(height: 18),
           _buildTextField(
@@ -459,6 +514,10 @@ class _RegisterPageState extends State<RegisterPage> {
             hintText: 'Santos',
             icon: Icons.person_outline_rounded,
             isRequired: false,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) return null;
+              return _validateName(value, 'Middle name');
+            },
           ),
           const SizedBox(height: 18),
           _buildTextField(
@@ -466,29 +525,9 @@ class _RegisterPageState extends State<RegisterPage> {
             controller: _lastNameController,
             hintText: 'Dela Cruz',
             icon: Icons.person_outline_rounded,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty)
-                return 'Last name is required.';
-              if (value.trim().length < 2) return 'Enter your last name.';
-              return null;
-            },
+            validator: (value) => _validateName(value, 'Last name'),
           ),
           const SizedBox(height: 18),
-<<<<<<< HEAD
-          _LabeledField(
-            label: 'Extension (Optional)',
-            child: TextFormField(
-              controller: _extensionController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Jr., Sr., III',
-                icon: Icons.person_add_alt_1_outlined,
-              ),
-              validator: _validateExtension,
-            ),
-=======
           _buildTextField(
             label: 'Extension (Optional)',
             controller: _extensionController,
@@ -496,7 +535,6 @@ class _RegisterPageState extends State<RegisterPage> {
             icon: Icons.person_add_alt_1_outlined,
             validator: _validateExtension,
             isRequired: false,
->>>>>>> feature/admin-week2
           ),
           const SizedBox(height: 18),
           _buildTextField(
@@ -508,6 +546,8 @@ class _RegisterPageState extends State<RegisterPage> {
             validator: (value) {
               final email = value?.trim() ?? '';
               if (email.isEmpty) return 'Email address is required.';
+              if (_containsEmoji(email))
+                return 'Emojis are not allowed in email.';
               if (!_isValidEmail(email)) return 'Enter a valid email address.';
               return null;
             },
@@ -515,109 +555,29 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 18),
           _buildPasswordField(
             label: 'Password',
-<<<<<<< HEAD
-            child: TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.newPassword],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Password is required.';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Create a password',
-                icon: Icons.lock_outline_rounded,
-              ).copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.black.withValues(alpha: 0.7),
-                  ),
-                  onPressed: () {
-                    setState(() => _obscurePassword = !_obscurePassword);
-                  },
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                ),
-              ),
-            ),
-=======
             controller: _passwordController,
             isObscured: _obscurePassword,
             onToggle: () =>
                 setState(() => _obscurePassword = !_obscurePassword),
-            validator: (value) {
-              if (value == null || value.isEmpty)
-                return 'Password is required.';
-              if (value.length < 6)
-                return 'Password must be at least 6 characters.';
-              return null;
-            },
->>>>>>> feature/admin-week2
+            validator: _validatePassword,
           ),
           const SizedBox(height: 18),
           _buildPasswordField(
             label: 'Confirm Password',
-<<<<<<< HEAD
-            child: TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.newPassword],
-              onFieldSubmitted: (_) => _isLoading ? null : _register(),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Confirm your password.';
-                }
-                if (value != _passwordController.text) {
-                  return 'Passwords do not match.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Re-enter your password',
-                icon: Icons.verified_user_outlined,
-              ).copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.black.withValues(alpha: 0.7),
-                  ),
-                  onPressed: () {
-                    setState(() =>
-                        _obscureConfirmPassword = !_obscureConfirmPassword);
-                  },
-                  tooltip: _obscureConfirmPassword
-                      ? 'Show password'
-                      : 'Hide password',
-                ),
-              ),
-            ),
-=======
             controller: _confirmPasswordController,
             isObscured: _obscureConfirmPassword,
             onToggle: () => setState(
                 () => _obscureConfirmPassword = !_obscureConfirmPassword),
             validator: (value) {
-              if (value == null || value.isEmpty)
+              if (value == null || value.isEmpty) {
                 return 'Confirm your password.';
-              if (value != _passwordController.text)
+              }
+              if (value != _passwordController.text) {
                 return 'Passwords do not match.';
+              }
               return null;
             },
             onFieldSubmitted: (_) => _isLoading ? null : _register(),
->>>>>>> feature/admin-week2
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -658,12 +618,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-<<<<<<< HEAD
-  InputDecoration _fieldDecoration({
-    required Color borderColor,
-    required String hintText,
-    required IconData icon,
-=======
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -678,13 +632,26 @@ class _RegisterPageState extends State<RegisterPage> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (isRequired)
+                const Text(
+                  ' *',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
           ),
         ),
         TextFormField(
@@ -734,20 +701,31 @@ class _RegisterPageState extends State<RegisterPage> {
     required VoidCallback onToggle,
     String? Function(String?)? validator,
     void Function(String)? onFieldSubmitted,
->>>>>>> feature/admin-week2
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Text(
+                ' *',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
         TextFormField(
@@ -771,7 +749,7 @@ class _RegisterPageState extends State<RegisterPage> {
               onPressed: onToggle,
             ),
             hintText: label == 'Password'
-                ? 'Create a password'
+                ? 'Create a strong password'
                 : 'Re-enter your password',
             hintStyle: const TextStyle(color: Colors.black38),
             filled: true,
@@ -804,13 +782,14 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Future<bool> _saveStudentProfile({
+  Future<bool> _saveUserProfile({
     required String uid,
     required String firstName,
     required String middleName,
     required String lastName,
     required String extension,
     required String displayName,
+    required String email,
   }) async {
     final data = <String, dynamic>{
       'uid': uid,
@@ -819,15 +798,18 @@ class _RegisterPageState extends State<RegisterPage> {
       'lastName': lastName,
       'extension': extension,
       'displayName': displayName,
+      'name': displayName,
+      'email': email,
       'role': 'student',
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     };
 
-<<<<<<< HEAD
-    await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
-=======
     await FirebaseFirestore.instance.collection('users').doc(uid).set(data);
->>>>>>> feature/admin-week2
+    await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
+
+    // Use debugPrint instead of print
+    debugPrint('✅ User profile saved to both users and students collections');
     return true;
   }
 }

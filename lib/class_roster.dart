@@ -51,10 +51,67 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
     }
   }
 
+  // ✅ Helper function to extract email from user data
+  String _extractEmail(Map<String, dynamic> userData) {
+    // Try common email field names
+    final possibleEmailFields = [
+      'email',
+      'emailAddress',
+      'userEmail',
+      'mail',
+      'email_id',
+      'emailId',
+    ];
+
+    for (final field in possibleEmailFields) {
+      if (userData[field] != null && userData[field].toString().isNotEmpty) {
+        return userData[field].toString();
+      }
+    }
+
+    return '';
+  }
+
+  // ✅ Helper function to extract name from user data
+  String _extractName(Map<String, dynamic> userData) {
+    // Try displayName first
+    String name = userData['displayName']?.toString() ?? '';
+    if (name.isNotEmpty) return name;
+
+    // Try name field
+    name = userData['name']?.toString() ?? '';
+    if (name.isNotEmpty) return name;
+
+    // Try fullName field
+    name = userData['fullName']?.toString() ?? '';
+    if (name.isNotEmpty) return name;
+
+    // Build from firstName + lastName
+    final firstName = userData['firstName']?.toString() ?? '';
+    final lastName = userData['lastName']?.toString() ?? '';
+    if (firstName.isNotEmpty || lastName.isNotEmpty) {
+      return '$firstName $lastName'.trim();
+    }
+
+    return 'Unknown User';
+  }
+
+  // ✅ Helper function to extract role from user data
+  String _extractRole(Map<String, dynamic> userData) {
+    final role = userData['role']?.toString() ?? '';
+    if (role.isNotEmpty) return role.toLowerCase();
+
+    // Check if user is trainer by other fields
+    if (userData['isTrainer'] == true || userData['trainer'] == true) {
+      return 'trainer';
+    }
+
+    return 'student';
+  }
+
   Future<void> _loadRoster() async {
     setState(() => _isLoading = true);
     try {
-      // ✅ Get the class document to get all enrolled IDs
       final classDoc = await FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)
@@ -78,21 +135,51 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
         return;
       }
 
-      // ✅ Fetch ALL users from the users collection to get their names
+      // ✅ Fetch ALL users from the users collection
       final allUsersSnapshot =
           await FirebaseFirestore.instance.collection('users').get();
 
+      // ✅ Also fetch from students collection as backup
+      final allStudentsSnapshot =
+          await FirebaseFirestore.instance.collection('students').get();
+
       // Create a map of userId -> userData for quick lookup
       final Map<String, Map<String, dynamic>> usersMap = {};
+
+      // Add users from users collection
       for (final doc in allUsersSnapshot.docs) {
         final userData = doc.data() as Map<String, dynamic>? ?? {};
         final uid = userData['uid']?.toString() ?? doc.id;
         usersMap[uid] = userData;
-        usersMap[doc.id] = userData; // Also index by document ID
+        usersMap[doc.id] = userData;
       }
 
-      print('📊 Found ${usersMap.length} users in users collection');
-      print('📊 User IDs: ${usersMap.keys.join(', ')}');
+      // ✅ Add/override with students collection data (as backup)
+      for (final doc in allStudentsSnapshot.docs) {
+        final userData = doc.data() as Map<String, dynamic>? ?? {};
+        final uid = userData['uid']?.toString() ?? doc.id;
+        // Only add if not already in map or if map data is incomplete
+        if (!usersMap.containsKey(uid) || usersMap[uid]?['email'] == null) {
+          usersMap[uid] = userData;
+        }
+        usersMap[doc.id] = userData;
+      }
+
+      print('📊 Found ${usersMap.length} users in collections');
+
+      // ✅ Also fetch from class students subcollection
+      final studentsSubSnapshot = await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(widget.classId)
+          .collection('students')
+          .get();
+
+      final Map<String, Map<String, dynamic>> subDataMap = {};
+      for (final doc in studentsSubSnapshot.docs) {
+        final subData = doc.data() as Map<String, dynamic>? ?? {};
+        final uid = subData['uid']?.toString() ?? doc.id;
+        subDataMap[uid] = subData;
+      }
 
       // ✅ Separate students and trainers
       final List<Map<String, dynamic>> students = [];
@@ -104,40 +191,31 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
         // Try to find the user in the usersMap
         Map<String, dynamic>? userData = usersMap[userId];
 
-        // If not found, try to find by checking if any user has this as their uid field
+        // If not found by ID, try by uid field
         if (userData == null) {
           for (final entry in usersMap.entries) {
             if (entry.value['uid']?.toString() == userId) {
               userData = entry.value;
-              print(
-                  '   ✅ Found user by uid field: ${userData?['displayName']}');
+              print('   ✅ Found user by uid field');
               break;
             }
           }
         }
 
+        // If still not found, check subcollection
+        if (userData == null && subDataMap.containsKey(userId)) {
+          userData = subDataMap[userId];
+          print('   ✅ Found user in class subcollection');
+        }
+
         if (userData != null) {
-          // ✅ User found - get their name from the users collection
-          String name = userData['displayName']?.toString() ?? '';
-          if (name.isEmpty) {
-            name = userData['name']?.toString() ?? '';
-          }
-          if (name.isEmpty) {
-            // Try building from firstName + lastName
-            final firstName = userData['firstName']?.toString() ?? '';
-            final lastName = userData['lastName']?.toString() ?? '';
-            if (firstName.isNotEmpty || lastName.isNotEmpty) {
-              name = '$firstName $lastName'.trim();
-            }
-          }
-          if (name.isEmpty) {
-            name = 'Unknown User';
-          }
+          // ✅ Extract data using helper functions
+          final name = _extractName(userData);
+          final email = _extractEmail(userData);
+          final role = _extractRole(userData);
 
-          final email = userData['email']?.toString() ?? '';
-          final role = userData['role']?.toString() ?? 'student';
-
-          print('   👤 Found: $name, Role: $role, Email: $email');
+          print(
+              '   👤 Found: $name, Role: $role, Email: ${email.isNotEmpty ? email : 'No email'}');
 
           final userInfo = {
             'id': userId,
@@ -153,10 +231,10 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
             students.add(userInfo);
           }
         } else {
-          // ✅ User not found - try checking the students subcollection
-          print(
-              '   ⚠️ User not found in users collection, checking subcollection...');
+          // ✅ User not found anywhere - try to get from auth or create placeholder
+          print('   ⚠️ User not found in any collection');
 
+          // Try to get from subcollection one more time with full path
           final subDoc = await FirebaseFirestore.instance
               .collection('classes')
               .doc(widget.classId)
@@ -164,30 +242,29 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
               .doc(userId)
               .get();
 
-          String name = 'Unknown User';
+          String name = 'Student ${userId.substring(0, 6)}';
           String email = '';
+          String role = 'student';
 
           if (subDoc.exists) {
             final subData = subDoc.data() as Map<String, dynamic>? ?? {};
-            name = subData['name']?.toString() ?? 'Unknown User';
-            email = subData['email']?.toString() ?? '';
+            name = subData['name']?.toString() ?? name;
+            email = _extractEmail(subData);
+            role = subData['role']?.toString() ?? 'student';
             print('   📋 Found in subcollection: $name');
-          } else {
-            name = 'Student ${userId.substring(0, 6)}';
-            print('   📋 No data found, using: $name');
           }
 
           students.add({
             'id': userId,
             'name': name,
             'email': email,
-            'role': 'student',
+            'role': role,
             'data': {},
           });
         }
       }
 
-      // ✅ Sort students by name
+      // ✅ Sort by name
       students
           .sort((a, b) => a['name'].toString().compareTo(b['name'].toString()));
       trainers
@@ -202,7 +279,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
       print(
           '📊 Final counts - Students: ${students.length}, Trainers: ${trainers.length}');
       print('📊 Student names: ${students.map((s) => s['name']).join(', ')}');
-      print('📊 Trainer names: ${trainers.map((t) => t['name']).join(', ')}');
+      print('📊 Student emails: ${students.map((s) => s['email']).join(', ')}');
     } catch (e) {
       print('❌ Error loading roster: $e');
       setState(() => _isLoading = false);
@@ -217,7 +294,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
     }
 
     try {
-      // Delete from subcollection
       await FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)
@@ -225,7 +301,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           .doc(studentId)
           .delete();
 
-      // Delete from user's classes subcollection if exists
       await FirebaseFirestore.instance
           .collection('users')
           .doc(studentId)
@@ -233,7 +308,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           .doc(widget.classId)
           .delete();
 
-      // Remove from enrolledStudentIds array
       await FirebaseFirestore.instance
           .collection('classes')
           .doc(widget.classId)
@@ -241,7 +315,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
         'enrolledStudentIds': FieldValue.arrayRemove([studentId]),
       });
 
-      // Refresh the list
       await _loadRoster();
 
       if (!context.mounted) return;
@@ -271,14 +344,29 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
       text: data['displayName']?.toString() ?? data['name']?.toString() ?? '',
     );
 
+    final emailController = TextEditingController(
+      text: _extractEmail(data),
+    );
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text("Edit User"),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(labelText: "Name"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: "Name"),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: "Email"),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
           ),
           actions: [
             TextButton(
@@ -288,6 +376,8 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
             ElevatedButton(
               onPressed: () async {
                 final newName = nameController.text.trim();
+                final newEmail = emailController.text.trim();
+
                 if (newName.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Name cannot be empty")),
@@ -297,34 +387,59 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
 
                 try {
                   // Update in users collection
+                  final updateData = {
+                    'displayName': newName,
+                    'name': newName,
+                  };
+                  if (newEmail.isNotEmpty) {
+                    updateData['email'] = newEmail;
+                  }
                   await FirebaseFirestore.instance
                       .collection('users')
                       .doc(studentId)
-                      .update({
-                    'displayName': newName,
-                    'name': newName,
-                  });
+                      .update(updateData);
 
-                  // Update in students subcollection if exists
+                  // Also update in students collection if exists
+                  final studentDoc = await FirebaseFirestore.instance
+                      .collection('students')
+                      .doc(studentId)
+                      .get();
+                  if (studentDoc.exists) {
+                    final studentUpdateData = {
+                      'displayName': newName,
+                      'name': newName,
+                    };
+                    if (newEmail.isNotEmpty) {
+                      studentUpdateData['email'] = newEmail;
+                    }
+                    await FirebaseFirestore.instance
+                        .collection('students')
+                        .doc(studentId)
+                        .update(studentUpdateData);
+                  }
+
+                  // Update in students subcollection
                   await FirebaseFirestore.instance
                       .collection('classes')
                       .doc(widget.classId)
                       .collection('students')
                       .doc(studentId)
-                      .update({'name': newName});
+                      .update({
+                    'name': newName,
+                    if (newEmail.isNotEmpty) 'email': newEmail,
+                  });
 
-                  // Refresh the list
                   await _loadRoster();
 
                   if (!context.mounted) return;
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Name updated")),
+                    const SnackBar(content: Text("User updated")),
                   );
                 } catch (e) {
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Error updating name: $e")),
+                    SnackBar(content: Text("Error updating: $e")),
                   );
                 }
               },
@@ -546,7 +661,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // Trainers Section
                     if (_trainers.isNotEmpty) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -590,8 +704,6 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
                       const Divider(),
                       const SizedBox(height: 8),
                     ],
-
-                    // Students Section
                     if (_students.isNotEmpty) ...[
                       Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),

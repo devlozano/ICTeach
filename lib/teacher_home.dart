@@ -9,6 +9,7 @@ import 'package:icteach/screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/screens/student/forums_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
+import 'package:icteach/screens/debug_page.dart'; // ✅ ADD THIS
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -248,7 +249,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
           ),
           const SizedBox(height: 16),
 
-          // ✅ Fixed: Stats Card
+          // Stats Card
           FutureBuilder<QuerySnapshot>(
             future: FirebaseFirestore.instance
                 .collection('classes')
@@ -367,11 +368,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             );
 
             return PopScope(
-              // Allow pop only when on the home tab (tab 0)
               canPop: _currentTabIndex == 0,
               onPopInvokedWithResult: (didPop, _) {
                 if (didPop) return;
-                // Not on home tab → go back to home tab
                 setState(() => _currentTabIndex = 0);
               },
               child: Scaffold(
@@ -389,16 +388,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                         child: IndexedStack(
                           index: _currentTabIndex,
                           children: [
-                            // Tab 0: Home
                             _buildHomeTab(context, classCount, totalEnrolled,
                                 pendingReviewCount),
-                            // Tab 1: Classes
                             buildClassesTab(),
-                            // Tab 2: Discussion
                             _buildDiscussionTab(),
-                            // Tab 3: Analytics
                             _buildAnalyticsTab(),
-                            // Tab 4: Profile
                             _buildTeacherProfile(user, profile),
                           ],
                         ),
@@ -469,7 +463,6 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 _currentTabIndex = 1;
               });
             },
-            // ✅ Fixed: Added callback for switching tabs
             onSwitchTab: () {
               setState(() {
                 _currentTabIndex = 1;
@@ -700,6 +693,19 @@ class _TeacherHeader extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          // ✅ TEMPORARY: Migration Button - REMOVE AFTER RUNNING
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const DebugMigrationPage(),
+                ),
+              );
+            },
+            tooltip: 'Migration Tool',
           ),
           NotificationBadge(
             child: IconButton(
