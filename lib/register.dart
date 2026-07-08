@@ -25,6 +25,32 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  // List of values that should be treated as "no extension"
+  static const List<String> _noExtensionValues = [
+    'none',
+    'n/a',
+    'na',
+    'n.a',
+    'n.a.',
+    'NONE',
+    'None',
+    'N/A',
+    'null',
+    'NULL',
+    'Null',
+    'no',
+    'NO',
+    'No',
+    '0',
+    'zero',
+    'ZERO',
+    'none.',
+    'NONE.',
+    'None.',
+    'NA',
+    'Na',
+  ];
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -37,6 +63,88 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
+  // Function to clean extension value
+  String _cleanExtension(String value) {
+    final trimmed = value.trim();
+
+    if (trimmed.isEmpty) return '';
+
+    if (_noExtensionValues.contains(trimmed.toLowerCase())) {
+      return '';
+    }
+
+    if (RegExp(r'^[^a-zA-Z]+$').hasMatch(trimmed)) {
+      return '';
+    }
+
+    if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return '';
+    }
+
+    if (trimmed.length == 1 &&
+        !['J', 'S', 'R', 'V', 'X', 'Z'].contains(trimmed.toUpperCase())) {
+      return '';
+    }
+
+    return _capitalizeExtension(trimmed);
+  }
+
+  String _capitalizeExtension(String value) {
+    final suffixes = {
+      'jr': 'Jr.',
+      'jr.': 'Jr.',
+      'sr': 'Sr.',
+      'sr.': 'Sr.',
+      'i': 'I',
+      'ii': 'II',
+      'iii': 'III',
+      'iv': 'IV',
+      'v': 'V',
+      'vi': 'VI',
+      'vii': 'VII',
+      'viii': 'VIII',
+      'ix': 'IX',
+      'x': 'X',
+    };
+
+    final lower = value.toLowerCase();
+    if (suffixes.containsKey(lower)) {
+      return suffixes[lower]!;
+    }
+
+    if (RegExp(r'^(Jr\.|Sr\.|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$')
+        .hasMatch(value)) {
+      return value;
+    }
+
+    return value[0].toUpperCase() + value.substring(1).toLowerCase();
+  }
+
+  String? _validateExtension(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    final cleaned = _cleanExtension(value);
+    if (cleaned.isEmpty) {
+      return null;
+    }
+
+    final validPatterns = [
+      r'^(Jr\.|Sr\.|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$',
+      r'^[A-Z][a-z]?\.?$',
+      r'^[A-Z]{2,3}$',
+    ];
+
+    for (final pattern in validPatterns) {
+      if (RegExp(pattern).hasMatch(cleaned)) {
+        return null;
+      }
+    }
+
+    return 'Please enter a valid suffix (e.g., Jr., Sr., III) or leave blank.';
+  }
+
   Future<void> _register() async {
     FocusScope.of(context).unfocus();
 
@@ -47,11 +155,11 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
       final user = credential.user;
       if (user == null) {
@@ -64,7 +172,9 @@ class _RegisterPageState extends State<RegisterPage> {
       final firstName = _firstNameController.text.trim();
       final middleName = _middleNameController.text.trim();
       final lastName = _lastNameController.text.trim();
-      final extension = _extensionController.text.trim();
+      final extensionRaw = _extensionController.text.trim();
+      final extension = _cleanExtension(extensionRaw);
+
       final displayName = _displayName(
         firstName: firstName,
         middleName: middleName,
@@ -73,7 +183,7 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       await user.updateDisplayName(displayName);
-      final profileSaved = await _saveStudentProfile(
+      await _saveStudentProfile(
         uid: user.uid,
         firstName: firstName,
         middleName: middleName,
@@ -84,29 +194,18 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (!mounted) return;
 
-      if (profileSaved) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created successfully.')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created, but profile was not saved.'),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully.')),
+      );
       _openHome();
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
-
       _showError(_authErrorMessage(error));
     } on FirebaseException catch (error) {
       if (!mounted) return;
-
       _showError(_firebaseErrorMessage(error));
     } catch (error) {
       if (!mounted) return;
-
       _showError('Could not create account: $error');
     } finally {
       if (mounted) {
@@ -163,7 +262,6 @@ class _RegisterPageState extends State<RegisterPage> {
       lastName,
       if (extension.isNotEmpty) extension,
     ];
-
     return names.join(' ');
   }
 
@@ -183,7 +281,6 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     const primaryBlue = Color(0xFF2F80ED);
-    const inputBorder = Color(0xFFC7D3EA);
     const registerGreen = Color(0xFF12A150);
 
     return Scaffold(
@@ -202,13 +299,10 @@ class _RegisterPageState extends State<RegisterPage> {
                     alignment: Alignment.centerLeft,
                     child: IconButton(
                       tooltip: 'Back',
-                      onPressed: _isLoading
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                      icon: const Icon(
-                        Icons.arrow_back_rounded,
-                        color: Colors.white,
-                      ),
+                      onPressed:
+                          _isLoading ? null : () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          color: Colors.white),
                     ),
                   ),
                 ),
@@ -219,21 +313,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     width: double.infinity,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
                     ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
                         child: SingleChildScrollView(
                           padding: EdgeInsets.fromLTRB(
-                            horizontalPadding,
-                            24,
-                            horizontalPadding,
-                            24,
-                          ),
-                          child: _buildForm(inputBorder, registerGreen),
+                              horizontalPadding, 24, horizontalPadding, 24),
+                          child: _buildForm(registerGreen),
                         ),
                       ),
                     ),
@@ -247,7 +336,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildForm(Color inputBorder, Color registerGreen) {
+  Widget _buildForm(Color registerGreen) {
     final textTheme = Theme.of(context).textTheme;
 
     return Form(
@@ -271,174 +360,92 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
           const SizedBox(height: 24),
-          _LabeledField(
+          _buildTextField(
             label: 'First Name',
-            child: TextFormField(
-              controller: _firstNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.givenName],
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'First name is required.';
-                }
-                if (value.trim().length < 2) {
-                  return 'Enter your first name.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Juan',
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
+            controller: _firstNameController,
+            hintText: 'Juan',
+            icon: Icons.person_outline_rounded,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty)
+                return 'First name is required.';
+              if (value.trim().length < 2) return 'Enter your first name.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildTextField(
             label: 'Middle Name',
-            child: TextFormField(
-              controller: _middleNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.middleName],
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Santos',
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
+            controller: _middleNameController,
+            hintText: 'Santos',
+            icon: Icons.person_outline_rounded,
+            isRequired: false,
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildTextField(
             label: 'Last Name',
-            child: TextFormField(
-              controller: _lastNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.familyName],
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Last name is required.';
-                }
-                if (value.trim().length < 2) {
-                  return 'Enter your last name.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Dela Cruz',
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
+            controller: _lastNameController,
+            hintText: 'Dela Cruz',
+            icon: Icons.person_outline_rounded,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty)
+                return 'Last name is required.';
+              if (value.trim().length < 2) return 'Enter your last name.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
-          _LabeledField(
-            label: 'Extension',
-            child: TextFormField(
-              controller: _extensionController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.characters,
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Jr., Sr., III',
-                icon: Icons.person_add_alt_1_outlined,
-              ),
-            ),
+          _buildTextField(
+            label: 'Extension (Optional)',
+            controller: _extensionController,
+            hintText: 'Jr., Sr., III',
+            icon: Icons.person_add_alt_1_outlined,
+            validator: _validateExtension,
+            isRequired: false,
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildTextField(
             label: 'Email Address',
-            child: TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
-              validator: (value) {
-                final email = value?.trim() ?? '';
-                if (email.isEmpty) {
-                  return 'Email address is required.';
-                }
-                if (!_isValidEmail(email)) {
-                  return 'Enter a valid email address.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'student@school.edu.ph',
-                icon: Icons.email_outlined,
-              ),
-            ),
+            controller: _emailController,
+            hintText: 'student@school.edu.ph',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              final email = value?.trim() ?? '';
+              if (email.isEmpty) return 'Email address is required.';
+              if (!_isValidEmail(email)) return 'Enter a valid email address.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildPasswordField(
             label: 'Password',
-            child: TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.newPassword],
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Password is required.';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters.';
-                }
-                return null;
-              },
-              decoration:
-                  _fieldDecoration(
-                    borderColor: inputBorder,
-                    hintText: 'Create a password',
-                    icon: Icons.lock_outline_rounded,
-                  ).copyWith(
-                    suffixIcon: _visibilityButton(
-                      isObscured: _obscurePassword,
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
-                    ),
-                  ),
-            ),
+            controller: _passwordController,
+            isObscured: _obscurePassword,
+            onToggle: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
+            validator: (value) {
+              if (value == null || value.isEmpty)
+                return 'Password is required.';
+              if (value.length < 6)
+                return 'Password must be at least 6 characters.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildPasswordField(
             label: 'Confirm Password',
-            child: TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              textInputAction: TextInputAction.done,
-              autofillHints: const [AutofillHints.newPassword],
-              onFieldSubmitted: (_) => _isLoading ? null : _register(),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Confirm your password.';
-                }
-                if (value != _passwordController.text) {
-                  return 'Passwords do not match.';
-                }
-                return null;
-              },
-              decoration:
-                  _fieldDecoration(
-                    borderColor: inputBorder,
-                    hintText: 'Re-enter your password',
-                    icon: Icons.verified_user_outlined,
-                  ).copyWith(
-                    suffixIcon: _visibilityButton(
-                      isObscured: _obscureConfirmPassword,
-                      onPressed: () {
-                        setState(
-                          () => _obscureConfirmPassword =
-                              !_obscureConfirmPassword,
-                        );
-                      },
-                    ),
-                  ),
-            ),
+            controller: _confirmPasswordController,
+            isObscured: _obscureConfirmPassword,
+            onToggle: () => setState(
+                () => _obscureConfirmPassword = !_obscureConfirmPassword),
+            validator: (value) {
+              if (value == null || value.isEmpty)
+                return 'Confirm your password.';
+              if (value != _passwordController.text)
+                return 'Passwords do not match.';
+              return null;
+            },
+            onFieldSubmitted: (_) => _isLoading ? null : _register(),
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -452,23 +459,18 @@ class _RegisterPageState extends State<RegisterPage> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    borderRadius: BorderRadius.circular(10)),
               ),
               child: _isLoading
                   ? const SizedBox.square(
                       dimension: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.6,
-                      ),
+                          color: Colors.white, strokeWidth: 2.6),
                     )
                   : const Text(
                       'Create Account',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                     ),
             ),
           ),
@@ -484,46 +486,142 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _visibilityButton({
-    required bool isObscured,
-    required VoidCallback onPressed,
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    bool isRequired = true,
   }) {
-    return IconButton(
-      tooltip: isObscured ? 'Show password' : 'Hide password',
-      onPressed: onPressed,
-      icon: Icon(
-        isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-        color: Colors.black.withValues(alpha: 0.7),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          textInputAction: TextInputAction.next,
+          textCapitalization: TextCapitalization.words,
+          validator: validator,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: const Color(0xFF4D89FF)),
+            hintText: hintText,
+            hintStyle: const TextStyle(color: Colors.black38),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF2F80ED), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  InputDecoration _fieldDecoration({
-    required Color borderColor,
-    required String hintText,
-    required IconData icon,
+  Widget _buildPasswordField({
+    required String label,
+    required TextEditingController controller,
+    required bool isObscured,
+    required VoidCallback onToggle,
+    String? Function(String?)? validator,
+    void Function(String)? onFieldSubmitted,
   }) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: borderColor, width: 2),
-    );
-
-    return InputDecoration(
-      prefixIcon: Icon(icon, color: const Color(0xFF4D89FF)),
-      hintText: hintText,
-      hintStyle: const TextStyle(color: Colors.black38),
-      filled: true,
-      fillColor: Colors.white,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: Color(0xFF2F80ED), width: 2),
-      ),
-      errorBorder: border.copyWith(
-        borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
-      ),
-      focusedErrorBorder: border.copyWith(
-        borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          obscureText: isObscured,
+          textInputAction: onFieldSubmitted != null
+              ? TextInputAction.done
+              : TextInputAction.next,
+          validator: validator,
+          onFieldSubmitted: onFieldSubmitted,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.lock_outline_rounded,
+                color: Color(0xFF4D89FF)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                isObscured
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: Colors.black.withValues(alpha: 0.7),
+              ),
+              onPressed: onToggle,
+            ),
+            hintText: label == 'Password'
+                ? 'Create a password'
+                : 'Re-enter your password',
+            hintStyle: const TextStyle(color: Colors.black38),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF2F80ED), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -542,11 +640,11 @@ class _RegisterPageState extends State<RegisterPage> {
       'lastName': lastName,
       'extension': extension,
       'displayName': displayName,
+      'role': 'student',
       'createdAt': FieldValue.serverTimestamp(),
     };
 
-    // Save profile document to "students" collection using uid as document id
-    await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
+    await FirebaseFirestore.instance.collection('users').doc(uid).set(data);
     return true;
   }
 }
@@ -608,34 +706,6 @@ class _RegisterHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        child,
-      ],
     );
   }
 }
