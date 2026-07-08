@@ -5,6 +5,7 @@ import 'admin/create_staff_page.dart';
 import 'admin/manage_trainers_page.dart'; // ✅ ADD THIS IMPORT
 import 'package:icteach/screens/notification_page.dart'; // ✅ ADD THIS
 import 'package:icteach/widgets/notification_badge.dart'; // ✅ ADD THIS
+import 'package:icteach/services/quiz_service.dart'; // ✅ ADD THIS IMPORT
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -147,6 +148,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
     // ✅ FIXED: Manage Users - Show Trainers and Teachers
     if (_currentSelectedLabel == 'Manage Users') {
       return _ManageUsersContent();
+    }
+
+    if (_currentSelectedLabel == 'Performance') {
+      return const _PerformanceContent();
     }
 
     // Secondary Management View Dynamic Call Fallbacks
@@ -1194,6 +1199,139 @@ class _ActionRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PerformanceContent extends StatefulWidget {
+  const _PerformanceContent();
+
+  @override
+  State<_PerformanceContent> createState() => _PerformanceContentState();
+}
+
+class _PerformanceContentState extends State<_PerformanceContent> {
+  final QuizService _quizService = QuizService();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _quizService.getGlobalLeaderboard(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)),
+          );
+        }
+
+        final leaderboard = snapshot.data ?? [];
+
+        if (leaderboard.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFECECEC)),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.analytics_outlined, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  const Text('No Performance Data', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text('No quiz results have been recorded yet.', style: TextStyle(color: Colors.grey.shade600)),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFECECEC)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Global Leaderboard',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const Divider(height: 1),
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: leaderboard.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final data = leaderboard[index];
+                  final color = index == 0
+                      ? Colors.amber.shade600
+                      : index == 1
+                          ? Colors.grey.shade600
+                          : index == 2
+                              ? Colors.brown.shade400
+                              : const Color(0xFF0B2B4A);
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: color.withOpacity(0.1),
+                      child: Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    title: Text(
+                      data['studentName'] as String,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text('Quizzes Taken: ${data['quizCount']}'),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${data['percentage']}%',
+                        style: TextStyle(
+                          color: color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

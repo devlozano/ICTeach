@@ -20,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _isResettingPassword = false; // ✅ NEW: Track password reset state
+  bool _isResettingPassword = false;
 
   @override
   void dispose() {
@@ -99,13 +99,11 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ✅ UPDATED: Password reset with dialog feedback
   Future<void> _sendPasswordReset() async {
     FocusScope.of(context).unfocus();
 
     final email = _emailController.text.trim();
 
-    // ✅ Check if email is provided
     if (email.isEmpty) {
       _showErrorDialog(
         'Email Required',
@@ -114,7 +112,6 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // ✅ Validate email format
     if (!_isValidEmail(email)) {
       _showErrorDialog('Invalid Email', 'Please enter a valid email address.');
       return;
@@ -127,7 +124,6 @@ class _LoginPageState extends State<LoginPage> {
 
       if (!mounted) return;
 
-      // ✅ Show success dialog
       await showDialog(
         context: context,
         barrierDismissible: false,
@@ -140,57 +136,64 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 Icon(Icons.check_circle, color: Colors.green.shade600),
                 const SizedBox(width: 8),
-                const Text(
-                  'Password Reset Email Sent',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                const Flexible(
+                  child: Text(
+                    'Password Reset Email Sent',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'A password reset link has been sent to:',
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
+            content: SizedBox(
+              width: double.minPositive,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A password reset link has been sent to:',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.email, size: 20, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          email,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade900,
-                            fontSize: 15,
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.email,
+                            size: 20, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            email,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade900,
+                              fontSize: 14,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Please check your email inbox and follow the instructions to reset your password.',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    'Please check your email inbox and follow the instructions to reset your password.',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  // ✅ Clear password field after successful reset
                   _passwordController.clear();
                 },
                 style: TextButton.styleFrom(
@@ -200,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
+                    horizontal: 20,
                     vertical: 10,
                   ),
                 ),
@@ -216,11 +219,9 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
-      // ✅ Show error dialog with specific message
       String title = 'Password Reset Failed';
       String message = _authErrorMessage(error);
 
-      // ✅ Handle specific cases
       switch (error.code) {
         case 'user-not-found':
           title = 'Account Not Found';
@@ -247,7 +248,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ✅ NEW: Show error dialog
+  // ✅ FIXED: Show error dialog with proper sizing
   Future<void> _showErrorDialog(String title, String message) async {
     return showDialog(
       context: context,
@@ -260,12 +261,21 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               Icon(Icons.error_outline, color: Colors.red.shade600),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
-          content: Text(
-            message,
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+          content: SizedBox(
+            width: double.minPositive,
+            child: Text(
+              message,
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+            ),
           ),
           actions: [
             TextButton(
@@ -279,7 +289,7 @@ class _LoginPageState extends State<LoginPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
+                  horizontal: 20,
                   vertical: 10,
                 ),
               ),
@@ -468,7 +478,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           const SizedBox(height: 8),
-          // ✅ UPDATED: Forgot Password with loading state
           Center(
             child: _isResettingPassword
                 ? const Padding(
@@ -594,7 +603,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _openAdminPortal() async {
     final uri = Uri.parse(
-      'https://admin.icteach.com', // CHANGE THIS
+      'https://admin.icteach.com',
     );
 
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {

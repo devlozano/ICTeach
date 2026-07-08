@@ -99,6 +99,7 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
 
     final result = QuizResult(
       quizId: widget.quiz.id,
+      classId: widget.classId, // ✅ ADDED
       studentId: user.uid,
       studentName: studentName,
       score: correctCount,

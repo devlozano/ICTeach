@@ -4,11 +4,19 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
+import '../../services/notification_service.dart';
 
 class CreateModulePage extends StatefulWidget {
   final String classId;
+  final String className;
+  final ModuleModel? moduleToEdit; // ✅ ADD THIS for editing
 
-  const CreateModulePage({super.key, required this.classId});
+  const CreateModulePage({
+    super.key,
+    required this.classId,
+    this.className = '',
+    this.moduleToEdit, // ✅ ADD THIS
+  });
 
   @override
   State<CreateModulePage> createState() => _CreateModulePageState();
@@ -17,6 +25,7 @@ class CreateModulePage extends StatefulWidget {
 class _CreateModulePageState extends State<CreateModulePage> {
   final _formKey = GlobalKey<FormState>();
   final ModuleService _moduleService = ModuleService();
+  final NotificationService _notificationService = NotificationService();
 
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -26,7 +35,9 @@ class _CreateModulePageState extends State<CreateModulePage> {
 
   bool _isLoading = false;
   bool _isPublished = false;
+  bool _isEditing = false; // ✅ ADD THIS
   int _order = 0;
+  String? _moduleId; // ✅ ADD THIS for updating
   final List<String> _competencies = [];
   bool _videoLinkValid = false;
   bool _fileLinkValid = false;
@@ -47,7 +58,32 @@ class _CreateModulePageState extends State<CreateModulePage> {
   @override
   void initState() {
     super.initState();
-    _loadModuleCount();
+    _isEditing = widget.moduleToEdit != null;
+
+    if (_isEditing) {
+      // ✅ Populate fields with existing module data
+      final module = widget.moduleToEdit!;
+      _titleController.text = module.title;
+      _descriptionController.text = module.description;
+      _contentController.text = module.content;
+      _youtubeLinkController.text = module.videoUrl ?? '';
+      _fileLinkController.text = module.attachmentUrl ?? '';
+      _competencies.addAll(module.competencies);
+      _isPublished = module.isPublished;
+      _order = module.order;
+      _moduleId = module.id;
+
+      // Validate links
+      if (_youtubeLinkController.text.isNotEmpty) {
+        _validateYoutubeLink();
+      }
+      if (_fileLinkController.text.isNotEmpty) {
+        _validateFileLink();
+      }
+    } else {
+      _loadModuleCount();
+    }
+
     _youtubeLinkController.addListener(_validateYoutubeLink);
     _fileLinkController.addListener(_validateFileLink);
   }
@@ -119,7 +155,6 @@ class _CreateModulePageState extends State<CreateModulePage> {
     return videoId;
   }
 
-  // ✅ FIXED: Open file link with proper error handling (StatefulWidget so mounted exists)
   Future<void> _openFileLink(String url) async {
     try {
       final uri = Uri.parse(url);
@@ -147,7 +182,6 @@ class _CreateModulePageState extends State<CreateModulePage> {
     }
   }
 
-  // Copy link to clipboard
   void _copyLink(String url) {
     Clipboard.setData(ClipboardData(text: url));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -187,7 +221,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
           : _fileLinkController.text.trim();
 
       final module = ModuleModel(
-        id: '',
+        id: _moduleId ?? '',
         classId: widget.classId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
@@ -201,13 +235,39 @@ class _CreateModulePageState extends State<CreateModulePage> {
         isPublished: _isPublished,
       );
 
-      await _moduleService.createModule(module);
+      if (_isEditing) {
+        // ✅ UPDATE existing module
+        await _moduleService.updateModule(widget.classId, _moduleId!, module);
+
+        // ✅ Send notification if published
+        if (_isPublished) {
+          await _notificationService.notifyNewModule(
+            widget.classId,
+            _titleController.text.trim(),
+          );
+        }
+      } else {
+        // ✅ CREATE new module
+        await _moduleService.createModule(module);
+
+        // ✅ Send notification if published
+        if (_isPublished) {
+          await _notificationService.notifyNewModule(
+            widget.classId,
+            _titleController.text.trim(),
+          );
+        }
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Module created successfully!'),
+        SnackBar(
+          content: Text(
+            _isPublished
+                ? '✅ Module ${_isEditing ? 'updated' : 'created'} and notifications sent!'
+                : '✅ Module ${_isEditing ? 'updated' : 'saved'} as draft!',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -216,7 +276,8 @@ class _CreateModulePageState extends State<CreateModulePage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error creating module: $e'),
+          content: Text(
+              '❌ Error ${_isEditing ? 'updating' : 'creating'} module: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -230,7 +291,8 @@ class _CreateModulePageState extends State<CreateModulePage> {
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
-        title: const Text('Create Module'),
+        title: Text(
+            _isEditing ? 'Edit Module' : 'Create Module'), // ✅ Dynamic title
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -254,6 +316,34 @@ class _CreateModulePageState extends State<CreateModulePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Class Name Display
+              if (widget.className.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.class_, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Class: ${widget.className}',
+                          style: TextStyle(
+                            color: Colors.blue.shade900,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Module Title
               TextFormField(
                 controller: _titleController,
@@ -700,10 +790,29 @@ class _CreateModulePageState extends State<CreateModulePage> {
                         );
                       }).toList(),
                     ),
+                    if (_competencies.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Text(
+                          '${_competencies.length} competency(s) selected',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green.shade800,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Order and Status
               Row(
@@ -764,6 +873,35 @@ class _CreateModulePageState extends State<CreateModulePage> {
               ),
               const SizedBox(height: 24),
 
+              // Notification Info (if published)
+              if (_isPublished) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.notifications_active,
+                          color: Colors.green.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Students will be notified about this module when you save it.',
+                          style: TextStyle(
+                            color: Colors.green.shade800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
               // Save Button
               SizedBox(
                 width: double.infinity,
@@ -786,9 +924,15 @@ class _CreateModulePageState extends State<CreateModulePage> {
                             strokeWidth: 2.5,
                           ),
                         )
-                      : const Text(
-                          'Create Module',
-                          style: TextStyle(
+                      : Text(
+                          _isEditing
+                              ? (_isPublished
+                                  ? 'Update & Publish'
+                                  : 'Update Draft')
+                              : (_isPublished
+                                  ? 'Publish Module'
+                                  : 'Save as Draft'),
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),

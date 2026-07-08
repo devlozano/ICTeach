@@ -14,6 +14,7 @@ import 'login.dart';
 import '../../services/quiz_service.dart'; // ✅ ADD THIS IMPORT
 import '../../models/quiz_model.dart'; // ✅ ADD THIS IMPORT
 import '../../services/module_service.dart'; // ✅ ADD THIS IMPORT
+import 'package:intl/intl.dart'; // ✅ For formatting dates
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -818,7 +819,9 @@ class _HomePageState extends State<HomePage> {
           // ✅ Progress Stats with Quiz Scores
           FutureBuilder<List<dynamic>>(
             future: Future.wait([
-              _quizService.getStudentQuizResults(userId),
+              (_classId != null && _classId!.isNotEmpty)
+                  ? _quizService.getStudentQuizResultsForClass(userId, _classId!)
+                  : _quizService.getStudentQuizResults(userId),
               (_classId != null && _classId!.isNotEmpty)
                   ? _quizService
                       .getPublishedQuizzesForClass(_classId!)
@@ -1015,11 +1018,45 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildLeaderboardItem('1', 'Juan Dela Cruz', 95, Colors.amber),
-                _buildLeaderboardItem(
-                    '2', 'Maria Santos', 88, Colors.grey.shade600),
-                _buildLeaderboardItem(
-                    '3', 'Jose Garcia', 82, Colors.brown.shade400),
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: (_classId != null && _classId!.isNotEmpty)
+                      ? _quizService.getClassLeaderboard(_classId!)
+                      : Future.value([]),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final leaderboard = snapshot.data ?? [];
+
+                    if (leaderboard.isEmpty) {
+                      return const Center(
+                        child: Text('No leaderboard data yet',
+                            style: TextStyle(color: Colors.grey)),
+                      );
+                    }
+
+                    final top3 = leaderboard.take(3).toList();
+                    return Column(
+                      children: top3.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final data = entry.value;
+                        final color = index == 0
+                            ? Colors.amber
+                            : index == 1
+                                ? Colors.grey.shade600
+                                : Colors.brown.shade400;
+
+                        return _buildLeaderboardItem(
+                          '${index + 1}',
+                          data['studentName'] as String,
+                          data['percentage'] as int,
+                          color,
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -1097,12 +1134,20 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Quiz #${result.quizId.substring(0, 8)}',
-                  style: const TextStyle(
+                const Text(
+                  'Knowledge Assessment',
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                Text(
+                  'Completed on ${DateFormat.yMMMd().format(result.completedAt)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Text(
                   'Score: ${result.score}/${result.totalPoints} (${result.percentage.toStringAsFixed(0)}%)',
                   style: TextStyle(

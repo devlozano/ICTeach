@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:icteach/services/notification_service.dart';
 import '../models/quiz_model.dart';
 
 class QuizService {
@@ -52,14 +53,19 @@ class QuizService {
     });
   }
 
-  // Update an existing quiz
-  Future<void> updateQuiz(QuizModel quiz) async {
-    await _firestore
-        .collection('classes')
-        .doc(quiz.classId)
-        .collection('quizzes')
-        .doc(quiz.id)
-        .update(quiz.toFirestore());
+  Future<void> updateQuiz(String classId, String quizId, QuizModel quiz) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('classes')
+          .doc(classId)
+          .collection('quizzes')
+          .doc(quizId)
+          .update(quiz.toFirestore());
+      print('✅ Quiz updated: ${quiz.title}');
+    } catch (e) {
+      print('❌ Error updating quiz: $e');
+      rethrow;
+    }
   }
 
   // Delete a quiz
@@ -140,7 +146,7 @@ class QuizService {
         .set(result.toFirestore());
   }
 
-  // Get quiz results for a student
+  // Get quiz results for a student globally
   Future<List<QuizResult>> getStudentQuizResults(String studentId) async {
     final snapshot = await _firestore
         .collection('users')
@@ -150,6 +156,32 @@ class QuizService {
         .get();
 
     return snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
+  }
+
+  // Get quiz results for a student in a specific class
+  Future<List<QuizResult>> getStudentQuizResultsForClass(String studentId, String classId) async {
+    // 1. Get all quizzes for this class
+    final quizzesSnapshot = await _firestore
+        .collection('classes')
+        .doc(classId)
+        .collection('quizzes')
+        .get();
+
+    final quizIds = quizzesSnapshot.docs.map((doc) => doc.id).toList();
+
+    if (quizIds.isEmpty) return [];
+
+    // 2. Filter student's quiz results
+    final snapshot = await _firestore
+        .collection('users')
+        .doc(studentId)
+        .collection('quiz_results')
+        .orderBy('completedAt', descending: true)
+        .get();
+
+    final allResults = snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
+    
+    return allResults.where((r) => quizIds.contains(r.quizId) || r.classId == classId).toList();
   }
 
   // ✅ FIXED: Get quiz results without orderBy
@@ -176,5 +208,115 @@ class QuizService {
         .get();
 
     return snapshot.docs.length;
+  }
+
+  // Add notification method (if not exists)
+  Future<void> notifyQuizPublished(String classId, String quizTitle) async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.notifyNewQuiz(classId, quizTitle);
+    } catch (e) {
+      print('❌ Error sending quiz notification: $e');
+    }
+  }
+
+  // ✅ NEW: Leaderboard Methods
+  Future<List<Map<String, dynamic>>> getClassLeaderboard(String classId) async {
+    try {
+      // 1. Get all quizzes for this class
+      final quizzesSnapshot = await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('quizzes')
+          .get();
+
+      final quizIds = quizzesSnapshot.docs.map((doc) => doc.id).toList();
+
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> allResultDocs = [];
+
+      // 2. Fetch quiz_results matching these quizIds
+      // Firestore 'whereIn' supports up to 10 elements, so chunk it
+      for (var i = 0; i < quizIds.length; i += 10) {
+        final end = (i + 10 < quizIds.length) ? i + 10 : quizIds.length;
+        final chunk = quizIds.sublist(i, end);
+
+        if (chunk.isNotEmpty) {
+          final resultsSnapshot = await _firestore
+              .collection('quiz_results')
+              .where('quizId', whereIn: chunk)
+              .get();
+
+          allResultDocs.addAll(resultsSnapshot.docs);
+        }
+      }
+
+      // Also fetch ones that have classId explicitly (for backwards compatibility)
+      final explicitSnapshot = await _firestore
+          .collection('quiz_results')
+          .where('classId', isEqualTo: classId)
+          .get();
+      
+      // Merge unique documents
+      final uniqueDocs = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      for (final doc in allResultDocs) {
+        uniqueDocs[doc.id] = doc;
+      }
+      for (final doc in explicitSnapshot.docs) {
+        uniqueDocs[doc.id] = doc;
+      }
+
+      return _aggregateLeaderboardResults(uniqueDocs.values.toList());
+    } catch (e) {
+      print('Error getting class leaderboard: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getGlobalLeaderboard() async {
+    final snapshot = await _firestore.collection('quiz_results').get();
+    return _aggregateLeaderboardResults(snapshot.docs);
+  }
+
+  List<Map<String, dynamic>> _aggregateLeaderboardResults(
+      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    final studentAggregates = <String, Map<String, dynamic>>{};
+
+    for (final doc in docs) {
+      final result = QuizResult.fromFirestore(doc);
+      if (!studentAggregates.containsKey(result.studentId)) {
+        studentAggregates[result.studentId] = {
+          'studentId': result.studentId,
+          'studentName': result.studentName,
+          'totalScore': 0,
+          'totalPoints': 0,
+          'quizCount': 0,
+        };
+      }
+      
+      final data = studentAggregates[result.studentId]!;
+      data['totalScore'] = (data['totalScore'] as int) + result.score;
+      data['totalPoints'] = (data['totalPoints'] as int) + result.totalPoints;
+      data['quizCount'] = (data['quizCount'] as int) + 1;
+    }
+
+    final leaderboard = studentAggregates.values.map((data) {
+      final totalScore = data['totalScore'] as int;
+      final totalPoints = data['totalPoints'] as int;
+      final percentage = totalPoints > 0 ? (totalScore / totalPoints) * 100 : 0.0;
+      
+      return {
+        ...data,
+        'percentage': percentage.round(),
+      };
+    }).toList();
+
+    // Sort by percentage descending, then by total score
+    leaderboard.sort((a, b) {
+      final cmp = (b['percentage'] as int).compareTo(a['percentage'] as int);
+      if (cmp != 0) return cmp;
+      return (b['totalScore'] as int).compareTo(a['totalScore'] as int);
+    });
+
+    return leaderboard;
   }
 }

@@ -6,10 +6,10 @@ import 'package:icteach/utils/app_navigation.dart';
 import 'package:icteach/screens/teacher/manage_modules_page.dart';
 import 'package:icteach/screens/teacher/manage_quizzes_page.dart';
 import 'package:icteach/screens/teacher/manage_assignments_page.dart';
+import 'package:icteach/screens/teacher/progress_tracker_page.dart'; // ✅ ADD THIS IMPORT
 import 'package:icteach/screens/student/forums_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
-import 'package:icteach/screens/debug_page.dart'; // ✅ ADD THIS
 import 'class_roster.dart';
 import 'login.dart';
 
@@ -553,23 +553,78 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
   }
 
   Widget _buildAnalyticsTab() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.analytics_rounded, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Student Progress Analytics',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Track student performance and class progress',
-            style: TextStyle(color: Colors.grey),
-          ),
-        ],
-      ),
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _classesStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final classDocs = snapshot.data?.docs ?? [];
+        if (classDocs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.analytics_rounded, size: 64, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                const Text(
+                  'No classes found',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Create a class to track progress',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final classes = classDocs
+            .map((doc) => _TeacherClassData.fromSnapshot(doc))
+            .toList();
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: classes.length,
+          itemBuilder: (context, index) {
+            final classData = classes[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor:
+                      const Color(0xFF2F80ED).withOpacity(0.1),
+                  child: const Icon(Icons.analytics_rounded, color: Color(0xFF2F80ED)),
+                ),
+                title: Text(
+                  classData.className,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text('View student progress & leaderboard'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ProgressTrackerPage(
+                        classId: classData.classId,
+                        className: classData.className,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -693,19 +748,6 @@ class _TeacherHeader extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          // ✅ TEMPORARY: Migration Button - REMOVE AFTER RUNNING
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const DebugMigrationPage(),
-                ),
-              );
-            },
-            tooltip: 'Migration Tool',
           ),
           NotificationBadge(
             child: IconButton(

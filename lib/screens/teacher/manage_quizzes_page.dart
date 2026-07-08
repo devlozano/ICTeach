@@ -37,7 +37,10 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => CreateQuizPage(classId: widget.classId),
+                  builder: (_) => CreateQuizPage(
+                    classId: widget.classId,
+                    className: widget.className,
+                  ),
                 ),
               );
               if (result == true && mounted) {
@@ -99,8 +102,10 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              CreateQuizPage(classId: widget.classId),
+                          builder: (_) => CreateQuizPage(
+                            classId: widget.classId,
+                            className: widget.className,
+                          ),
                         ),
                       );
                       if (result == true && mounted) {
@@ -140,7 +145,10 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => CreateQuizPage(classId: widget.classId),
+              builder: (_) => CreateQuizPage(
+                classId: widget.classId,
+                className: widget.className,
+              ),
             ),
           );
           if (result == true && mounted) {
@@ -155,9 +163,26 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
   }
 
   Future<void> _editQuiz(QuizModel quiz) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit feature coming soon!')),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateQuizPage(
+          classId: widget.classId,
+          className: widget.className,
+          quizToEdit: quiz,
+        ),
+      ),
     );
+
+    if (result == true && mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Quiz updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Future<void> _deleteQuiz(QuizModel quiz) async {
@@ -209,10 +234,21 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
         !quiz.isPublished,
       );
       if (!mounted) return;
+
+      if (!quiz.isPublished) {
+        try {
+          await _quizService.notifyQuizPublished(widget.classId, quiz.title);
+        } catch (e) {
+          print('Error sending notification: $e');
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            quiz.isPublished ? 'Quiz unpublished' : 'Quiz published',
+            quiz.isPublished
+                ? 'Quiz unpublished'
+                : '✅ Quiz published and notifications sent!',
           ),
           backgroundColor: quiz.isPublished ? Colors.orange : Colors.green,
         ),
@@ -241,7 +277,7 @@ class _ManageQuizzesPageState extends State<ManageQuizzesPage> {
   }
 }
 
-// ✅ FIXED: Quiz Card with responsive layout
+// ✅ FIXED: Quiz Card with overflow fixes
 class _QuizCard extends StatelessWidget {
   final QuizModel quiz;
   final VoidCallback onEdit;
@@ -261,6 +297,22 @@ class _QuizCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final questionsWithExplanation =
         quiz.questions.where((q) => q.explanation.isNotEmpty).length;
+    final hasTimeLimit = quiz.timeLimit > 0;
+
+    // ✅ Safe passing rate calculation
+    final passingRate = () {
+      final passingScore = quiz.passingScore;
+      final totalPoints = quiz.totalPoints;
+      if (passingScore > 0 && totalPoints > 0) {
+        try {
+          final rate = (passingScore / totalPoints) * 100;
+          return '${rate.toStringAsFixed(0)}%';
+        } catch (e) {
+          return null;
+        }
+      }
+      return null;
+    }();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -270,7 +322,7 @@ class _QuizCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -279,12 +331,14 @@ class _QuizCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ FIXED: Row with flexible children to prevent overflow
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B2B4A).withOpacity(0.1),
+                  color: const Color(0xFF0B2B4A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -298,9 +352,10 @@ class _QuizCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ✅ FIXED: Row with Flexible for title
                     Row(
                       children: [
-                        Expanded(
+                        Flexible(
                           child: Text(
                             quiz.title,
                             style: const TextStyle(
@@ -311,10 +366,10 @@ class _QuizCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // ✅ FIXED: Move status badge to the right of title
+                        const SizedBox(width: 4),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: quiz.isPublished
                                 ? Colors.green.shade100
@@ -324,7 +379,7 @@ class _QuizCard extends StatelessWidget {
                           child: Text(
                             quiz.isPublished ? 'Published' : 'Draft',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w600,
                               color: quiz.isPublished
                                   ? Colors.green.shade800
@@ -334,21 +389,52 @@ class _QuizCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    Text(
-                      '${quiz.questions.length} questions • ${quiz.totalPoints} points',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (quiz.timeLimit > 0)
-                      Text(
-                        '⏱ ${quiz.timeLimit} minutes',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
+                    // ✅ FIXED: Wrap with Row that handles overflow
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 2,
+                      children: [
+                        Text(
+                          '${quiz.questions.length} Qs',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
+                        Text(
+                          '• ${quiz.totalPoints} pts',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                        if (passingRate != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Pass: $passingRate',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        if (hasTimeLimit)
+                          Text(
+                            '⏱ ${quiz.timeLimit}m',
+                            style: TextStyle(
+                              color: Colors.grey.shade600,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -360,49 +446,34 @@ class _QuizCard extends StatelessWidget {
               quiz.description,
               style: TextStyle(
                 color: Colors.grey.shade700,
-                fontSize: 14,
+                fontSize: 13,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],
           const SizedBox(height: 12),
-          // ✅ FIXED: Wrap action buttons in a Row with proper spacing
+          // ✅ FIXED: Separate row for action buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Stats badges
+              // Stats badges - using Wrap to prevent overflow
               Wrap(
-                spacing: 8,
+                spacing: 6,
+                runSpacing: 4,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${quiz.questions.length} Qs',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.blue.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
                   if (questionsWithExplanation > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        'With Explanations',
+                        '📝 Explanations',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.green.shade700,
                           fontWeight: FontWeight.w500,
                         ),
@@ -410,7 +481,7 @@ class _QuizCard extends StatelessWidget {
                     ),
                 ],
               ),
-              // ✅ FIXED: Action buttons with smaller size and spacing
+              // Action buttons
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -419,8 +490,10 @@ class _QuizCard extends StatelessWidget {
                     icon: const Icon(Icons.assessment, size: 18),
                     tooltip: 'View Results',
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                   IconButton(
@@ -434,8 +507,10 @@ class _QuizCard extends StatelessWidget {
                     ),
                     tooltip: quiz.isPublished ? 'Unpublish' : 'Publish',
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                   IconButton(
@@ -443,8 +518,10 @@ class _QuizCard extends StatelessWidget {
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     tooltip: 'Edit',
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                   IconButton(
@@ -453,14 +530,38 @@ class _QuizCard extends StatelessWidget {
                     tooltip: 'Delete',
                     color: Colors.red,
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
               ),
             ],
           ),
+          if (quiz.isPublished)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.notifications_active,
+                    size: 12,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Students notified',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );

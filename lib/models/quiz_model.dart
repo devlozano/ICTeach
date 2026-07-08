@@ -8,6 +8,7 @@ class QuizModel {
   final List<Question> questions;
   final int timeLimit; // in minutes
   final int totalPoints;
+  final int passingScore; // ✅ ADDED: Passing score requirement
   final bool isPublished;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,6 +21,7 @@ class QuizModel {
     required this.questions,
     required this.timeLimit,
     required this.totalPoints,
+    this.passingScore = 0, // ✅ ADDED with default
     required this.isPublished,
     required this.createdAt,
     required this.updatedAt,
@@ -40,6 +42,7 @@ class QuizModel {
           [],
       timeLimit: data['timeLimit'] ?? 0,
       totalPoints: data['totalPoints'] ?? 0,
+      passingScore: data['passingScore'] ?? 0, // ✅ ADDED
       isPublished: data['isPublished'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -54,6 +57,7 @@ class QuizModel {
       'questions': questions.map((q) => q.toMap()).toList(),
       'timeLimit': timeLimit,
       'totalPoints': totalPoints,
+      'passingScore': passingScore, // ✅ ADDED
       'isPublished': isPublished,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -68,6 +72,7 @@ class QuizModel {
     List<Question>? questions,
     int? timeLimit,
     int? totalPoints,
+    int? passingScore, // ✅ ADDED
     bool? isPublished,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -80,6 +85,7 @@ class QuizModel {
       questions: questions ?? this.questions,
       timeLimit: timeLimit ?? this.timeLimit,
       totalPoints: totalPoints ?? this.totalPoints,
+      passingScore: passingScore ?? this.passingScore, // ✅ ADDED
       isPublished: isPublished ?? this.isPublished,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -87,28 +93,32 @@ class QuizModel {
   }
 }
 
+// Question Model (keep as is, or update if needed)
 class Question {
   final String id;
   final String text;
   final List<String> options;
-  final int correctAnswer; // index of correct option (0-3)
+  final int correctAnswer;
   final String explanation;
+  final int points; // ✅ Optional: points per question
 
   Question({
     required this.id,
     required this.text,
     required this.options,
     required this.correctAnswer,
-    required this.explanation,
+    this.explanation = '',
+    this.points = 1, // ✅ Default points per question
   });
 
   factory Question.fromMap(Map<String, dynamic> map) {
     return Question(
       id: map['id'] ?? '',
       text: map['text'] ?? '',
-      options: List<String>.from(map['options'] ?? []),
+      options: List<String>.from(map['options'] ?? ['', '', '', '']),
       correctAnswer: map['correctAnswer'] ?? 0,
       explanation: map['explanation'] ?? '',
+      points: map['points'] ?? 1,
     );
   }
 
@@ -119,6 +129,7 @@ class Question {
       'options': options,
       'correctAnswer': correctAnswer,
       'explanation': explanation,
+      'points': points,
     };
   }
 
@@ -128,6 +139,7 @@ class Question {
     List<String>? options,
     int? correctAnswer,
     String? explanation,
+    int? points,
   }) {
     return Question(
       id: id ?? this.id,
@@ -135,6 +147,7 @@ class Question {
       options: options ?? this.options,
       correctAnswer: correctAnswer ?? this.correctAnswer,
       explanation: explanation ?? this.explanation,
+      points: points ?? this.points,
     );
   }
 }
@@ -142,6 +155,7 @@ class Question {
 // Quiz Result Model
 class QuizResult {
   final String quizId;
+  final String classId; // ✅ ADDED
   final String studentId;
   final String studentName;
   final int score;
@@ -152,6 +166,7 @@ class QuizResult {
 
   QuizResult({
     required this.quizId,
+    required this.classId, // ✅ ADDED
     required this.studentId,
     required this.studentName,
     required this.score,
@@ -167,6 +182,7 @@ class QuizResult {
     final data = doc.data()!;
     return QuizResult(
       quizId: data['quizId'] ?? '',
+      classId: data['classId'] ?? '', // ✅ ADDED
       studentId: data['studentId'] ?? '',
       studentName: data['studentName'] ?? '',
       score: data['score'] ?? 0,
@@ -184,6 +200,7 @@ class QuizResult {
   Map<String, dynamic> toFirestore() {
     return {
       'quizId': quizId,
+      'classId': classId, // ✅ ADDED
       'studentId': studentId,
       'studentName': studentName,
       'score': score,

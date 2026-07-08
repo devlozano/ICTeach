@@ -3,16 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
-import '../../services/notification_service.dart'; // ✅ ADD THIS
+import '../../services/notification_service.dart';
 
 class CreateQuizPage extends StatefulWidget {
   final String classId;
-  final String className; // ✅ ADD THIS
+  final String className;
+  final QuizModel? quizToEdit;
 
   const CreateQuizPage({
     super.key,
     required this.classId,
-    this.className = '', // ✅ ADD THIS with default
+    this.className = '',
+    this.quizToEdit,
   });
 
   @override
@@ -22,22 +24,45 @@ class CreateQuizPage extends StatefulWidget {
 class _CreateQuizPageState extends State<CreateQuizPage> {
   final _formKey = GlobalKey<FormState>();
   final QuizService _quizService = QuizService();
-  final NotificationService _notificationService =
-      NotificationService(); // ✅ ADD THIS
+  final NotificationService _notificationService = NotificationService();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _timeLimitController = TextEditingController();
+  final _passingScoreController = TextEditingController(); // ✅ ADDED
 
   bool _isLoading = false;
   bool _isPublished = false;
+  bool _isEditing = false;
   List<Question> _questions = [];
   int _totalPoints = 0;
+  String? _quizId;
+
+  @override
+  void initState() {
+    super.initState();
+    _isEditing = widget.quizToEdit != null;
+
+    if (_isEditing) {
+      final quiz = widget.quizToEdit!;
+      _titleController.text = quiz.title;
+      _descriptionController.text = quiz.description;
+      _timeLimitController.text =
+          quiz.timeLimit > 0 ? quiz.timeLimit.toString() : '';
+      _passingScoreController.text =
+          quiz.passingScore > 0 ? quiz.passingScore.toString() : ''; // ✅ ADDED
+      _questions = List.from(quiz.questions);
+      _isPublished = quiz.isPublished;
+      _quizId = quiz.id;
+      _calculateTotalPoints();
+    }
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     _timeLimitController.dispose();
+    _passingScoreController.dispose(); // ✅ ADDED
     super.dispose();
   }
 
@@ -57,6 +82,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
     setState(() {
       _questions.removeAt(index);
     });
+    _calculateTotalPoints();
   }
 
   void _updateQuestion(int index, Question question) {
@@ -90,30 +116,50 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
       }
     }
 
+    // ✅ Validate passing score
+    final passingScore = int.tryParse(_passingScoreController.text) ?? 0;
+    if (passingScore < 0) {
+      _showMessage('Passing score cannot be negative');
+      return;
+    }
+    if (passingScore > _totalPoints) {
+      _showMessage('Passing score cannot exceed total points ($_totalPoints)');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       final quiz = QuizModel(
-        id: '',
+        id: _quizId ?? '',
         classId: widget.classId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         questions: _questions,
         timeLimit: int.tryParse(_timeLimitController.text) ?? 0,
         totalPoints: _totalPoints,
+        passingScore: passingScore, // ✅ ADDED
         isPublished: _isPublished,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      await _quizService.createQuiz(quiz);
-
-      // ✅ SEND NOTIFICATION TO STUDENTS IF PUBLISHED
-      if (_isPublished) {
-        await _notificationService.notifyNewQuiz(
-          widget.classId,
-          _titleController.text.trim(),
-        );
+      if (_isEditing) {
+        await _quizService.updateQuiz(widget.classId, _quizId!, quiz);
+        if (_isPublished) {
+          await _notificationService.notifyNewQuiz(
+            widget.classId,
+            _titleController.text.trim(),
+          );
+        }
+      } else {
+        await _quizService.createQuiz(quiz);
+        if (_isPublished) {
+          await _notificationService.notifyNewQuiz(
+            widget.classId,
+            _titleController.text.trim(),
+          );
+        }
       }
 
       if (!mounted) return;
@@ -122,8 +168,8 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
         SnackBar(
           content: Text(
             _isPublished
-                ? '✅ Quiz published and notifications sent to students!'
-                : '✅ Quiz saved as draft!',
+                ? '✅ Quiz ${_isEditing ? 'updated' : 'published'} and notifications sent!'
+                : '✅ Quiz ${_isEditing ? 'updated' : 'saved'} as draft!',
           ),
           backgroundColor: Colors.green,
         ),
@@ -131,7 +177,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
 
       Navigator.pop(context, true);
     } catch (e) {
-      _showMessage('Error creating quiz: $e');
+      _showMessage('Error ${_isEditing ? 'updating' : 'creating'} quiz: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -151,7 +197,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
-        title: const Text('Create Quiz'),
+        title: Text(_isEditing ? 'Edit Quiz' : 'Create Quiz'),
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -175,7 +221,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Class Name Display (if available)
+              // Class Name Display
               if (widget.className.isNotEmpty) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -260,6 +306,37 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              // ✅ NEW: Passing Score
+              TextFormField(
+                controller: _passingScoreController,
+                decoration: const InputDecoration(
+                  labelText: 'Passing Score',
+                  hintText: 'Minimum score to pass (0 for no requirement)',
+                  prefixIcon: Icon(Icons.score),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Passing score is required';
+                  }
+                  final parsed = int.tryParse(value);
+                  if (parsed == null) {
+                    return 'Please enter a valid number';
+                  }
+                  if (parsed < 0) {
+                    return 'Passing score cannot be negative';
+                  }
+                  if (parsed > _totalPoints && _totalPoints > 0) {
+                    return 'Cannot exceed total points ($_totalPoints)';
+                  }
+                  return null;
+                },
+              ),
               const SizedBox(height: 24),
 
               // Questions Header
@@ -335,7 +412,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
 
               const SizedBox(height: 24),
 
-              // Total Points
+              // Total Points and Passing Score Summary
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -343,47 +420,83 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.blue.shade200),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Icon(Icons.score, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Total Points: $_totalPoints',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade900,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _isPublished
-                            ? Colors.green.shade100
-                            : Colors.amber.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        _isPublished ? 'Published' : 'Draft',
-                        style: TextStyle(
-                          color: _isPublished
-                              ? Colors.green.shade800
-                              : Colors.amber.shade800,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+                    Row(
+                      children: [
+                        Icon(Icons.score, color: Colors.blue.shade700),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Total Points: $_totalPoints',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade900,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _isPublished
+                                ? Colors.green.shade100
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _isPublished ? 'Published' : 'Draft',
+                            style: TextStyle(
+                              color: _isPublished
+                                  ? Colors.green.shade800
+                                  : Colors.amber.shade800,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    // ✅ Show passing score if set
+                    if (_passingScoreController.text.isNotEmpty &&
+                        int.tryParse(_passingScoreController.text) != null &&
+                        int.parse(_passingScoreController.text) > 0) ...[
+                      const SizedBox(height: 8),
+                      Divider(color: Colors.blue.shade200),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.check_circle_outline,
+                              color: Colors.green.shade700, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Passing Score: ${_passingScoreController.text} / $_totalPoints',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade800,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '${int.tryParse(_passingScoreController.text) != null && _totalPoints > 0 ? ((int.parse(_passingScoreController.text) / _totalPoints) * 100).toStringAsFixed(0) : 0}%',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
-              // ✅ Notification Info (if published)
+              // Notification Info
               if (_isPublished) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -435,7 +548,13 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                           ),
                         )
                       : Text(
-                          _isPublished ? 'Publish Quiz' : 'Save as Draft',
+                          _isEditing
+                              ? (_isPublished
+                                  ? 'Update & Publish'
+                                  : 'Update Draft')
+                              : (_isPublished
+                                  ? 'Publish Quiz'
+                                  : 'Save as Draft'),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

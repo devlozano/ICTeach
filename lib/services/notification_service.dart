@@ -220,6 +220,33 @@ class NotificationService {
     }
   }
 
+  // ✅ Get only STUDENT users in class (excludes teacher and trainer roles)
+  Future<List<String>> _getStudentUsersInClass(String classId) async {
+    final allUserIds = await _getAllUsersInClass(classId);
+    final List<String> studentIds = [];
+
+    for (final userId in allUserIds) {
+      try {
+        final userDoc =
+            await _firestore.collection('users').doc(userId).get();
+        final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+        final role = userData['role']?.toString().toLowerCase() ?? '';
+
+        if (role == 'teacher' || role == 'trainer') {
+          print('   ⏭️ Skipping $role: $userId');
+          continue;
+        }
+        studentIds.add(userId);
+      } catch (e) {
+        print('   ⚠️ Could not fetch role for $userId, skipping: $e');
+      }
+    }
+
+    print('📊 Student-only list: ${studentIds.length} students');
+    return studentIds;
+  }
+
+
   // ✅ Send forum post notification to ALL users
   Future<void> notifyNewForumPost(
     String classId,
@@ -327,21 +354,16 @@ class NotificationService {
     }
   }
 
-  // ✅ Send assignment notification to ALL users except teacher
+  // ✅ Send assignment notification to students only (skip teacher and trainers)
   Future<void> notifyNewAssignment(
       String classId, String assignmentTitle) async {
     try {
       print('📢 notifyNewAssignment: Starting for class $classId');
 
-      final classDoc =
-          await _firestore.collection('classes').doc(classId).get();
-      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
-      final teacherId = classData['teacherId']?.toString() ?? '';
+      final studentIds = await _getStudentUsersInClass(classId);
 
-      final allUserIds = await _getAllUsersInClass(classId);
-
-      if (allUserIds.isEmpty) {
-        print('⚠️ No users found in class');
+      if (studentIds.isEmpty) {
+        print('⚠️ No students found in class');
         return;
       }
 
@@ -349,12 +371,7 @@ class NotificationService {
       final notificationsRef = _firestore.collection('notifications');
       int count = 0;
 
-      for (final userId in allUserIds) {
-        if (userId == teacherId) {
-          print('   ⏭️ Skipping teacher: $userId');
-          continue;
-        }
-
+      for (final userId in studentIds) {
         final docRef = notificationsRef.doc();
         batch.set(docRef, {
           'userId': userId,
@@ -366,30 +383,25 @@ class NotificationService {
           'createdAt': FieldValue.serverTimestamp(),
         });
         count++;
-        print('   ✅ Added assignment notification for user: $userId');
+        print('   ✅ Added assignment notification for student: $userId');
       }
 
       await batch.commit();
-      print('✅ notifyNewAssignment: Created $count notifications');
+      print('✅ notifyNewAssignment: Created $count notifications (students only)');
     } catch (e) {
       print('❌ notifyNewAssignment error: $e');
     }
   }
 
-  // ✅ Send quiz notification to ALL users except teacher
+  // ✅ Send quiz notification to students only (skip teacher and trainers)
   Future<void> notifyNewQuiz(String classId, String quizTitle) async {
     try {
       print('📢 notifyNewQuiz: Starting for class $classId');
 
-      final classDoc =
-          await _firestore.collection('classes').doc(classId).get();
-      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
-      final teacherId = classData['teacherId']?.toString() ?? '';
+      final studentIds = await _getStudentUsersInClass(classId);
 
-      final allUserIds = await _getAllUsersInClass(classId);
-
-      if (allUserIds.isEmpty) {
-        print('⚠️ No users found in class');
+      if (studentIds.isEmpty) {
+        print('⚠️ No students found in class');
         return;
       }
 
@@ -397,12 +409,7 @@ class NotificationService {
       final notificationsRef = _firestore.collection('notifications');
       int count = 0;
 
-      for (final userId in allUserIds) {
-        if (userId == teacherId) {
-          print('   ⏭️ Skipping teacher: $userId');
-          continue;
-        }
-
+      for (final userId in studentIds) {
         final docRef = notificationsRef.doc();
         batch.set(docRef, {
           'userId': userId,
@@ -414,30 +421,25 @@ class NotificationService {
           'createdAt': FieldValue.serverTimestamp(),
         });
         count++;
-        print('   ✅ Added quiz notification for user: $userId');
+        print('   ✅ Added quiz notification for student: $userId');
       }
 
       await batch.commit();
-      print('✅ notifyNewQuiz: Created $count notifications');
+      print('✅ notifyNewQuiz: Created $count notifications (students only)');
     } catch (e) {
       print('❌ notifyNewQuiz error: $e');
     }
   }
 
-  // ✅ Send module notification to ALL users except teacher
+  // ✅ Send module notification to students only (skip teacher and trainers)
   Future<void> notifyNewModule(String classId, String moduleTitle) async {
     try {
       print('📢 notifyNewModule: Starting for class $classId');
 
-      final classDoc =
-          await _firestore.collection('classes').doc(classId).get();
-      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
-      final teacherId = classData['teacherId']?.toString() ?? '';
+      final studentIds = await _getStudentUsersInClass(classId);
 
-      final allUserIds = await _getAllUsersInClass(classId);
-
-      if (allUserIds.isEmpty) {
-        print('⚠️ No users found in class');
+      if (studentIds.isEmpty) {
+        print('⚠️ No students found in class');
         return;
       }
 
@@ -445,12 +447,7 @@ class NotificationService {
       final notificationsRef = _firestore.collection('notifications');
       int count = 0;
 
-      for (final userId in allUserIds) {
-        if (userId == teacherId) {
-          print('   ⏭️ Skipping teacher: $userId');
-          continue;
-        }
-
+      for (final userId in studentIds) {
         final docRef = notificationsRef.doc();
         batch.set(docRef, {
           'userId': userId,
@@ -463,11 +460,11 @@ class NotificationService {
           'createdAt': FieldValue.serverTimestamp(),
         });
         count++;
-        print('   ✅ Added module notification for user: $userId');
+        print('   ✅ Added module notification for student: $userId');
       }
 
       await batch.commit();
-      print('✅ notifyNewModule: Created $count notifications');
+      print('✅ notifyNewModule: Created $count notifications (students only)');
     } catch (e) {
       print('❌ notifyNewModule error: $e');
     }

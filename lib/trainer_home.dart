@@ -13,6 +13,7 @@ import '../screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'package:icteach/screens/student/forums_page.dart';
+import 'package:icteach/screens/teacher/progress_tracker_page.dart'; // ✅ ADD THIS IMPORT
 
 class TrainerHomePage extends StatefulWidget {
   const TrainerHomePage({super.key});
@@ -441,14 +442,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         icon: Icons.analytics_rounded,
         color: Colors.teal.shade700,
         bgColor: Colors.teal.shade50,
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Progress Tracker coming soon!'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
+        onTap: () => _showClassSelector(context, 'progress'),
       ),
       _TrainerToolItem(
         title: 'Competency Validation',
@@ -669,7 +663,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                     ? 'Quizzes'
                     : actionType == 'assignments'
                         ? 'Assignments'
-                        : 'Content';
+                        : actionType == 'progress'
+                            ? 'Progress'
+                            : 'Content';
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -691,7 +687,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                                 ? Icons.quiz_rounded
                                 : actionType == 'assignments'
                                     ? Icons.assignment_rounded
-                                    : Icons.video_library_rounded,
+                                    : actionType == 'progress'
+                                        ? Icons.analytics_rounded
+                                        : Icons.video_library_rounded,
                         color: Colors.purple,
                       ),
                       const SizedBox(width: 12),
@@ -755,7 +753,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                                       ? Icons.quiz_rounded
                                       : actionType == 'assignments'
                                           ? Icons.assignment_rounded
-                                          : Icons.video_library_rounded,
+                                          : actionType == 'progress'
+                                              ? Icons.analytics_rounded
+                                              : Icons.video_library_rounded,
                               color: Colors.purple,
                               size: 20,
                             ),
@@ -801,6 +801,18 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           ),
         );
         break;
+      case 'progress': // ✅ ADDED
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProgressTrackerPage(
+              classId: classId,
+              className: className,
+            ),
+          ),
+        );
+        break;
+
       case 'quizzes':
         Navigator.push(
           context,

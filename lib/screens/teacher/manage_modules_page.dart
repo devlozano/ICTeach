@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
+import '../../services/notification_service.dart';
 import 'create_module_page.dart';
 
 class ManageModulesPage extends StatefulWidget {
@@ -35,7 +36,10 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
               final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => CreateModulePage(classId: widget.classId),
+                  builder: (_) => CreateModulePage(
+                    classId: widget.classId,
+                    className: widget.className,
+                  ),
                 ),
               );
               if (result == true && mounted) {
@@ -100,8 +104,10 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              CreateModulePage(classId: widget.classId),
+                          builder: (_) => CreateModulePage(
+                            classId: widget.classId,
+                            className: widget.className,
+                          ),
                         ),
                       );
                       if (result == true && mounted) {
@@ -140,7 +146,10 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => CreateModulePage(classId: widget.classId),
+              builder: (_) => CreateModulePage(
+                classId: widget.classId,
+                className: widget.className,
+              ),
             ),
           );
           if (result == true && mounted) {
@@ -154,12 +163,28 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
     );
   }
 
+  // ✅ FIXED: Edit Module with full functionality
   Future<void> _editModule(ModuleModel module) async {
-    // Navigate to edit page (you can reuse CreateModulePage with edit mode)
-    // For now, show a snackbar
-    ScaffoldMessenger.of(
+    final result = await Navigator.push(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Edit feature coming soon!')));
+      MaterialPageRoute(
+        builder: (context) => CreateModulePage(
+          classId: widget.classId,
+          className: widget.className,
+          moduleToEdit: module, // Pass the module to edit
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Module updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Future<void> _deleteModule(ModuleModel module) async {
@@ -211,10 +236,26 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
         !module.isPublished,
       );
       if (!mounted) return;
+
+      // ✅ Send notification if published
+      if (!module.isPublished) {
+        try {
+          final notificationService = NotificationService();
+          await notificationService.notifyNewModule(
+            widget.classId,
+            module.title,
+          );
+        } catch (e) {
+          print('Error sending notification: $e');
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            module.isPublished ? 'Module unpublished' : 'Module published',
+            module.isPublished
+                ? 'Module unpublished'
+                : '✅ Module published and notifications sent!',
           ),
           backgroundColor: module.isPublished ? Colors.orange : Colors.green,
         ),
@@ -227,7 +268,7 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
   }
 }
 
-// Module Card Widget
+// ✅ FIXED: Module Card with overflow fixes
 class _ModuleCard extends StatelessWidget {
   final ModuleModel module;
   final VoidCallback onEdit;
@@ -251,7 +292,7 @@ class _ModuleCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -260,12 +301,14 @@ class _ModuleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ✅ FIXED: Row with Flexible to prevent overflow
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B2B4A).withOpacity(0.1),
+                  color: const Color(0xFF0B2B4A).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -281,21 +324,50 @@ class _ModuleCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      module.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            module.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: module.isPublished
+                                ? Colors.green.shade100
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            module.isPublished ? 'Published' : 'Draft',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: module.isPublished
+                                  ? Colors.green.shade800
+                                  : Colors.amber.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (module.description.isNotEmpty)
                       Text(
                         module.description,
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -303,51 +375,29 @@ class _ModuleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: module.isPublished
-                      ? Colors.green.shade100
-                      : Colors.amber.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  module.isPublished ? 'Published' : 'Draft',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: module.isPublished
-                        ? Colors.green.shade800
-                        : Colors.amber.shade800,
-                  ),
-                ),
-              ),
             ],
           ),
           if (module.competencies.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 4,
+              runSpacing: 4,
               children: module.competencies.map((comp) {
                 final shortName = comp.split(':')[0];
                 return Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
+                    horizontal: 6,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.blue.shade200),
                   ),
                   child: Text(
                     shortName,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9,
                       color: Colors.blue.shade800,
                       fontWeight: FontWeight.w500,
                     ),
@@ -356,38 +406,70 @@ class _ModuleCard extends StatelessWidget {
               }).toList(),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          // ✅ FIXED: Action buttons with proper spacing
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              if (module.isPublished)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_active,
+                        size: 12,
+                        color: Colors.green.shade700,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Notified',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.green.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               IconButton(
                 onPressed: onTogglePublish,
                 icon: Icon(
                   module.isPublished ? Icons.visibility : Icons.visibility_off,
-                  size: 20,
+                  size: 18,
                   color: module.isPublished ? Colors.green : Colors.grey,
                 ),
                 tooltip: module.isPublished ? 'Unpublish' : 'Publish',
-                iconSize: 20,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
+                visualDensity: VisualDensity.compact,
               ),
-              const SizedBox(width: 12),
               IconButton(
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 20),
+                icon: const Icon(Icons.edit_outlined, size: 18),
                 tooltip: 'Edit',
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
+                visualDensity: VisualDensity.compact,
               ),
-              const SizedBox(width: 12),
               IconButton(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, size: 20),
+                icon: const Icon(Icons.delete_outline, size: 18),
                 tooltip: 'Delete',
                 color: Colors.red,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(
+                  minWidth: 28,
+                  minHeight: 28,
+                ),
+                visualDensity: VisualDensity.compact,
               ),
             ],
           ),
