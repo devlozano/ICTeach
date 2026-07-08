@@ -8,6 +8,7 @@ import 'class_detail_page.dart';
 import 'login.dart';
 import '../../services/quiz_service.dart'; // ✅ ADD THIS IMPORT
 import '../../models/quiz_model.dart'; // ✅ ADD THIS IMPORT
+import '../../services/module_service.dart'; // ✅ ADD THIS IMPORT
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -279,153 +280,159 @@ class _HomePageState extends State<HomePage> {
           }
         }
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF428DEB).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.school_rounded,
-                          color: Color(0xFF428DEB),
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            hasClass ? 'Current Class' : 'Get Started',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
-                          Text(
-                            className,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                          if (schoolYear.isNotEmpty)
-                            Text(
-                              'SY: $schoolYear',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
+        return FutureBuilder<int>(
+          future: hasClass ? ModuleService().getModuleCount(classId) : Future.value(0),
+          builder: (context, moduleSnap) {
+            final moduleCount = moduleSnap.data ?? 0;
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                  if (!hasClass)
-                    GestureDetector(
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const JoinClassPage(),
-                          ),
-                        );
-                        if (result == true && context.mounted) {
-                          setState(() {});
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.amber.shade300),
-                        ),
-                        child: Text(
-                          'Join Now',
-                          style: TextStyle(
-                            color: Colors.amber.shade900,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               ),
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: LinearProgressIndicator(
-                  minHeight: 10,
-                  value: hasClass ? 0.20 : 0.0,
-                  color: const Color(0xFF428DEB),
-                  backgroundColor: const Color(0xFFE5E7EB),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    hasClass
-                        ? '1 of 5 modules completed'
-                        : 'Join a class to start learning',
-                    style: const TextStyle(
-                      color: Color(0xFF6B7280),
-                      fontSize: 12,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF428DEB).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.school_rounded,
+                              color: Color(0xFF428DEB),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                hasClass ? 'Current Class' : 'Get Started',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                              Text(
+                                className,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              if (schoolYear.isNotEmpty)
+                                Text(
+                                  'SY: $schoolYear',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      if (!hasClass)
+                        GestureDetector(
+                          onTap: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const JoinClassPage(),
+                              ),
+                            );
+                            if (result == true && context.mounted) {
+                              setState(() {});
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade100,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.amber.shade300),
+                            ),
+                            child: Text(
+                              'Join Now',
+                              style: TextStyle(
+                                color: Colors.amber.shade900,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: LinearProgressIndicator(
+                      minHeight: 10,
+                      value: hasClass && moduleCount > 0 ? 1.0 : 0.0,
+                      color: const Color(0xFF428DEB),
+                      backgroundColor: const Color(0xFFE5E7EB),
                     ),
                   ),
-                  if (hasClass)
-                    TextButton(
-                      onPressed: () {
-                        _navigateToClass(context, classId, className);
-                      },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Go to Class →',
-                        style: TextStyle(
-                          color: Color(0xFF428DEB),
-                          fontWeight: FontWeight.bold,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        hasClass
+                            ? '$moduleCount modules available'
+                            : 'Join a class to start learning',
+                        style: const TextStyle(
+                          color: Color(0xFF6B7280),
                           fontSize: 12,
                         ),
                       ),
-                    ),
+                      if (hasClass)
+                        TextButton(
+                          onPressed: () {
+                            _navigateToClass(context, classId, className);
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Go to Class →',
+                            style: TextStyle(
+                              color: Color(0xFF428DEB),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
+            );
+          }
         );
       },
     );
@@ -614,88 +621,103 @@ class _HomePageState extends State<HomePage> {
 
   // ✅ Updated Quick Access Grid with Quizzes
   Widget _buildQuickAccessGrid() {
-    final items = [
-      _QuickAccessItem(
-        icon: Icons.menu_book_rounded,
-        title: 'Learning Modules',
-        subtitle: '5 modules',
-        color: const Color(0xFF4F6DB8),
-        bgColor: const Color(0xFFDCE6FF),
-        onTap: () {
-          setState(() {
-            _currentTabIndex = 1;
-          });
-        },
-      ),
-      // ✅ Updated: Quizzes with onTap
-      _QuickAccessItem(
-        icon: Icons.quiz_rounded,
-        title: 'Quizzes',
-        subtitle: 'Available • Practice Mode',
-        color: const Color(0xFF9C4FA1),
-        bgColor: const Color(0xFFE9C4EB),
-        onTap: () {
-          if (_classId != null && _classId!.isNotEmpty) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => StudentQuizzesPage(
-                  classId: _classId!,
-                  className: _className ?? 'My Class',
-                ),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Please join a class first to access quizzes'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        },
-      ),
-      _QuickAccessItem(
-        icon: Icons.assignment_rounded,
-        title: 'Assignments',
-        subtitle: '2 Pending',
-        color: const Color(0xFFE76C31),
-        bgColor: const Color(0xFFFFD7C2),
-      ),
-      _QuickAccessItem(
-        icon: Icons.science_rounded,
-        title: 'Simulations',
-        subtitle: '5 Labs • Interactive',
-        color: const Color(0xFF168D92),
-        bgColor: const Color(0xFFA6F4F5),
-      ),
-      _QuickAccessItem(
-        icon: Icons.video_library_rounded,
-        title: 'Instructional Videos',
-        subtitle: '2 New',
-        color: const Color(0xFFD97847),
-        bgColor: const Color(0xFFFFCFB1),
-      ),
-      _QuickAccessItem(
-        icon: Icons.forum_rounded,
-        title: 'Discussion Forums',
-        subtitle: 'Ask & Discuss',
-        color: const Color(0xFF249A38),
-        bgColor: const Color(0xFFC9F2CE),
-      ),
-    ];
+    return FutureBuilder(
+      future: (_classId != null && _classId!.isNotEmpty)
+          ? Future.wait([
+              ModuleService().getModuleCount(_classId!),
+              _quizService
+                  .getPublishedQuizzesForClass(_classId!)
+                  .first
+                  .then((q) => q.length),
+            ])
+          : Future.value([0, 0]),
+      builder: (context, AsyncSnapshot<List<int>> snapshot) {
+        final moduleCount = snapshot.data?[0] ?? 0;
+        final quizCount = snapshot.data?[1] ?? 0;
 
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.15,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-      ),
-      itemBuilder: (context, index) => items[index],
+        final items = [
+          _QuickAccessItem(
+            icon: Icons.menu_book_rounded,
+            title: 'Learning Modules',
+            subtitle: '$moduleCount modules',
+            color: const Color(0xFF4F6DB8),
+            bgColor: const Color(0xFFDCE6FF),
+            onTap: () {
+              setState(() {
+                _currentTabIndex = 1;
+              });
+            },
+          ),
+          _QuickAccessItem(
+            icon: Icons.quiz_rounded,
+            title: 'Quizzes',
+            subtitle: '$quizCount available',
+            color: const Color(0xFF9C4FA1),
+            bgColor: const Color(0xFFE9C4EB),
+            onTap: () {
+              if (_classId != null && _classId!.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StudentQuizzesPage(
+                      classId: _classId!,
+                      className: _className ?? 'My Class',
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please join a class first to access quizzes'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+          ),
+          _QuickAccessItem(
+            icon: Icons.assignment_rounded,
+            title: 'Assignments',
+            subtitle: 'Coming Soon',
+            color: const Color(0xFFE76C31),
+            bgColor: const Color(0xFFFFD7C2),
+          ),
+          _QuickAccessItem(
+            icon: Icons.science_rounded,
+            title: 'Simulations',
+            subtitle: 'Interactive Labs',
+            color: const Color(0xFF168D92),
+            bgColor: const Color(0xFFA6F4F5),
+          ),
+          _QuickAccessItem(
+            icon: Icons.video_library_rounded,
+            title: 'Videos',
+            subtitle: 'Video Lessons',
+            color: const Color(0xFFD97847),
+            bgColor: const Color(0xFFFFCFB1),
+          ),
+          _QuickAccessItem(
+            icon: Icons.forum_rounded,
+            title: 'Forums',
+            subtitle: 'Join Discussion',
+            color: const Color(0xFF249A38),
+            bgColor: const Color(0xFFC9F2CE),
+          ),
+        ];
+
+        return GridView.builder(
+          itemCount: items.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            childAspectRatio: 1.15,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+          ),
+          itemBuilder: (context, index) => items[index],
+        );
+      },
     );
   }
 
@@ -713,16 +735,33 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 16),
 
           // ✅ Progress Stats with Quiz Scores
-          FutureBuilder<List<QuizResult>>(
-            future: _quizService.getStudentQuizResults(userId),
-            builder: (context, quizSnapshot) {
-              final quizResults = quizSnapshot.data ?? [];
+          FutureBuilder<List<dynamic>>(
+            future: Future.wait([
+              _quizService.getStudentQuizResults(userId),
+              (_classId != null && _classId!.isNotEmpty)
+                  ? _quizService
+                      .getPublishedQuizzesForClass(_classId!)
+                      .first
+                      .then((q) => q.length)
+                  : Future.value(0),
+              (_classId != null && _classId!.isNotEmpty)
+                  ? ModuleService().getModuleCount(_classId!)
+                  : Future.value(0),
+            ]),
+            builder: (context, snapshot) {
+              final quizResults = (snapshot.data?[0] as List<QuizResult>?) ?? [];
+              final totalQuizzes = (snapshot.data?[1] as int?) ?? 0;
+              final moduleCount = (snapshot.data?[2] as int?) ?? 0;
+
               final quizCount = quizResults.length;
               final avgScore = quizCount > 0
                   ? quizResults.fold<double>(
                           0, (sum, r) => sum + r.percentage) /
                       quizCount
                   : 0;
+
+              final progressValue = totalQuizzes > 0 ? (quizCount / totalQuizzes) : 0.0;
+              final overallProgressStr = '${(progressValue * 100).toStringAsFixed(0)}%';
 
               return Container(
                 padding: const EdgeInsets.all(20),
@@ -742,20 +781,20 @@ class _HomePageState extends State<HomePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildProgressStat('Modules', '2/10', '20%'),
+                        _buildProgressStat('Modules', '$moduleCount', 'Available'),
                         _buildProgressStat(
                             'Quizzes',
-                            '$quizCount/${quizCount + 5}',
+                            '$quizCount/$totalQuizzes',
                             quizCount > 0
                                 ? '${avgScore.toStringAsFixed(0)}%'
                                 : '0%'),
-                        _buildProgressStat('Assignments', '2/5', '40%'),
+                        _buildProgressStat('Assignments', '0/0', 'Coming soon'),
                       ],
                     ),
                     const Divider(height: 24),
-                    const Text(
-                      'Overall Progress: 32%',
-                      style: TextStyle(
+                    Text(
+                      'Overall Progress: $overallProgressStr',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF428DEB),
@@ -766,7 +805,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(12),
                       child: LinearProgressIndicator(
                         minHeight: 12,
-                        value: 0.32,
+                        value: progressValue,
                         color: const Color(0xFF428DEB),
                         backgroundColor: const Color(0xFFE5E7EB),
                       ),
