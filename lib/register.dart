@@ -32,11 +32,17 @@ class _RegisterPageState extends State<RegisterPage> {
     'na',
     'n.a',
     'n.a.',
+<<<<<<< HEAD
     'none',
     'NONE',
     'None',
     'N/A',
     'n/a',
+=======
+    'NONE',
+    'None',
+    'N/A',
+>>>>>>> feature/admin-week2
     'null',
     'NULL',
     'Null',
@@ -49,7 +55,10 @@ class _RegisterPageState extends State<RegisterPage> {
     'none.',
     'NONE.',
     'None.',
+<<<<<<< HEAD
     'na',
+=======
+>>>>>>> feature/admin-week2
     'NA',
     'Na',
   ];
@@ -70,27 +79,42 @@ class _RegisterPageState extends State<RegisterPage> {
   String _cleanExtension(String value) {
     final trimmed = value.trim();
 
+<<<<<<< HEAD
     // Check if the value is in the "no extension" list
+=======
+    if (trimmed.isEmpty) return '';
+
+>>>>>>> feature/admin-week2
     if (_noExtensionValues.contains(trimmed.toLowerCase())) {
       return '';
     }
 
+<<<<<<< HEAD
     // Check if it's just special characters
+=======
+>>>>>>> feature/admin-week2
     if (RegExp(r'^[^a-zA-Z]+$').hasMatch(trimmed)) {
       return '';
     }
 
+<<<<<<< HEAD
     // Check if it's just numbers
+=======
+>>>>>>> feature/admin-week2
     if (RegExp(r'^\d+$').hasMatch(trimmed)) {
       return '';
     }
 
+<<<<<<< HEAD
     // Check if it's a single letter that's not a valid suffix
+=======
+>>>>>>> feature/admin-week2
     if (trimmed.length == 1 &&
         !['J', 'S', 'R', 'V', 'X', 'Z'].contains(trimmed.toUpperCase())) {
       return '';
     }
 
+<<<<<<< HEAD
     // If it's a valid extension, capitalize it properly
     return _capitalizeExtension(trimmed);
   }
@@ -98,6 +122,12 @@ class _RegisterPageState extends State<RegisterPage> {
   // Function to properly format extension
   String _capitalizeExtension(String value) {
     // Common suffix patterns
+=======
+    return _capitalizeExtension(trimmed);
+  }
+
+  String _capitalizeExtension(String value) {
+>>>>>>> feature/admin-week2
     final suffixes = {
       'jr': 'Jr.',
       'jr.': 'Jr.',
@@ -120,12 +150,16 @@ class _RegisterPageState extends State<RegisterPage> {
       return suffixes[lower]!;
     }
 
+<<<<<<< HEAD
     // If it's already properly formatted (e.g., "Jr.", "Sr.", "III")
+=======
+>>>>>>> feature/admin-week2
     if (RegExp(r'^(Jr\.|Sr\.|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$')
         .hasMatch(value)) {
       return value;
     }
 
+<<<<<<< HEAD
     // Default: capitalize first letter
     return value[0].toUpperCase() + value.substring(1).toLowerCase();
   }
@@ -134,10 +168,19 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _validateExtension(String? value) {
     if (value == null || value.trim().isEmpty) {
       return null; // Extension is optional
+=======
+    return value[0].toUpperCase() + value.substring(1).toLowerCase();
+  }
+
+  String? _validateExtension(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+>>>>>>> feature/admin-week2
     }
 
     final cleaned = _cleanExtension(value);
     if (cleaned.isEmpty) {
+<<<<<<< HEAD
       return null; // Treat as empty if cleaned is empty
     }
 
@@ -146,11 +189,24 @@ class _RegisterPageState extends State<RegisterPage> {
       r'^(Jr\.|Sr\.|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$',
       r'^[A-Z][a-z]?\.?$', // Single letter with optional period
       r'^[A-Z]{2,3}$', // Multiple letters
+=======
+      return null;
+    }
+
+    final validPatterns = [
+      r'^(Jr\.|Sr\.|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV)$',
+      r'^[A-Z][a-z]?\.?$',
+      r'^[A-Z]{2,3}$',
+>>>>>>> feature/admin-week2
     ];
 
     for (final pattern in validPatterns) {
       if (RegExp(pattern).hasMatch(cleaned)) {
+<<<<<<< HEAD
         return null; // Valid
+=======
+        return null;
+>>>>>>> feature/admin-week2
       }
     }
 
@@ -184,8 +240,11 @@ class _RegisterPageState extends State<RegisterPage> {
       final firstName = _firstNameController.text.trim();
       final middleName = _middleNameController.text.trim();
       final lastName = _lastNameController.text.trim();
+<<<<<<< HEAD
 
       // Clean extension before saving
+=======
+>>>>>>> feature/admin-week2
       final extensionRaw = _extensionController.text.trim();
       final extension = _cleanExtension(extensionRaw);
 
@@ -197,7 +256,7 @@ class _RegisterPageState extends State<RegisterPage> {
       );
 
       await user.updateDisplayName(displayName);
-      final profileSaved = await _saveStudentProfile(
+      await _saveStudentProfile(
         uid: user.uid,
         firstName: firstName,
         middleName: middleName,
@@ -208,29 +267,18 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (!mounted) return;
 
-      if (profileSaved) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created successfully.')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account created, but profile was not saved.'),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully.')),
+      );
       _openHome();
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
-
       _showError(_authErrorMessage(error));
     } on FirebaseException catch (error) {
       if (!mounted) return;
-
       _showError(_firebaseErrorMessage(error));
     } catch (error) {
       if (!mounted) return;
-
       _showError('Could not create account: $error');
     } finally {
       if (mounted) {
@@ -287,7 +335,6 @@ class _RegisterPageState extends State<RegisterPage> {
       lastName,
       if (extension.isNotEmpty) extension,
     ];
-
     return names.join(' ');
   }
 
@@ -307,7 +354,6 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     const primaryBlue = Color(0xFF2F80ED);
-    const inputBorder = Color(0xFFC7D3EA);
     const registerGreen = Color(0xFF12A150);
 
     return Scaffold(
@@ -328,10 +374,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       tooltip: 'Back',
                       onPressed:
                           _isLoading ? null : () => Navigator.of(context).pop(),
+<<<<<<< HEAD
                       icon: const Icon(
                         Icons.arrow_back_rounded,
                         color: Colors.white,
                       ),
+=======
+                      icon: const Icon(Icons.arrow_back_rounded,
+                          color: Colors.white),
+>>>>>>> feature/admin-week2
                     ),
                   ),
                 ),
@@ -342,21 +393,16 @@ class _RegisterPageState extends State<RegisterPage> {
                     width: double.infinity,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(28),
-                      ),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(28)),
                     ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
                         child: SingleChildScrollView(
                           padding: EdgeInsets.fromLTRB(
-                            horizontalPadding,
-                            24,
-                            horizontalPadding,
-                            24,
-                          ),
-                          child: _buildForm(inputBorder, registerGreen),
+                              horizontalPadding, 24, horizontalPadding, 24),
+                          child: _buildForm(registerGreen),
                         ),
                       ),
                     ),
@@ -370,7 +416,7 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  Widget _buildForm(Color inputBorder, Color registerGreen) {
+  Widget _buildForm(Color registerGreen) {
     final textTheme = Theme.of(context).textTheme;
 
     return Form(
@@ -394,69 +440,41 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
           const SizedBox(height: 24),
-          _LabeledField(
+          _buildTextField(
             label: 'First Name',
-            child: TextFormField(
-              controller: _firstNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.givenName],
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'First name is required.';
-                }
-                if (value.trim().length < 2) {
-                  return 'Enter your first name.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Juan',
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
+            controller: _firstNameController,
+            hintText: 'Juan',
+            icon: Icons.person_outline_rounded,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty)
+                return 'First name is required.';
+              if (value.trim().length < 2) return 'Enter your first name.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildTextField(
             label: 'Middle Name',
-            child: TextFormField(
-              controller: _middleNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.middleName],
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Santos',
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
+            controller: _middleNameController,
+            hintText: 'Santos',
+            icon: Icons.person_outline_rounded,
+            isRequired: false,
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildTextField(
             label: 'Last Name',
-            child: TextFormField(
-              controller: _lastNameController,
-              textInputAction: TextInputAction.next,
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.familyName],
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Last name is required.';
-                }
-                if (value.trim().length < 2) {
-                  return 'Enter your last name.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Dela Cruz',
-                icon: Icons.person_outline_rounded,
-              ),
-            ),
+            controller: _lastNameController,
+            hintText: 'Dela Cruz',
+            icon: Icons.person_outline_rounded,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty)
+                return 'Last name is required.';
+              if (value.trim().length < 2) return 'Enter your last name.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
+<<<<<<< HEAD
           _LabeledField(
             label: 'Extension (Optional)',
             child: TextFormField(
@@ -470,35 +488,34 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               validator: _validateExtension,
             ),
+=======
+          _buildTextField(
+            label: 'Extension (Optional)',
+            controller: _extensionController,
+            hintText: 'Jr., Sr., III',
+            icon: Icons.person_add_alt_1_outlined,
+            validator: _validateExtension,
+            isRequired: false,
+>>>>>>> feature/admin-week2
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildTextField(
             label: 'Email Address',
-            child: TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
-              validator: (value) {
-                final email = value?.trim() ?? '';
-                if (email.isEmpty) {
-                  return 'Email address is required.';
-                }
-                if (!_isValidEmail(email)) {
-                  return 'Enter a valid email address.';
-                }
-                return null;
-              },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'student@school.edu.ph',
-                icon: Icons.email_outlined,
-              ),
-            ),
+            controller: _emailController,
+            hintText: 'student@school.edu.ph',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              final email = value?.trim() ?? '';
+              if (email.isEmpty) return 'Email address is required.';
+              if (!_isValidEmail(email)) return 'Enter a valid email address.';
+              return null;
+            },
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildPasswordField(
             label: 'Password',
+<<<<<<< HEAD
             child: TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
@@ -532,10 +549,24 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
             ),
+=======
+            controller: _passwordController,
+            isObscured: _obscurePassword,
+            onToggle: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
+            validator: (value) {
+              if (value == null || value.isEmpty)
+                return 'Password is required.';
+              if (value.length < 6)
+                return 'Password must be at least 6 characters.';
+              return null;
+            },
+>>>>>>> feature/admin-week2
           ),
           const SizedBox(height: 18),
-          _LabeledField(
+          _buildPasswordField(
             label: 'Confirm Password',
+<<<<<<< HEAD
             child: TextFormField(
               controller: _confirmPasswordController,
               obscureText: _obscureConfirmPassword,
@@ -573,6 +604,20 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
             ),
+=======
+            controller: _confirmPasswordController,
+            isObscured: _obscureConfirmPassword,
+            onToggle: () => setState(
+                () => _obscureConfirmPassword = !_obscureConfirmPassword),
+            validator: (value) {
+              if (value == null || value.isEmpty)
+                return 'Confirm your password.';
+              if (value != _passwordController.text)
+                return 'Passwords do not match.';
+              return null;
+            },
+            onFieldSubmitted: (_) => _isLoading ? null : _register(),
+>>>>>>> feature/admin-week2
           ),
           const SizedBox(height: 24),
           SizedBox(
@@ -586,23 +631,18 @@ class _RegisterPageState extends State<RegisterPage> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    borderRadius: BorderRadius.circular(10)),
               ),
               child: _isLoading
                   ? const SizedBox.square(
                       dimension: 22,
                       child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.6,
-                      ),
+                          color: Colors.white, strokeWidth: 2.6),
                     )
                   : const Text(
                       'Create Account',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                     ),
             ),
           ),
@@ -618,32 +658,149 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+<<<<<<< HEAD
   InputDecoration _fieldDecoration({
     required Color borderColor,
     required String hintText,
     required IconData icon,
+=======
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    bool isRequired = true,
   }) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
-      borderSide: BorderSide(color: borderColor, width: 2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          textInputAction: TextInputAction.next,
+          textCapitalization: TextCapitalization.words,
+          validator: validator,
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: const Color(0xFF4D89FF)),
+            hintText: hintText,
+            hintStyle: const TextStyle(color: Colors.black38),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF2F80ED), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+          ),
+        ),
+      ],
     );
+  }
 
-    return InputDecoration(
-      prefixIcon: Icon(icon, color: const Color(0xFF4D89FF)),
-      hintText: hintText,
-      hintStyle: const TextStyle(color: Colors.black38),
-      filled: true,
-      fillColor: Colors.white,
-      enabledBorder: border,
-      focusedBorder: border.copyWith(
-        borderSide: const BorderSide(color: Color(0xFF2F80ED), width: 2),
-      ),
-      errorBorder: border.copyWith(
-        borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
-      ),
-      focusedErrorBorder: border.copyWith(
-        borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
-      ),
+  Widget _buildPasswordField({
+    required String label,
+    required TextEditingController controller,
+    required bool isObscured,
+    required VoidCallback onToggle,
+    String? Function(String?)? validator,
+    void Function(String)? onFieldSubmitted,
+>>>>>>> feature/admin-week2
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        TextFormField(
+          controller: controller,
+          obscureText: isObscured,
+          textInputAction: onFieldSubmitted != null
+              ? TextInputAction.done
+              : TextInputAction.next,
+          validator: validator,
+          onFieldSubmitted: onFieldSubmitted,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.lock_outline_rounded,
+                color: Color(0xFF4D89FF)),
+            suffixIcon: IconButton(
+              icon: Icon(
+                isObscured
+                    ? Icons.visibility_off_outlined
+                    : Icons.visibility_outlined,
+                color: Colors.black.withValues(alpha: 0.7),
+              ),
+              onPressed: onToggle,
+            ),
+            hintText: label == 'Password'
+                ? 'Create a password'
+                : 'Re-enter your password',
+            hintStyle: const TextStyle(color: Colors.black38),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFF2F80ED), width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5484D), width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -662,10 +819,15 @@ class _RegisterPageState extends State<RegisterPage> {
       'lastName': lastName,
       'extension': extension,
       'displayName': displayName,
+      'role': 'student',
       'createdAt': FieldValue.serverTimestamp(),
     };
 
+<<<<<<< HEAD
     await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
+=======
+    await FirebaseFirestore.instance.collection('users').doc(uid).set(data);
+>>>>>>> feature/admin-week2
     return true;
   }
 }
@@ -727,34 +889,6 @@ class _RegisterHeader extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.black54,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        child,
-      ],
     );
   }
 }

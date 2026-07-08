@@ -130,7 +130,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         children: [
           _SummaryRow(),
           SizedBox(height: 18),
-          _QuarterOverviewGrid(),
+          _RecentClassesGrid(),
           SizedBox(height: 18),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -664,30 +664,79 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-class _SummaryRow extends StatelessWidget {
+class _SummaryRow extends StatefulWidget {
   const _SummaryRow();
 
   @override
+  State<_SummaryRow> createState() => _SummaryRowState();
+}
+
+class _SummaryRowState extends State<_SummaryRow> {
+  int totalUsers = 0;
+  int teachers = 0;
+  int trainers = 0;
+  int students = 0;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      
+      final total = await db.collection('users').count().get();
+      final teachersCount = await db.collection('users').where('role', isEqualTo: 'teacher').count().get();
+      final trainersCount = await db.collection('users').where('role', isEqualTo: 'trainer').count().get();
+      final studentsCount = await db.collection('users').where('role', isEqualTo: 'student').count().get();
+      
+      if (mounted) {
+        setState(() {
+          totalUsers = total.count ?? 0;
+          teachers = teachersCount.count ?? 0;
+          trainers = trainersCount.count ?? 0;
+          students = studentsCount.count ?? 0;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const SizedBox(
+        height: 112,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
     final cards = [
-      const _SmallStat(
+      _SmallStat(
         title: 'Total Users',
-        value: '120',
+        value: totalUsers.toString(),
         subtitle: 'All registered accounts',
       ),
-      const _SmallStat(
+      _SmallStat(
         title: 'Teachers',
-        value: '10',
+        value: teachers.toString(),
         subtitle: 'Active teachers',
       ),
-      const _SmallStat(
+      _SmallStat(
         title: 'Trainers',
-        value: '5',
+        value: trainers.toString(),
         subtitle: 'Industry trainers',
       ),
-      const _SmallStat(
+      _SmallStat(
         title: 'Students',
-        value: '105',
+        value: students.toString(),
         subtitle: 'Currently enrolled',
       ),
     ];
@@ -763,35 +812,8 @@ class _SmallStat extends StatelessWidget {
   }
 }
 
-class _QuarterOverviewGrid extends StatelessWidget {
-  const _QuarterOverviewGrid();
-
-  final List<_QuarterCardData> quarters = const [
-    _QuarterCardData(
-      title: 'Quarter 1',
-      subtitle: 'Computer Systems',
-      courses: 2,
-      color: Color(0xFF2F80ED),
-    ),
-    _QuarterCardData(
-      title: 'Quarter 2',
-      subtitle: 'Networking',
-      courses: 2,
-      color: Color(0xFF28C76F),
-    ),
-    _QuarterCardData(
-      title: 'Quarter 3',
-      subtitle: 'Server Management',
-      courses: 2,
-      color: Color(0xFF9C4FA1),
-    ),
-    _QuarterCardData(
-      title: 'Quarter 4',
-      subtitle: 'Troubleshooting & Maintenance',
-      courses: 2,
-      color: Color(0xFFE94560),
-    ),
-  ];
+class _RecentClassesGrid extends StatelessWidget {
+  const _RecentClassesGrid();
 
   @override
   Widget build(BuildContext context) {
@@ -806,14 +828,54 @@ class _QuarterOverviewGrid extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Quarter’s Overview - CSS NC II',
+            'Recent Classes',
             style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            runSpacing: 12,
-            spacing: 12,
-            children: quarters.map((q) => _QuarterCard(data: q)).toList(),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('classes')
+                .orderBy('createdAt', descending: true)
+                .limit(4)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text('No classes found'),
+                );
+              }
+              
+              final docs = snapshot.data!.docs;
+              final colors = [
+                const Color(0xFF2F80ED),
+                const Color(0xFF28C76F),
+                const Color(0xFF9C4FA1),
+                const Color(0xFFE94560),
+              ];
+              
+              return Wrap(
+                runSpacing: 12,
+                spacing: 12,
+                children: List.generate(docs.length, (index) {
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final name = data['name'] as String? ?? 'Untitled Class';
+                  final section = data['sectionCode'] as String? ?? 'No section';
+                  final students = (data['enrolledStudentIds'] as List?)?.length ?? 0;
+                  final color = colors[index % colors.length];
+                  
+                  return _ClassCard(
+                    title: name,
+                    subtitle: section,
+                    studentsCount: students,
+                    color: color,
+                  );
+                }),
+              );
+            },
           ),
         ],
       ),
@@ -821,22 +883,18 @@ class _QuarterOverviewGrid extends StatelessWidget {
   }
 }
 
-class _QuarterCardData {
-  final String title;
-  final String subtitle;
-  final int courses;
-  final Color color;
-  const _QuarterCardData({
+class _ClassCard extends StatelessWidget {
+  const _ClassCard({
     required this.title,
     required this.subtitle,
-    required this.courses,
+    required this.studentsCount,
     required this.color,
   });
-}
 
-class _QuarterCard extends StatelessWidget {
-  const _QuarterCard({required this.data});
-  final _QuarterCardData data;
+  final String title;
+  final String subtitle;
+  final int studentsCount;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -858,19 +916,21 @@ class _QuarterCard extends StatelessWidget {
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: data.color,
+                    color: color,
                     shape: BoxShape.circle,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    data.title,
+                    title,
                     style: const TextStyle(fontWeight: FontWeight.w800),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(
-                  '${data.courses} courses',
+                  '$studentsCount students',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF8A8A8A),
@@ -880,13 +940,15 @@ class _QuarterCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              data.subtitle,
+              subtitle,
               style: const TextStyle(color: Color(0xFF666666), fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 10),
             LinearProgressIndicator(
-              value: 0.65,
-              color: data.color,
+              value: studentsCount > 0 ? 1.0 : 0.0, // Just a placeholder for now
+              color: color,
               backgroundColor: const Color(0xFFF1F1F1),
               minHeight: 6,
             ),
@@ -911,23 +973,12 @@ class _QuarterCard extends StatelessWidget {
 class _RecentActivityCard extends StatelessWidget {
   const _RecentActivityCard();
 
+  String _formatDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = [
-      const _ActivityItem(
-        title: 'Teacher Account Created',
-        subtitle: '',
-        date: '',
-      ),
-      const _ActivityItem(
-        title: 'Trainer Assigned to Class',
-        subtitle: '',
-        date: '',
-      ),
-      const _ActivityItem(title: 'Student Enrolled', subtitle: '', date: ''),
-      const _ActivityItem(title: 'Report Generated', subtitle: '', date: ''),
-    ];
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -939,15 +990,47 @@ class _RecentActivityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Recent Activity',
+            'Recent Signups',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 12),
-          ...items.map(
-            (i) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _ActivityRow(item: i),
-            ),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .orderBy('createdAt', descending: true)
+                .limit(4)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError || !snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Text('No recent activity');
+              }
+              final docs = snapshot.data!.docs;
+              return Column(
+                children: docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final role = data['role'] as String? ?? 'user';
+                  final title = '${role[0].toUpperCase()}${role.substring(1)} Account Created';
+                  final name = data['firstName'] != null && data['lastName'] != null
+                      ? '${data['firstName']} ${data['lastName']}'
+                      : 'Unknown User';
+                  final createdAt = data['createdAt'] as Timestamp?;
+                  final dateStr = createdAt != null ? _formatDate(createdAt.toDate()) : '';
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _ActivityRow(
+                      item: _ActivityItem(
+                        title: title,
+                        subtitle: name,
+                        date: dateStr,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
           ),
         ],
       ),
