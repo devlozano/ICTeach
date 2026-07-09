@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
 import '../../services/notification_service.dart';
-
+import '../../services/ai_service.dart';
 class CreateModulePage extends StatefulWidget {
   final String classId;
   final String className;
@@ -34,6 +34,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
   final _fileLinkController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isGeneratingAI = false;
   bool _isPublished = false;
   bool _isEditing = false; // ✅ ADD THIS
   int _order = 0;
@@ -138,6 +139,59 @@ class _CreateModulePageState extends State<CreateModulePage> {
       });
     } catch (e) {
       print('Error loading module count: $e');
+    }
+  }
+
+  Future<void> _generateAIContent() async {
+    final topic = _titleController.text.trim();
+    if (topic.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a Module Title first.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isGeneratingAI = true;
+    });
+
+    try {
+      final result = await AiService().generateModuleContent(topic);
+      if (mounted) {
+        setState(() {
+          if (_descriptionController.text.isEmpty) {
+            _descriptionController.text = result['description'] ?? '';
+          }
+          if (_contentController.text.isEmpty) {
+            _contentController.text = result['content'] ?? '';
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✨ Content generated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error generating content: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGeneratingAI = false;
+        });
+      }
     }
   }
 
@@ -361,6 +415,23 @@ class _CreateModulePageState extends State<CreateModulePage> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 12),
+              
+              // Generate with AI Button
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: _isGeneratingAI ? null : _generateAIContent,
+                  icon: _isGeneratingAI 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(_isGeneratingAI ? 'Generating...' : 'Generate with AI'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF6366F1), // Indigo 500
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 
