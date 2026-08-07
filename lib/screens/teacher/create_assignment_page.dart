@@ -4,16 +4,18 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
-import '../../services/notification_service.dart'; // ✅ ADD THIS
+import '../../services/notification_service.dart';
 
 class CreateAssignmentPage extends StatefulWidget {
   final String classId;
-  final String className; // ✅ ADD THIS - to show class name in notification
+  final String className;
+  final AssignmentModel? assignmentToEdit; // ✅ ADD THIS
 
   const CreateAssignmentPage({
     super.key,
     required this.classId,
-    this.className = '', // Optional with default
+    this.className = '',
+    this.assignmentToEdit, // ✅ ADD THIS
   });
 
   @override
@@ -23,15 +25,32 @@ class CreateAssignmentPage extends StatefulWidget {
 class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
   final _formKey = GlobalKey<FormState>();
   final AssignmentService _assignmentService = AssignmentService();
-  final NotificationService _notificationService =
-      NotificationService(); // ✅ ADD THIS
+  final NotificationService _notificationService = NotificationService();
 
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _maxScoreController = TextEditingController();
+
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   bool _isPublished = false;
   bool _isLoading = false;
+  bool _isEditing = false; // ✅ ADD THIS
+
+  @override
+  void initState() {
+    super.initState();
+    _isEditing = widget.assignmentToEdit != null;
+
+    if (_isEditing) {
+      // ✅ Populate fields with existing assignment data
+      final assignment = widget.assignmentToEdit!;
+      _titleController.text = assignment.title;
+      _descriptionController.text = assignment.description;
+      _maxScoreController.text = assignment.maxScore.toString();
+      _dueDate = assignment.dueDate;
+      _isPublished = assignment.isPublished;
+    }
+  }
 
   @override
   void dispose() {
@@ -53,8 +72,6 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
     }
   }
 
-// In _saveAssignment method, add more logging:
-
   Future<void> _saveAssignment() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -62,35 +79,56 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
 
     try {
       final assignment = AssignmentModel(
-        id: '',
+        id: _isEditing ? widget.assignmentToEdit!.id : '',
         classId: widget.classId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         dueDate: _dueDate,
         maxScore: int.tryParse(_maxScoreController.text) ?? 100,
         isPublished: _isPublished,
-        createdAt: DateTime.now(),
+        createdAt:
+            _isEditing ? widget.assignmentToEdit!.createdAt : DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      await _assignmentService.createAssignment(assignment);
-      print('✅ Assignment created: ${assignment.title}');
+      if (_isEditing) {
+        // ✅ UPDATE existing assignment
+        await _assignmentService.updateAssignment(widget.classId, assignment);
+        print('✅ Assignment updated: ${assignment.title}');
 
-      // SEND NOTIFICATION TO STUDENTS IF PUBLISHED
-      if (_isPublished) {
-        print('📢 Attempting to send notifications...');
-        try {
-          await _notificationService.notifyNewAssignment(
-            widget.classId,
-            _titleController.text.trim(),
-          );
-          print('✅ Notification sent to students');
-        } catch (e) {
-          print('❌ Error sending notification: $e');
-          // Don't fail the assignment creation if notification fails
+        // ✅ Send notification if newly published
+        if (_isPublished && !widget.assignmentToEdit!.isPublished) {
+          print('📢 Sending notification for newly published assignment...');
+          try {
+            await _notificationService.notifyNewAssignment(
+              widget.classId,
+              _titleController.text.trim(),
+            );
+            print('✅ Notification sent to students');
+          } catch (e) {
+            print('❌ Error sending notification: $e');
+          }
         }
       } else {
-        print('ℹ️ Assignment saved as draft - no notifications sent');
+        // ✅ CREATE new assignment
+        await _assignmentService.createAssignment(assignment);
+        print('✅ Assignment created: ${assignment.title}');
+
+        // SEND NOTIFICATION TO STUDENTS IF PUBLISHED
+        if (_isPublished) {
+          print('📢 Attempting to send notifications...');
+          try {
+            await _notificationService.notifyNewAssignment(
+              widget.classId,
+              _titleController.text.trim(),
+            );
+            print('✅ Notification sent to students');
+          } catch (e) {
+            print('❌ Error sending notification: $e');
+          }
+        } else {
+          print('ℹ️ Assignment saved as draft - no notifications sent');
+        }
       }
 
       if (!mounted) return;
@@ -99,8 +137,8 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
         SnackBar(
           content: Text(
             _isPublished
-                ? '✅ Assignment published!'
-                : '✅ Assignment saved as draft!',
+                ? '✅ Assignment ${_isEditing ? 'updated' : 'published'}!'
+                : '✅ Assignment ${_isEditing ? 'updated' : 'saved'} as draft!',
           ),
           backgroundColor: _isPublished ? Colors.green : Colors.orange,
           duration: const Duration(seconds: 3),
@@ -109,11 +147,12 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
 
       Navigator.pop(context, true);
     } catch (e) {
-      print('❌ Error creating assignment: $e');
+      print('❌ Error ${_isEditing ? 'updating' : 'creating'} assignment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error creating assignment: $e'),
+            content: Text(
+                '❌ Error ${_isEditing ? 'updating' : 'creating'} assignment: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -128,7 +167,9 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
-        title: const Text('Create Assignment'),
+        title: Text(_isEditing
+            ? 'Edit Assignment'
+            : 'Create Assignment'), // ✅ Dynamic title
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -168,7 +209,7 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Creating assignment for: ${widget.className}',
+                          '${_isEditing ? 'Editing' : 'Creating'} assignment for: ${widget.className}',
                           style: TextStyle(
                             color: Colors.blue.shade700,
                             fontWeight: FontWeight.w500,
@@ -337,7 +378,7 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Students will be notified when published',
+                            'Students will be notified when ${_isEditing ? 'updated' : 'published'}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.green.shade700,
@@ -393,7 +434,13 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                           ),
                         )
                       : Text(
-                          _isPublished ? 'Publish Assignment' : 'Save as Draft',
+                          _isEditing
+                              ? (_isPublished
+                                  ? 'Update & Publish'
+                                  : 'Update Draft')
+                              : (_isPublished
+                                  ? 'Publish Assignment'
+                                  : 'Save as Draft'),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

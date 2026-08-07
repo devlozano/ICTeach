@@ -41,119 +41,224 @@ class AssignmentService {
 
   // Create a new assignment
   Future<void> createAssignment(AssignmentModel assignment) async {
-    final docRef = _firestore
-        .collection('classes')
-        .doc(assignment.classId)
-        .collection('assignments')
-        .doc();
+    try {
+      final docRef = _firestore
+          .collection('classes')
+          .doc(assignment.classId)
+          .collection('assignments')
+          .doc();
 
-    await docRef.set({
-      ...assignment.toFirestore(),
-      'id': docRef.id,
-    });
+      final data = assignment.toFirestore();
+      data['id'] = docRef.id;
+      data['createdAt'] = FieldValue.serverTimestamp();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+
+      await docRef.set(data);
+      print('✅ Assignment created: ${assignment.title}');
+    } catch (e) {
+      print('❌ Error creating assignment: $e');
+      rethrow;
+    }
   }
 
-  // Update an assignment
-  Future<void> updateAssignment(AssignmentModel assignment) async {
-    await _firestore
-        .collection('classes')
-        .doc(assignment.classId)
-        .collection('assignments')
-        .doc(assignment.id)
-        .update(assignment.toFirestore());
+  // ✅ FIXED: Update an existing assignment
+  Future<void> updateAssignment(
+      String classId, AssignmentModel assignment) async {
+    try {
+      final data = assignment.toFirestore();
+      data['updatedAt'] = FieldValue.serverTimestamp();
+
+      await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('assignments')
+          .doc(assignment.id)
+          .update(data);
+      print('✅ Assignment updated: ${assignment.title}');
+    } catch (e) {
+      print('❌ Error updating assignment: $e');
+      rethrow;
+    }
   }
 
   // Delete an assignment
   Future<void> deleteAssignment(String classId, String assignmentId) async {
-    await _firestore
-        .collection('classes')
-        .doc(classId)
-        .collection('assignments')
-        .doc(assignmentId)
-        .delete();
+    try {
+      await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('assignments')
+          .doc(assignmentId)
+          .delete();
+      print('✅ Assignment deleted: $assignmentId');
+    } catch (e) {
+      print('❌ Error deleting assignment: $e');
+      rethrow;
+    }
   }
 
   // Toggle publish status
   Future<void> togglePublish(
       String classId, String assignmentId, bool isPublished) async {
-    await _firestore
-        .collection('classes')
-        .doc(classId)
-        .collection('assignments')
-        .doc(assignmentId)
-        .update({
-      'isPublished': isPublished,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      await _firestore
+          .collection('classes')
+          .doc(classId)
+          .collection('assignments')
+          .doc(assignmentId)
+          .update({
+        'isPublished': isPublished,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('✅ Assignment publish toggled: $assignmentId -> $isPublished');
+    } catch (e) {
+      print('❌ Error toggling publish: $e');
+      rethrow;
+    }
   }
 
   // Submit assignment
   Future<void> submitAssignment(AssignmentSubmission submission) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('User not logged in');
+      }
 
-    await _firestore
-        .collection('submissions')
-        .doc('${submission.assignmentId}_${user.uid}')
-        .set(submission.toFirestore());
+      final docId = '${submission.assignmentId}_${user.uid}';
+      await _firestore
+          .collection('submissions')
+          .doc(docId)
+          .set(submission.toFirestore());
+      print('✅ Assignment submitted: ${submission.assignmentId}');
+    } catch (e) {
+      print('❌ Error submitting assignment: $e');
+      rethrow;
+    }
   }
 
   // Get student's submission for an assignment
   Future<AssignmentSubmission?> getStudentSubmission(
       String assignmentId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return null;
 
-    final doc = await _firestore
-        .collection('submissions')
-        .doc('${assignmentId}_${user.uid}')
-        .get();
+      final doc = await _firestore
+          .collection('submissions')
+          .doc('${assignmentId}_${user.uid}')
+          .get();
 
-    if (doc.exists) {
-      return AssignmentSubmission.fromFirestore(
-          doc as DocumentSnapshot<Map<String, dynamic>>);
+      if (doc.exists) {
+        return AssignmentSubmission.fromFirestore(
+            doc as DocumentSnapshot<Map<String, dynamic>>);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting student submission: $e');
+      return null;
     }
-    return null;
   }
 
-  // ✅ FIXED: Get all submissions for an assignment (teacher view) - no index needed
+  // Get all submissions for an assignment (teacher view)
   Future<List<AssignmentSubmission>> getSubmissionsForAssignment(
       String assignmentId) async {
-    final snapshot = await _firestore
-        .collection('submissions')
-        .where('assignmentId', isEqualTo: assignmentId)
-        .get();
+    try {
+      final snapshot = await _firestore
+          .collection('submissions')
+          .where('assignmentId', isEqualTo: assignmentId)
+          .get();
 
-    final submissions = snapshot.docs
-        .map((doc) => AssignmentSubmission.fromFirestore(doc))
-        .toList();
+      final submissions = snapshot.docs
+          .map((doc) => AssignmentSubmission.fromFirestore(doc))
+          .toList();
 
-    // Sort in memory by submittedAt (descending)
-    submissions.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      // Sort in memory by submittedAt (descending)
+      submissions.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
 
-    return submissions;
+      return submissions;
+    } catch (e) {
+      print('❌ Error getting submissions: $e');
+      return [];
+    }
   }
 
   // Grade a submission
   Future<void> gradeSubmission(
       String submissionId, int score, String feedback) async {
-    await _firestore.collection('submissions').doc(submissionId).update({
-      'score': score,
-      'feedback': feedback,
-      'isGraded': true,
-    });
+    try {
+      await _firestore.collection('submissions').doc(submissionId).update({
+        'score': score,
+        'feedback': feedback,
+        'isGraded': true,
+        'gradedAt': FieldValue.serverTimestamp(),
+      });
+      print('✅ Submission graded: $submissionId');
+    } catch (e) {
+      print('❌ Error grading submission: $e');
+      rethrow;
+    }
   }
 
   // Check if student has submitted
   Future<bool> hasSubmitted(String assignmentId) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
 
-    final doc = await _firestore
-        .collection('submissions')
-        .doc('${assignmentId}_${user.uid}')
-        .get();
+      final doc = await _firestore
+          .collection('submissions')
+          .doc('${assignmentId}_${user.uid}')
+          .get();
 
-    return doc.exists;
+      return doc.exists;
+    } catch (e) {
+      print('❌ Error checking submission: $e');
+      return false;
+    }
+  }
+
+  // Get submission count for an assignment
+  Future<int> getSubmissionCount(String assignmentId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('submissions')
+          .where('assignmentId', isEqualTo: assignmentId)
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      print('❌ Error getting submission count: $e');
+      return 0;
+    }
+  }
+
+  // Get graded count for an assignment
+  Future<int> getGradedCount(String assignmentId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('submissions')
+          .where('assignmentId', isEqualTo: assignmentId)
+          .where('isGraded', isEqualTo: true)
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      print('❌ Error getting graded count: $e');
+      return 0;
+    }
+  }
+
+  // Get average score for an assignment
+  Future<double> getAverageScore(String assignmentId) async {
+    try {
+      final submissions = await getSubmissionsForAssignment(assignmentId);
+      final graded = submissions.where((s) => s.isGraded).toList();
+      if (graded.isEmpty) return 0.0;
+
+      final total = graded.fold<int>(0, (sum, s) => sum + s.score);
+      return total / graded.length;
+    } catch (e) {
+      print('❌ Error getting average score: $e');
+      return 0.0;
+    }
   }
 }

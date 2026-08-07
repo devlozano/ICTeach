@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
-import '../../services/notification_service.dart'; // ✅ ADD THIS
+import '../../services/notification_service.dart';
 import 'create_assignment_page.dart';
 import 'assignment_submissions_page.dart';
 
@@ -22,8 +22,7 @@ class ManageAssignmentsPage extends StatefulWidget {
 
 class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
   final AssignmentService _assignmentService = AssignmentService();
-  final NotificationService _notificationService =
-      NotificationService(); // ✅ ADD THIS
+  final NotificationService _notificationService = NotificationService();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +41,7 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
                 MaterialPageRoute(
                   builder: (_) => CreateAssignmentPage(
                     classId: widget.classId,
-                    className: widget.className, // ✅ Pass class name
+                    className: widget.className,
                   ),
                 ),
               );
@@ -107,7 +106,7 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
                         MaterialPageRoute(
                           builder: (_) => CreateAssignmentPage(
                             classId: widget.classId,
-                            className: widget.className, // ✅ Pass class name
+                            className: widget.className,
                           ),
                         ),
                       );
@@ -150,7 +149,7 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
             MaterialPageRoute(
               builder: (_) => CreateAssignmentPage(
                 classId: widget.classId,
-                className: widget.className, // ✅ Pass class name
+                className: widget.className,
               ),
             ),
           );
@@ -165,10 +164,28 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
     );
   }
 
+  // ✅ FIXED: Edit Assignment with full functionality
   Future<void> _editAssignment(AssignmentModel assignment) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit feature coming soon!')),
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateAssignmentPage(
+          classId: widget.classId,
+          className: widget.className,
+          assignmentToEdit: assignment, // ✅ Pass the assignment to edit
+        ),
+      ),
     );
+
+    if (result == true && mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Assignment updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Future<void> _deleteAssignment(AssignmentModel assignment) async {
@@ -213,7 +230,6 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
     }
   }
 
-  // ✅ UPDATED: Toggle Publish with Notification
   Future<void> _togglePublish(AssignmentModel assignment) async {
     try {
       final newPublishState = !assignment.isPublished;
@@ -224,7 +240,7 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
         newPublishState,
       );
 
-      // ✅ SEND NOTIFICATION WHEN PUBLISHED
+      // Send notification when published
       if (newPublishState) {
         try {
           await _notificationService.notifyNewAssignment(
@@ -234,7 +250,6 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
           print('✅ Notification sent to students for: ${assignment.title}');
         } catch (e) {
           print('❌ Error sending notification: $e');
-          // Don't fail the toggle if notification fails
         }
       }
 
@@ -277,7 +292,7 @@ class _ManageAssignmentsPageState extends State<ManageAssignmentsPage> {
   }
 }
 
-// ✅ FIXED: Assignment Card with no overflow
+// Assignment Card Widget
 class _AssignmentCard extends StatelessWidget {
   final AssignmentModel assignment;
   final VoidCallback onEdit;
@@ -348,7 +363,6 @@ class _AssignmentCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Status badge
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
@@ -459,7 +473,6 @@ class _AssignmentCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // View Submissions
                   IconButton(
                     onPressed: onViewSubmissions,
                     icon: const Icon(Icons.assessment, size: 18),
@@ -469,7 +482,6 @@ class _AssignmentCard extends StatelessWidget {
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     visualDensity: VisualDensity.compact,
                   ),
-                  // Toggle Publish
                   IconButton(
                     onPressed: onTogglePublish,
                     icon: Icon(
@@ -486,7 +498,6 @@ class _AssignmentCard extends StatelessWidget {
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     visualDensity: VisualDensity.compact,
                   ),
-                  // Edit
                   IconButton(
                     onPressed: onEdit,
                     icon: const Icon(Icons.edit_outlined, size: 18),
@@ -496,7 +507,6 @@ class _AssignmentCard extends StatelessWidget {
                         const BoxConstraints(minWidth: 28, minHeight: 28),
                     visualDensity: VisualDensity.compact,
                   ),
-                  // Delete
                   IconButton(
                     onPressed: onDelete,
                     icon: const Icon(Icons.delete_outline, size: 18),
@@ -511,7 +521,6 @@ class _AssignmentCard extends StatelessWidget {
               ),
             ],
           ),
-          // ✅ ADDED: Notification indicator when published
           if (assignment.isPublished)
             Padding(
               padding: const EdgeInsets.only(top: 8),

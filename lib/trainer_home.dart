@@ -13,7 +13,7 @@ import '../screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'package:icteach/screens/student/forums_page.dart';
-import 'package:icteach/screens/teacher/progress_tracker_page.dart'; // ✅ ADD THIS IMPORT
+import 'package:icteach/screens/teacher/progress_tracker_page.dart';
 
 class TrainerHomePage extends StatefulWidget {
   const TrainerHomePage({super.key});
@@ -82,6 +82,42 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     return fullName.isNotEmpty ? fullName : 'Trainer';
   }
 
+  // ✅ Helper method to calculate total students from all classes
+  Future<int> _getTotalStudents() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 0;
+
+    try {
+      final classesSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('classes')
+          .get();
+
+      int totalStudents = 0;
+      for (final doc in classesSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>? ?? {};
+        final classId = data['classId']?.toString() ?? '';
+        if (classId.isNotEmpty) {
+          final classDoc = await FirebaseFirestore.instance
+              .collection('classes')
+              .doc(classId)
+              .get();
+          if (classDoc.exists) {
+            final classData = classDoc.data() as Map<String, dynamic>? ?? {};
+            final enrolledIds =
+                List<String>.from(classData['enrolledStudentIds'] ?? []);
+            totalStudents += enrolledIds.length;
+          }
+        }
+      }
+      return totalStudents;
+    } catch (e) {
+      print('Error calculating total students: $e');
+      return 0;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryColor = Colors.purple.shade900;
@@ -109,11 +145,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         final trainerName = _trainerName(profile, user);
 
         return PopScope(
-          // Allow pop only when on the home tab (tab 0)
           canPop: _selectedIndex == 0,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            // Not on home tab → go back to home tab
             setState(() => _selectedIndex = 0);
           },
           child: Scaffold(
@@ -130,7 +164,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 ),
               ),
               actions: [
-                // ✅ Notification Badge
                 NotificationBadge(
                   child: IconButton(
                     onPressed: () {
@@ -326,6 +359,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
+  // ✅ FIXED: Dynamic stats row with actual student count
   Widget _buildStatsRow(Color primaryColor) {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseAuth.instance.currentUser != null
@@ -335,29 +369,28 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
               .collection('classes')
               .get()
           : null,
-      builder: (context, snapshot) {
-        final classCount = snapshot.data?.docs.length ?? 0;
+      builder: (context, classSnapshot) {
+        final classCount = classSnapshot.data?.docs.length ?? 0;
 
-        // Calculate total students from all classes
-        int totalStudents = 0;
-        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          for (final doc in snapshot.data!.docs) {
-            final data = doc.data() as Map<String, dynamic>? ?? {};
-            final studentCount = data['studentCount'] as int? ?? 0;
-            totalStudents += studentCount;
-          }
-        }
+        return FutureBuilder<int>(
+          future: _getTotalStudents(),
+          builder: (context, studentSnapshot) {
+            final totalStudents = studentSnapshot.data ?? 0;
 
-        return Row(
-          children: [
-            Expanded(
-              child: _buildStatCard('My Classes', '$classCount', primaryColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildStatCard('Students', '$totalStudents', primaryColor),
-            ),
-          ],
+            return Row(
+              children: [
+                Expanded(
+                  child:
+                      _buildStatCard('My Classes', '$classCount', primaryColor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatCard(
+                      'Students', '$totalStudents', primaryColor),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -475,7 +508,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  // ✅ Discussion Forums Tab
+  // Discussion Forums Tab
   Widget _buildDiscussionForums(Color primaryColor) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -549,7 +582,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 subtitle: Text('Teacher: $teacherName'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () {
-                  // Navigate to forums page for this class
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -568,7 +600,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  // ✅ Fixed: Show Class Selector for Trainers
+  // Show Class Selector for Trainers
   void _showClassSelector(BuildContext context, String actionType) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -801,7 +833,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           ),
         );
         break;
-      case 'progress': // ✅ ADDED
+      case 'progress':
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -812,7 +844,6 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           ),
         );
         break;
-
       case 'quizzes':
         Navigator.push(
           context,
