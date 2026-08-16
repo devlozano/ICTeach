@@ -51,16 +51,12 @@ class _StudentQuizzesPageState extends State<StudentQuizzesPage> {
           builder: (context) => AlertDialog(
             title: const Text('Already Taken'),
             content: const Text(
-              'You have already taken this quiz. What would you like to do?',
+              'You have already completed this quiz. You can view your results.',
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, 'view'),
                 child: const Text('View Results'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, 'retake'),
-                child: const Text('Retake'),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, 'cancel'),
@@ -86,7 +82,7 @@ class _StudentQuizzesPageState extends State<StudentQuizzesPage> {
             ),
           );
           return;
-        } else if (action != 'retake') {
+        } else {
           return;
         }
       }
@@ -404,13 +400,11 @@ class _QuizCardState extends State<_QuizCard> {
                   onPressed: widget.onTakeQuiz,
                   icon: Icon(
                     _hasTaken == true
-                        ? Icons.refresh
+                        ? Icons.visibility
                         : Icons.play_arrow_rounded,
                     size: 18,
                   ),
-                  label: Text(_hasTaken == true
-                      ? 'Retake / View Results'
-                      : 'Take Quiz'),
+                  label: Text(_hasTaken == true ? 'View Results' : 'Take Quiz'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF428DEB),
                     foregroundColor: Colors.white,

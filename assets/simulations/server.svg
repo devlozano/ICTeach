@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="18" fill="#F5F3FF"/>
+  <rect x="28" y="26" width="72" height="18" rx="6" fill="#8B5CF6"/>
+  <rect x="28" y="52" width="72" height="18" rx="6" fill="#8B5CF6"/>
+  <rect x="28" y="78" width="72" height="18" rx="6" fill="#8B5CF6"/>
+  <text x="64" y="112" font-size="14" text-anchor="middle" fill="#4C1D95" font-family="Arial, sans-serif" font-weight="700">SERVER</text>
+</svg>

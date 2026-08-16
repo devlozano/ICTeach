@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ClassRosterPage extends StatefulWidget {
   final String classId;
@@ -477,6 +479,111 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
     );
   }
 
+  Future<void> _shareQRCode() async {
+    if (_classCode.isEmpty) return;
+    // ignore: deprecated_member_use
+    await Share.share(
+      'Join my ICTeach class using Class Code: $_classCode',
+      subject: 'ICTeach Class Code',
+    );
+  }
+
+  Widget _buildQRCode(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Class QR Code',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Scan to join class',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: QrImageView(
+                data: _classCode,
+                version: QrVersions.auto,
+                size: 200,
+                gapless: false,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Class Code: $_classCode',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _copyClassCode(context),
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copy Code'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      _shareQRCode();
+                    },
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF428DEB),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showQRCodeDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => _buildQRCode(context),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -515,17 +622,34 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (_classCode.isNotEmpty)
+          if (_classCode.isNotEmpty) ...[
+            IconButton(
+              icon: const Icon(Icons.qr_code_2, color: Colors.white),
+              onPressed: () => _showQRCodeDialog(context),
+              tooltip: 'Show QR Code',
+            ),
             Container(
               margin: const EdgeInsets.only(right: 8),
               child: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert, color: Colors.white),
                 onSelected: (value) {
-                  if (value == 'copy') {
+                  if (value == 'qr') {
+                    _showQRCodeDialog(context);
+                  } else if (value == 'copy') {
                     _copyClassCode(context);
                   }
                 },
                 itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'qr',
+                    child: Row(
+                      children: [
+                        Icon(Icons.qr_code, size: 18, color: Color(0xFF428DEB)),
+                        SizedBox(width: 8),
+                        Text('Show QR Code'),
+                      ],
+                    ),
+                  ),
                   const PopupMenuItem(
                     value: 'copy',
                     child: Row(
@@ -539,6 +663,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
                 ],
               ),
             ),
+          ],
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
@@ -601,7 +726,13 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
                     ],
                   ),
                 ),
-                if (_classCode.isNotEmpty)
+                if (_classCode.isNotEmpty) ...[
+                  IconButton(
+                    onPressed: () => _showQRCodeDialog(context),
+                    icon: const Icon(Icons.qr_code, color: Color(0xFF428DEB)),
+                    tooltip: 'QR Code',
+                  ),
+                  const SizedBox(width: 4),
                   ElevatedButton.icon(
                     onPressed: () => _copyClassCode(context),
                     icon: const Icon(Icons.copy, size: 16),
@@ -622,6 +753,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),

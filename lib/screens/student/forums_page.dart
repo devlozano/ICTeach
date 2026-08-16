@@ -451,6 +451,35 @@ class _ForumPostCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
+              if (post.imageUrls.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 140,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: post.imageUrls.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, index) {
+                      final imageUrl = post.imageUrls[index];
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          imageUrl,
+                          width: 180,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 180,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.broken_image_outlined),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
               // Stats: Replies, Views, Likes
               Row(
                 children: [

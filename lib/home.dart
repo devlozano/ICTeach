@@ -6,15 +6,17 @@ import 'package:icteach/screens/student/module_view_page.dart';
 import 'package:icteach/screens/student/student_assignments_page.dart';
 import 'package:icteach/screens/student/student_quizzes_page.dart';
 import 'package:icteach/screens/student/instructional_videos_page.dart';
+import 'package:icteach/screens/student/simulations_list_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import 'login.dart';
-import '../../services/quiz_service.dart'; // ✅ ADD THIS IMPORT
-import '../../models/quiz_model.dart'; // ✅ ADD THIS IMPORT
-import '../../services/module_service.dart'; // ✅ ADD THIS IMPORT
-import 'package:intl/intl.dart'; // ✅ For formatting dates
+import '../../services/quiz_service.dart';
+import '../../models/quiz_model.dart';
+import '../../services/module_service.dart';
+import 'package:icteach/utils/progress_calculator.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -747,6 +749,27 @@ class _HomePageState extends State<HomePage> {
             subtitle: 'Interactive Labs',
             color: const Color(0xFF168D92),
             bgColor: const Color(0xFFA6F4F5),
+            onTap: () {
+              if (_classId != null && _classId!.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SimulationsListPage(
+                      classId: _classId!,
+                      className: _className ?? 'My Class',
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content:
+                        Text('Please join a class first to access simulations'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
           ),
           _QuickAccessItem(
             icon: Icons.video_library_rounded,
@@ -815,12 +838,11 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-
-          // ✅ Progress Stats with Quiz Scores
           FutureBuilder<List<dynamic>>(
             future: Future.wait([
               (_classId != null && _classId!.isNotEmpty)
-                  ? _quizService.getStudentQuizResultsForClass(userId, _classId!)
+                  ? _quizService.getStudentQuizResultsForClass(
+                      userId, _classId!)
                   : _quizService.getStudentQuizResults(userId),
               (_classId != null && _classId!.isNotEmpty)
                   ? _quizService
@@ -831,24 +853,40 @@ class _HomePageState extends State<HomePage> {
               (_classId != null && _classId!.isNotEmpty)
                   ? ModuleService().getModuleCount(_classId!)
                   : Future.value(0),
+              Future.value(0),
+              Future.value(0),
             ]),
             builder: (context, snapshot) {
               final quizResults =
                   (snapshot.data?[0] as List<QuizResult>?) ?? [];
               final totalQuizzes = (snapshot.data?[1] as int?) ?? 0;
-              final moduleCount = (snapshot.data?[2] as int?) ?? 0;
+              final totalModules = (snapshot.data?[2] as int?) ?? 0;
+              final simulationTotal = (snapshot.data?[3] as int?) ?? 0;
+              final assessmentTotal = (snapshot.data?[4] as int?) ?? 0;
 
-              final quizCount = quizResults.length;
-              final avgScore = quizCount > 0
+              final quizCompleted = quizResults.length;
+              final moduleCompleted = totalModules > 0 ? totalModules : 0;
+              final simulationCompleted =
+                  simulationTotal > 0 ? simulationTotal : 0;
+              final assessmentCompleted =
+                  assessmentTotal > 0 ? assessmentTotal : 0;
+
+              final stats = ProgressCalculator.calculate(
+                quizCompleted: quizCompleted,
+                quizTotal: totalQuizzes,
+                moduleCompleted: moduleCompleted,
+                moduleTotal: totalModules,
+                simulationCompleted: simulationCompleted,
+                simulationTotal: simulationTotal,
+                assessmentCompleted: assessmentCompleted,
+                assessmentTotal: assessmentTotal,
+              );
+
+              final avgScore = quizResults.isNotEmpty
                   ? quizResults.fold<double>(
                           0, (sum, r) => sum + r.percentage) /
-                      quizCount
+                      quizResults.length
                   : 0;
-
-              final progressValue =
-                  totalQuizzes > 0 ? (quizCount / totalQuizzes) : 0.0;
-              final overallProgressStr =
-                  '${(progressValue * 100).toStringAsFixed(0)}%';
 
               return Container(
                 padding: const EdgeInsets.all(20),
@@ -869,19 +907,26 @@ class _HomePageState extends State<HomePage> {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildProgressStat(
-                            'Modules', '$moduleCount', 'Available'),
+                            'Quiz',
+                            '${quizCompleted}/$totalQuizzes',
+                            '${stats.quizPercent.toStringAsFixed(0)}%'),
                         _buildProgressStat(
-                            'Quizzes',
-                            '$quizCount/$totalQuizzes',
-                            quizCount > 0
-                                ? '${avgScore.toStringAsFixed(0)}%'
-                                : '0%'),
-                        _buildProgressStat('Assignments', '0/0', 'Coming soon'),
+                            'Modules',
+                            '${moduleCompleted}/$totalModules',
+                            '${stats.modulePercent.toStringAsFixed(0)}%'),
+                        _buildProgressStat(
+                            'Simulation',
+                            '${simulationCompleted}/$simulationTotal',
+                            '${stats.simulationPercent.toStringAsFixed(0)}%'),
+                        _buildProgressStat(
+                            'Assessment',
+                            '${assessmentCompleted}/$assessmentTotal',
+                            '${stats.assessmentPercent.toStringAsFixed(0)}%'),
                       ],
                     ),
                     const Divider(height: 24),
                     Text(
-                      'Overall Progress: $overallProgressStr',
+                      'Overall Progress: ${stats.overallPercent.toStringAsFixed(0)}%',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -893,9 +938,17 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(12),
                       child: LinearProgressIndicator(
                         minHeight: 12,
-                        value: progressValue,
+                        value: (stats.overallPercent / 100).clamp(0.0, 1.0),
                         color: const Color(0xFF428DEB),
                         backgroundColor: const Color(0xFFE5E7EB),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Average quiz score: ${avgScore > 0 ? avgScore.toStringAsFixed(0) : 0}%',
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
                       ),
                     ),
                   ],

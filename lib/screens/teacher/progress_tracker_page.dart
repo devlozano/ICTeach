@@ -1,4 +1,6 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
 
 class ProgressTrackerPage extends StatefulWidget {
@@ -121,6 +123,79 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget buildLeaderboardChart(List<QuizResult> results) {
+    if (results.isEmpty) return const SizedBox.shrink();
+
+    // Group by student
+    final Map<String, List<QuizResult>> studentResults = {};
+    for (final result in results) {
+      studentResults.putIfAbsent(result.studentId, () => []).add(result);
+    }
+
+    // Calculate averages
+    final studentAverages = studentResults.entries.map((entry) {
+      final avg = entry.value.fold<double>(0, (sum, r) => sum + r.percentage) /
+          entry.value.length;
+      return {
+        'name': entry.value.first.studentName,
+        'average': avg,
+      };
+    }).toList()
+      ..sort((a, b) =>
+          (b['average'] as double).compareTo(a['average'] as double));
+
+    return SizedBox(
+      height: 300,
+      child: BarChart(
+        BarChartData(
+          maxY: 100,
+          barGroups: studentAverages.asMap().entries.map((entry) {
+            final index = entry.key;
+            final data = entry.value;
+            return BarChartGroupData(
+              x: index,
+              barRods: [
+                BarChartRodData(
+                  toY: data['average'] as double,
+                  color: index == 0 ? Colors.amber : Colors.blue,
+                  width: 20,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ],
+            );
+          }).toList(),
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  final index = value.toInt();
+                  if (index < studentAverages.length) {
+                    return Text(
+                      studentAverages[index]['name'] as String,
+                      style: const TextStyle(fontSize: 10),
+                      overflow: TextOverflow.ellipsis,
+                    );
+                  }
+                  return const Text('');
+                },
+              ),
+            ),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (value, meta) {
+                  return Text('${value.toInt()}%');
+                },
+              ),
+            ),
+          ),
+          gridData: const FlGridData(show: true),
+        ),
       ),
     );
   }

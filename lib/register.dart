@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'home_router.dart';
+import 'models/lrn_model.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -13,6 +14,7 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
+  final _lrnController = TextEditingController();
   final _firstNameController = TextEditingController();
   final _middleNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -24,6 +26,9 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLrnValid = false;
+  bool _isCheckingLrn = false;
+  LRNModel? _verifiedLrn;
 
   // List of values that should be treated as "no extension"
   static const List<String> _noExtensionValues = [
@@ -53,6 +58,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   void dispose() {
+    _lrnController.dispose();
     _firstNameController.dispose();
     _middleNameController.dispose();
     _lastNameController.dispose();
@@ -255,6 +261,146 @@ class _RegisterPageState extends State<RegisterPage> {
     return 'Please enter a valid suffix (e.g., Jr., Sr., III) or leave blank.';
   }
 
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: backgroundColor,
+        ),
+      );
+  }
+
+  Future<void> _validateLRN() async {
+    final lrn = _lrnController.text.trim();
+    if (lrn.isEmpty) {
+      setState(() {
+        _isLrnValid = false;
+        _verifiedLrn = null;
+      });
+      return;
+    }
+
+    setState(() => _isCheckingLrn = true);
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('lrn_master_list')
+          .doc(lrn)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        final isRegistered = data['isRegistered'] ?? false;
+
+        if (isRegistered) {
+          _showSnackBar('This LRN is already registered.', Colors.orange);
+          setState(() {
+            _isLrnValid = false;
+            _verifiedLrn = null;
+          });
+        } else {
+          setState(() {
+            _isLrnValid = true;
+            _verifiedLrn = LRNModel.fromFirestore(doc);
+          });
+          _showSnackBar('✅ LRN verified!', Colors.green);
+        }
+      } else {
+        setState(() {
+          _isLrnValid = false;
+          _verifiedLrn = null;
+        });
+        _showSnackBar('❌ Invalid LRN. Please check your number.', Colors.red);
+      }
+    } catch (e) {
+      _showSnackBar('Error validating LRN: $e', Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingLrn = false);
+      }
+    }
+  }
+
+  Widget _buildLrnField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _lrnController,
+          keyboardType: TextInputType.number,
+          maxLength: 12,
+          decoration: InputDecoration(
+            labelText: 'Learning Reference Number (LRN)',
+            hintText: 'Enter your 12-digit LRN',
+            prefixIcon: const Icon(Icons.numbers),
+            suffixIcon: _isCheckingLrn
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : _isLrnValid
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+            border: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(12)),
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'LRN is required';
+            }
+            if (value.trim().length < 12) {
+              return 'LRN must be 12 digits';
+            }
+            if (!_isLrnValid) {
+              return 'Please verify your LRN first';
+            }
+            return null;
+          },
+          onChanged: (value) {
+            if (value.length == 12) {
+              _validateLRN();
+            } else {
+              setState(() {
+                _isLrnValid = false;
+                _verifiedLrn = null;
+              });
+            }
+          },
+        ),
+        if (_isLrnValid && _verifiedLrn != null)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.verified, color: Colors.green),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Verified: ${_verifiedLrn!.firstName} ${_verifiedLrn!.lastName}',
+                    style: TextStyle(
+                      color: Colors.green.shade800,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
   Future<void> _register() async {
     FocusScope.of(context).unfocus();
 
@@ -279,6 +425,7 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       }
 
+      final lrn = _lrnController.text.trim();
       final firstName = _firstNameController.text.trim();
       final middleName = _middleNameController.text.trim();
       final lastName = _lastNameController.text.trim();
@@ -296,6 +443,7 @@ class _RegisterPageState extends State<RegisterPage> {
       await user.updateDisplayName(displayName);
       await _saveUserProfile(
         uid: user.uid,
+        lrn: lrn,
         firstName: firstName,
         middleName: middleName,
         lastName: lastName,
@@ -500,6 +648,8 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
           ),
           const SizedBox(height: 24),
+          _buildLrnField(),
+          const SizedBox(height: 18),
           _buildTextField(
             label: 'First Name',
             controller: _firstNameController,
@@ -546,8 +696,9 @@ class _RegisterPageState extends State<RegisterPage> {
             validator: (value) {
               final email = value?.trim() ?? '';
               if (email.isEmpty) return 'Email address is required.';
-              if (_containsEmoji(email))
+              if (_containsEmoji(email)) {
                 return 'Emojis are not allowed in email.';
+              }
               if (!_isValidEmail(email)) return 'Enter a valid email address.';
               return null;
             },
@@ -784,6 +935,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Future<bool> _saveUserProfile({
     required String uid,
+    required String lrn,
     required String firstName,
     required String middleName,
     required String lastName,
@@ -793,6 +945,7 @@ class _RegisterPageState extends State<RegisterPage> {
   }) async {
     final data = <String, dynamic>{
       'uid': uid,
+      'lrn': lrn,
       'firstName': firstName,
       'middleName': middleName,
       'lastName': lastName,
@@ -807,6 +960,17 @@ class _RegisterPageState extends State<RegisterPage> {
 
     await FirebaseFirestore.instance.collection('users').doc(uid).set(data);
     await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
+
+    if (lrn.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('lrn_master_list')
+          .doc(lrn)
+          .update({
+        'isRegistered': true,
+        'registeredAt': FieldValue.serverTimestamp(),
+        'registeredUid': uid,
+      });
+    }
 
     // Use debugPrint instead of print
     debugPrint('✅ User profile saved to both users and students collections');

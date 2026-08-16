@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
 import '../../services/notification_service.dart';
+import 'content_lock_manager.dart';
 import 'create_module_page.dart';
 
 class ManageModulesPage extends StatefulWidget {
@@ -31,6 +32,20 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ContentLockManager(
+                    classId: widget.classId,
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.lock_clock),
+            tooltip: 'Content Lock Settings',
+          ),
           IconButton(
             onPressed: () async {
               final result = await Navigator.push(

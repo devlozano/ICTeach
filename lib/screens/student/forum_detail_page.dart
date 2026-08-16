@@ -338,6 +338,35 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                             height: 1.5,
                           ),
                         ),
+                        if (post.imageUrls.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: post.imageUrls.length,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 1,
+                            ),
+                            itemBuilder: (context, index) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  post.imageUrls[index],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: Colors.grey.shade200,
+                                    child:
+                                        const Icon(Icons.broken_image_outlined),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 12),
 
                         // Stats (views, replies, likes)

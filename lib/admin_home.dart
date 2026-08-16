@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'admin/create_staff_page.dart';
+import 'admin/manage_lrn_page.dart';
 import 'admin/manage_trainers_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
@@ -138,6 +139,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         return 'Track student quiz performance and leaderboards';
       case 'Reports':
         return 'Platform-wide analytics and content statistics';
+      case 'LRN Registry':
+        return 'Manage LRN registration and master records';
       case 'Settings':
         return 'Manage your account and app preferences';
       default:
@@ -157,6 +160,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
         return const _PerformanceContent();
       case 'Reports':
         return const _ReportsContent();
+      case 'LRN Registry':
+        return const _LRNRegistryContent();
       case 'Settings':
         return const _SettingsContent();
       default:
@@ -247,26 +252,21 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount:
-                            teachers.length > 5 ? 5 : teachers.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1),
+                        itemCount: teachers.length > 5 ? 5 : teachers.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final doc = teachers[index];
                           final data =
                               doc.data() as Map<String, dynamic>? ?? {};
-                          final name =
-                              data['name']?.toString() ?? 'Unknown';
+                          final name = data['name']?.toString() ?? 'Unknown';
                           final email = data['email']?.toString() ?? '';
                           final isActive = data['isActive'] ?? true;
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: const Color(0xFF2F80ED)
-                                  .withOpacity(0.1),
+                              backgroundColor:
+                                  const Color(0xFF2F80ED).withOpacity(0.1),
                               child: Text(
-                                name.isNotEmpty
-                                    ? name[0].toUpperCase()
-                                    : 'T',
+                                name.isNotEmpty ? name[0].toUpperCase() : 'T',
                                 style: const TextStyle(
                                   color: Color(0xFF2F80ED),
                                   fontWeight: FontWeight.bold,
@@ -295,8 +295,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           child: TextButton.icon(
                             onPressed: () {},
                             icon: const Icon(Icons.arrow_forward, size: 16),
-                            label: Text(
-                                'View all ${teachers.length} teachers'),
+                            label: Text('View all ${teachers.length} teachers'),
                           ),
                         ),
                     ],
@@ -394,6 +393,67 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
         const SizedBox(height: 16),
 
+        // LRN Master List
+        _buildCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0B2B4A).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.numbers,
+                        color: Color(0xFF0B2B4A), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'LRN Registration',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ManageLRNPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.numbers, color: Color(0xFF0B2B4A)),
+                  label: const Text('Open LRN Master List'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0B2B4A),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    side: const BorderSide(color: Color(0xFF0B2B4A)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Upload LRN CSVs, validate registrations, and manage the student master list.',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
         // Students overview
         _buildCard(
           child: Column(
@@ -452,8 +512,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           ),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color:
-                                  const Color(0xFF28C76F).withOpacity(0.2)),
+                              color: const Color(0xFF28C76F).withOpacity(0.2)),
                         ),
                         child: Row(
                           children: [
@@ -486,14 +545,12 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount:
-                            students.length > 5 ? 5 : students.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1),
+                        itemCount: students.length > 5 ? 5 : students.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) {
-                          final data = students[index].data()
-                              as Map<String, dynamic>? ??
-                              {};
+                          final data =
+                              students[index].data() as Map<String, dynamic>? ??
+                                  {};
                           final name =
                               data['name']?.toString() ?? 'Unknown Student';
                           final email = data['email']?.toString() ?? '';
@@ -501,12 +558,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             dense: true,
                             leading: CircleAvatar(
                               radius: 16,
-                              backgroundColor: const Color(0xFF28C76F)
-                                  .withOpacity(0.1),
+                              backgroundColor:
+                                  const Color(0xFF28C76F).withOpacity(0.1),
                               child: Text(
-                                name.isNotEmpty
-                                    ? name[0].toUpperCase()
-                                    : 'S',
+                                name.isNotEmpty ? name[0].toUpperCase() : 'S',
                                 style: const TextStyle(
                                   color: Color(0xFF28C76F),
                                   fontWeight: FontWeight.bold,
@@ -692,6 +747,12 @@ class _SideNav extends StatelessWidget {
                   selected: currentSelection == 'Reports',
                   onTap: () => onSelected('Reports'),
                 ),
+                _NavTile(
+                  icon: Icons.numbers_rounded,
+                  label: 'LRN Registry',
+                  selected: currentSelection == 'LRN Registry',
+                  onTap: () => onSelected('LRN Registry'),
+                ),
               ],
             ),
           ),
@@ -716,9 +777,7 @@ class _SideNav extends StatelessWidget {
                   radius: 16,
                   backgroundColor: _kAccentBlue,
                   child: Text(
-                    adminName.isNotEmpty
-                        ? adminName[0].toUpperCase()
-                        : 'A',
+                    adminName.isNotEmpty ? adminName[0].toUpperCase() : 'A',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
@@ -760,8 +819,8 @@ class _SideNav extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         title: const Text('Sign Out'),
-                        content: const Text(
-                            'Are you sure you want to sign out?'),
+                        content:
+                            const Text('Are you sure you want to sign out?'),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
@@ -781,8 +840,8 @@ class _SideNav extends StatelessWidget {
                     if (confirm == true) {
                       await FirebaseAuth.instance.signOut();
                       if (context.mounted) {
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                            '/', (route) => false);
+                        Navigator.of(context)
+                            .pushNamedAndRemoveUntil('/', (route) => false);
                       }
                     }
                   },
@@ -822,9 +881,7 @@ class _NavTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: selected
-            ? Colors.white.withOpacity(0.08)
-            : Colors.transparent,
+        color: selected ? Colors.white.withOpacity(0.08) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -832,8 +889,7 @@ class _NavTile extends StatelessWidget {
           hoverColor: Colors.white.withOpacity(0.04),
           splashColor: Colors.white.withOpacity(0.1),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
             child: Row(
               children: [
                 Container(
@@ -848,8 +904,7 @@ class _NavTile extends StatelessWidget {
                     style: TextStyle(
                       color: activeColor,
                       fontSize: 14,
-                      fontWeight:
-                          selected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     ),
                   ),
                 ),
@@ -881,8 +936,7 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        name.isNotEmpty ? name[0].toUpperCase() : 'A';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
 
     return Container(
       height: 72,
@@ -932,8 +986,7 @@ class _TopBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE8E8E8)),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Row(
               children: [
                 Column(
@@ -949,8 +1002,7 @@ class _TopBar extends StatelessWidget {
                     ),
                     const Text(
                       'Admin',
-                      style: TextStyle(
-                          fontSize: 12, color: Color(0xFF888888)),
+                      style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
                     ),
                   ],
                 ),
@@ -978,6 +1030,15 @@ class _TopBar extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 // DASHBOARD CONTENT
 // ═══════════════════════════════════════════════════════════════════════════════
+class _LRNRegistryContent extends StatelessWidget {
+  const _LRNRegistryContent();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ManageLRNPage(useStandaloneScaffold: false);
+  }
+}
+
 class _DashboardContent extends StatelessWidget {
   const _DashboardContent();
 
@@ -1246,8 +1307,7 @@ class _RecentClassesGrid extends StatelessWidget {
               const SizedBox(width: 10),
               const Text(
                 'Recent Classes',
-                style:
-                    TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
               ),
             ],
           ),
@@ -1284,10 +1344,8 @@ class _RecentClassesGrid extends StatelessWidget {
                 runSpacing: 12,
                 spacing: 12,
                 children: List.generate(docs.length, (index) {
-                  final data =
-                      docs[index].data() as Map<String, dynamic>;
-                  final name =
-                      data['name'] as String? ?? 'Untitled Class';
+                  final data = docs[index].data() as Map<String, dynamic>;
+                  final name = data['name'] as String? ?? 'Untitled Class';
                   final section =
                       data['sectionCode'] as String? ?? 'No section';
                   final students =
@@ -1370,16 +1428,14 @@ class _ClassCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: const TextStyle(
-                  color: Color(0xFF666666), fontSize: 12),
+              style: const TextStyle(color: Color(0xFF666666), fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.people_alt_outlined,
-                    size: 14, color: color),
+                Icon(Icons.people_alt_outlined, size: 14, color: color),
                 const SizedBox(width: 4),
                 Text(
                   '$studentsCount students',
@@ -1440,8 +1496,7 @@ class _RecentActivityCard extends StatelessWidget {
               const SizedBox(width: 10),
               const Text(
                 'Recent Signups',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
             ],
           ),
@@ -1467,8 +1522,7 @@ class _RecentActivityCard extends StatelessWidget {
               final docs = snapshot.data!.docs;
               return Column(
                 children: docs.map((doc) {
-                  final data =
-                      doc.data() as Map<String, dynamic>;
+                  final data = doc.data() as Map<String, dynamic>;
                   final role = data['role'] as String? ?? 'user';
                   final roleColors = {
                     'teacher': const Color(0xFF2F80ED),
@@ -1476,16 +1530,14 @@ class _RecentActivityCard extends StatelessWidget {
                     'student': const Color(0xFF28C76F),
                     'admin': const Color(0xFFE94560),
                   };
-                  final color =
-                      roleColors[role] ?? const Color(0xFF666666);
+                  final color = roleColors[role] ?? const Color(0xFF666666);
                   final name =
                       data['firstName'] != null && data['lastName'] != null
                           ? '${data['firstName']} ${data['lastName']}'
                           : data['name']?.toString() ?? 'Unknown User';
                   final createdAt = data['createdAt'] as Timestamp?;
-                  final dateStr = createdAt != null
-                      ? _formatDate(createdAt.toDate())
-                      : '';
+                  final dateStr =
+                      createdAt != null ? _formatDate(createdAt.toDate()) : '';
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Row(
@@ -1506,14 +1558,12 @@ class _RecentActivityCard extends StatelessWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 name,
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13),
+                                    fontWeight: FontWeight.w700, fontSize: 13),
                               ),
                               const SizedBox(height: 2),
                               Row(
@@ -1523,8 +1573,7 @@ class _RecentActivityCard extends StatelessWidget {
                                         horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: color.withOpacity(0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(4),
+                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       role.toUpperCase(),
@@ -1611,8 +1660,7 @@ class _QuickActionsCard extends StatelessWidget {
               const SizedBox(width: 10),
               const Text(
                 'Quick Actions',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
             ],
           ),
@@ -1626,12 +1674,11 @@ class _QuickActionsCard extends StatelessWidget {
                   onTap: a.onTap,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 8),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: a.color.withOpacity(0.15)),
+                      border: Border.all(color: a.color.withOpacity(0.15)),
                     ),
                     child: Row(
                       children: [
@@ -1642,16 +1689,14 @@ class _QuickActionsCard extends StatelessWidget {
                             color: a.color.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child:
-                              Icon(a.icon, color: a.color, size: 20),
+                          child: Icon(a.icon, color: a.color, size: 20),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             a.label,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13),
+                                fontWeight: FontWeight.w700, fontSize: 13),
                           ),
                         ),
                         Icon(Icons.chevron_right,
@@ -1713,7 +1758,8 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
             children: [
               Expanded(
                 child: TextField(
-                  onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                  onChanged: (v) =>
+                      setState(() => _searchQuery = v.toLowerCase()),
                   decoration: InputDecoration(
                     hintText: 'Search classes by name, section, or teacher...',
                     prefixIcon: const Icon(Icons.search, color: _kSubtextColor),
@@ -1777,8 +1823,7 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
             // Apply filters
             final filtered = allClasses.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              final name =
-                  (data['name'] as String? ?? '').toLowerCase();
+              final name = (data['name'] as String? ?? '').toLowerCase();
               final section =
                   (data['sectionCode'] as String? ?? '').toLowerCase();
               final teacher =
@@ -1790,8 +1835,8 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                   section.contains(_searchQuery) ||
                   teacher.contains(_searchQuery);
 
-              final matchesStatus = _statusFilter == 'all' ||
-                  status == _statusFilter;
+              final matchesStatus =
+                  _statusFilter == 'all' || status == _statusFilter;
 
               return matchesSearch && matchesStatus;
             }).toList();
@@ -1819,21 +1864,19 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
             // Summary row
             final activeCount = allClasses
                 .where((d) =>
-                    (d.data() as Map<String, dynamic>)['status'] !=
-                    'archived')
+                    (d.data() as Map<String, dynamic>)['status'] != 'archived')
                 .length;
             final totalStudents = allClasses.fold<int>(0, (sum, doc) {
               final data = doc.data() as Map<String, dynamic>;
-              return sum +
-                  ((data['enrolledStudentIds'] as List?)?.length ?? 0);
+              return sum + ((data['enrolledStudentIds'] as List?)?.length ?? 0);
             });
 
             return Column(
               children: [
                 // Stats bar
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -1842,8 +1885,7 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                       ],
                     ),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: _kAccentBlue.withOpacity(0.15)),
+                    border: Border.all(color: _kAccentBlue.withOpacity(0.15)),
                   ),
                   child: Row(
                     children: [
@@ -1921,11 +1963,13 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                         fontWeight: FontWeight.w700,
                                         fontSize: 12,
                                         color: _kSubtextColor))),
-                            SizedBox(width: 60, child: Text('Actions',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 12,
-                                    color: _kSubtextColor))),
+                            SizedBox(
+                                width: 60,
+                                child: Text('Actions',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 12,
+                                        color: _kSubtextColor))),
                           ],
                         ),
                       ),
@@ -1934,27 +1978,19 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1),
+                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final doc = filtered[index];
-                          final data =
-                              doc.data() as Map<String, dynamic>;
-                          final name = data['name'] as String? ??
-                              'Untitled';
-                          final section =
-                              data['sectionCode'] as String? ?? '';
+                          final data = doc.data() as Map<String, dynamic>;
+                          final name = data['name'] as String? ?? 'Untitled';
+                          final section = data['sectionCode'] as String? ?? '';
                           final teacherName =
-                              data['teacherName'] as String? ??
-                                  'Unknown';
+                              data['teacherName'] as String? ?? 'Unknown';
                           final studentCount =
-                              (data['enrolledStudentIds'] as List?)
-                                      ?.length ??
+                              (data['enrolledStudentIds'] as List?)?.length ??
                                   0;
-                          final status =
-                              data['status'] as String? ?? 'active';
-                          final classCode =
-                              data['classCode'] as String? ?? '';
+                          final status = data['status'] as String? ?? 'active';
+                          final classCode = data['classCode'] as String? ?? '';
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
@@ -1969,49 +2005,40 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                     children: [
                                       Text(name,
                                           style: const TextStyle(
-                                              fontWeight:
-                                                  FontWeight.w700)),
+                                              fontWeight: FontWeight.w700)),
                                       const SizedBox(height: 2),
                                       Row(
                                         children: [
                                           Text(section,
                                               style: const TextStyle(
                                                   fontSize: 12,
-                                                  color:
-                                                      _kSubtextColor)),
+                                                  color: _kSubtextColor)),
                                           if (classCode.isNotEmpty) ...[
                                             const SizedBox(width: 8),
                                             InkWell(
                                               onTap: () {
-                                                Clipboard.setData(
-                                                    ClipboardData(
-                                                        text:
-                                                            classCode));
-                                                ScaffoldMessenger.of(
-                                                        context)
+                                                Clipboard.setData(ClipboardData(
+                                                    text: classCode));
+                                                ScaffoldMessenger.of(context)
                                                     .showSnackBar(
                                                   SnackBar(
                                                     content: Text(
                                                         'Code "$classCode" copied!'),
-                                                    duration:
-                                                        const Duration(
-                                                            seconds: 2),
+                                                    duration: const Duration(
+                                                        seconds: 2),
                                                   ),
                                                 );
                                               },
                                               child: Container(
                                                 padding:
-                                                    const EdgeInsets
-                                                        .symmetric(
+                                                    const EdgeInsets.symmetric(
                                                         horizontal: 6,
                                                         vertical: 2),
-                                                decoration:
-                                                    BoxDecoration(
+                                                decoration: BoxDecoration(
                                                   color: _kAccentBlue
                                                       .withOpacity(0.1),
                                                   borderRadius:
-                                                      BorderRadius
-                                                          .circular(4),
+                                                      BorderRadius.circular(4),
                                                 ),
                                                 child: Row(
                                                   mainAxisSize:
@@ -2019,23 +2046,17 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                                   children: [
                                                     Text(
                                                       classCode,
-                                                      style:
-                                                          const TextStyle(
+                                                      style: const TextStyle(
                                                         fontSize: 10,
                                                         fontWeight:
-                                                            FontWeight
-                                                                .w700,
-                                                        color:
-                                                            _kAccentBlue,
+                                                            FontWeight.w700,
+                                                        color: _kAccentBlue,
                                                       ),
                                                     ),
-                                                    const SizedBox(
-                                                        width: 4),
-                                                    const Icon(
-                                                        Icons.copy,
+                                                    const SizedBox(width: 4),
+                                                    const Icon(Icons.copy,
                                                         size: 10,
-                                                        color:
-                                                            _kAccentBlue),
+                                                        color: _kAccentBlue),
                                                   ],
                                                 ),
                                               ),
@@ -2049,20 +2070,17 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                 Expanded(
                                   flex: 2,
                                   child: Text(teacherName,
-                                      style: const TextStyle(
-                                          fontSize: 13)),
+                                      style: const TextStyle(fontSize: 13)),
                                 ),
                                 Expanded(
                                   child: Row(
                                     children: [
                                       const Icon(Icons.people_alt_outlined,
-                                          size: 14,
-                                          color: _kSubtextColor),
+                                          size: 14, color: _kSubtextColor),
                                       const SizedBox(width: 4),
                                       Text('$studentCount',
                                           style: const TextStyle(
-                                              fontWeight:
-                                                  FontWeight.w600)),
+                                              fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
@@ -2073,12 +2091,10 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                 SizedBox(
                                   width: 60,
                                   child: PopupMenuButton<String>(
-                                    icon: const Icon(
-                                        Icons.more_vert,
+                                    icon: const Icon(Icons.more_vert,
                                         color: _kSubtextColor),
                                     shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     itemBuilder: (ctx) => [
                                       PopupMenuItem(
@@ -2106,20 +2122,15 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                         child: Row(
                                           children: [
                                             Icon(Icons.delete_outline,
-                                                size: 18,
-                                                color: Colors.red),
+                                                size: 18, color: Colors.red),
                                             SizedBox(width: 8),
                                             Text('Delete'),
                                           ],
                                         ),
                                       ),
                                     ],
-                                    onSelected: (value) =>
-                                        _handleClassAction(
-                                            context,
-                                            doc.id,
-                                            name,
-                                            value),
+                                    onSelected: (value) => _handleClassAction(
+                                        context, doc.id, name, value),
                                   ),
                                 ),
                               ],
@@ -2138,8 +2149,8 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
     );
   }
 
-  Future<void> _handleClassAction(
-      BuildContext context, String classId, String className, String action) async {
+  Future<void> _handleClassAction(BuildContext context, String classId,
+      String className, String action) async {
     if (action == 'archive' || action == 'activate') {
       final newStatus = action == 'archive' ? 'archived' : 'active';
       await FirebaseFirestore.instance
@@ -2350,9 +2361,7 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                     Colors.grey.shade500,
                     Colors.brown.shade400,
                   ];
-                  final color = isTop3
-                      ? medalColors[index]
-                      : _kNavColor;
+                  final color = isTop3 ? medalColors[index] : _kNavColor;
 
                   return ListTile(
                     leading: Container(
@@ -2374,8 +2383,7 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                       ),
                       child: Center(
                         child: isTop3
-                            ? Icon(Icons.emoji_events,
-                                color: color, size: 22)
+                            ? Icon(Icons.emoji_events, color: color, size: 22)
                             : Text(
                                 '${index + 1}',
                                 style: TextStyle(
@@ -2389,8 +2397,7 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                       data['studentName'] as String,
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle:
-                        Text('${data['quizCount']} quizzes taken'),
+                    subtitle: Text('${data['quizCount']} quizzes taken'),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 6),
@@ -2503,8 +2510,7 @@ class _ReportsContentState extends State<_ReportsContent> {
       }
 
       // Count global submissions
-      final quizSubmissions =
-          await db.collection('quiz_results').count().get();
+      final quizSubmissions = await db.collection('quiz_results').count().get();
       final assignmentSubmissions =
           await db.collection('submissions').count().get();
 
@@ -2564,8 +2570,7 @@ class _ReportsContentState extends State<_ReportsContent> {
                   const SizedBox(width: 10),
                   const Text(
                     'Platform Content Overview',
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                   ),
                   const Spacer(),
                   TextButton.icon(
@@ -2646,8 +2651,8 @@ class _ReportsContentState extends State<_ReportsContent> {
                     const SizedBox(width: 10),
                     const Text(
                       'Class-Level Breakdown',
-                      style: TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w900),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                     ),
                   ],
                 ),
@@ -2669,38 +2674,32 @@ class _ReportsContentState extends State<_ReportsContent> {
                     columns: const [
                       DataColumn(
                           label: Text('Class',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700))),
+                              style: TextStyle(fontWeight: FontWeight.w700))),
                       DataColumn(
                           label: Text('Teacher',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700))),
+                              style: TextStyle(fontWeight: FontWeight.w700))),
                       DataColumn(
                           label: Text('Students',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700)),
+                              style: TextStyle(fontWeight: FontWeight.w700)),
                           numeric: true),
                       DataColumn(
                           label: Text('Quizzes',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700)),
+                              style: TextStyle(fontWeight: FontWeight.w700)),
                           numeric: true),
                       DataColumn(
                           label: Text('Assignments',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700)),
+                              style: TextStyle(fontWeight: FontWeight.w700)),
                           numeric: true),
                       DataColumn(
                           label: Text('Modules',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700)),
+                              style: TextStyle(fontWeight: FontWeight.w700)),
                           numeric: true),
                     ],
                     rows: _classBreakdown.map((data) {
                       return DataRow(cells: [
                         DataCell(Text(data['className'] as String,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600))),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w600))),
                         DataCell(Text(data['teacherName'] as String)),
                         DataCell(Text('${data['studentCount']}')),
                         DataCell(
@@ -3004,8 +3003,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                                       horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: _kAccentBlue.withOpacity(0.1),
-                                    borderRadius:
-                                        BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
                                     role.toUpperCase(),
@@ -3065,8 +3063,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                   const SizedBox(width: 10),
                   const Text(
                     'Change Password',
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                   ),
                 ],
               ),
@@ -3083,8 +3080,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                 controller: _newPasswordController,
                 label: 'New Password',
                 obscure: _obscureNew,
-                onToggle: () =>
-                    setState(() => _obscureNew = !_obscureNew),
+                onToggle: () => setState(() => _obscureNew = !_obscureNew),
               ),
               const SizedBox(height: 12),
               _PasswordField(
@@ -3099,8 +3095,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                 width: 200,
                 height: 44,
                 child: ElevatedButton(
-                  onPressed:
-                      _isChangingPassword ? null : _changePassword,
+                  onPressed: _isChangingPassword ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _kNavColor,
                     foregroundColor: Colors.white,
@@ -3151,8 +3146,7 @@ class _SettingsContentState extends State<_SettingsContent> {
                   const SizedBox(width: 10),
                   const Text(
                     'Account',
-                    style: TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                   ),
                 ],
               ),
@@ -3180,17 +3174,15 @@ class _SettingsContentState extends State<_SettingsContent> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         title: const Text('Sign Out'),
-                        content: const Text(
-                            'Are you sure you want to sign out?'),
+                        content:
+                            const Text('Are you sure you want to sign out?'),
                         actions: [
                           TextButton(
-                            onPressed: () =>
-                                Navigator.pop(ctx, false),
+                            onPressed: () => Navigator.pop(ctx, false),
                             child: const Text('Cancel'),
                           ),
                           ElevatedButton(
-                            onPressed: () =>
-                                Navigator.pop(ctx, true),
+                            onPressed: () => Navigator.pop(ctx, true),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               foregroundColor: Colors.white,
@@ -3204,16 +3196,13 @@ class _SettingsContentState extends State<_SettingsContent> {
                       await FirebaseAuth.instance.signOut();
                       if (context.mounted) {
                         Navigator.of(context)
-                            .pushNamedAndRemoveUntil(
-                                '/', (route) => false);
+                            .pushNamedAndRemoveUntil('/', (route) => false);
                       }
                     }
                   },
-                  icon: const Icon(Icons.logout_rounded,
-                      color: Colors.red),
+                  icon: const Icon(Icons.logout_rounded, color: Colors.red),
                   label: const Text('Sign Out',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700)),
+                      style: TextStyle(fontWeight: FontWeight.w700)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),

@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../screens/student/student_quizzes_page.dart';
 import '../screens/student/student_assignments_page.dart';
 import '../screens/student/module_view_page.dart';
@@ -167,23 +170,35 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
                               ),
                             ),
                             // Class Code Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.amber.shade100,
-                                borderRadius: BorderRadius.circular(20),
-                                border:
-                                    Border.all(color: Colors.amber.shade300),
-                              ),
-                              child: Text(
-                                classCode,
-                                style: TextStyle(
-                                  color: Colors.amber.shade900,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
+                            InkWell(
+                              onTap: () => _showQRCodeDialog(context, classCode),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade100,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border:
+                                      Border.all(color: Colors.amber.shade300),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.qr_code,
+                                        size: 14, color: Colors.amber.shade900),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      classCode,
+                                      style: TextStyle(
+                                        color: Colors.amber.shade900,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -512,5 +527,120 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
         ),
       );
     }
+  }
+
+  void _copyClassCode(BuildContext context, String classCode) {
+    if (classCode.isEmpty || classCode == 'N/A') return;
+    Clipboard.setData(ClipboardData(text: classCode));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Class code "$classCode" copied!'),
+        backgroundColor: Colors.green.shade700,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _shareQRCode(String classCode) async {
+    if (classCode.isEmpty || classCode == 'N/A') return;
+    // ignore: deprecated_member_use
+    await Share.share(
+      'Join my ICTeach class using Class Code: $classCode',
+      subject: 'ICTeach Class Code',
+    );
+  }
+
+  Widget _buildQRCode(BuildContext context, String classCode) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Class QR Code',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Scan to join class',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: QrImageView(
+                data: classCode,
+                version: QrVersions.auto,
+                size: 200,
+                gapless: false,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Class Code: $classCode',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _copyClassCode(context, classCode),
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copy Code'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _shareQRCode(classCode),
+                    icon: const Icon(Icons.share),
+                    label: const Text('Share'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF428DEB),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showQRCodeDialog(BuildContext context, String classCode) {
+    showDialog(
+      context: context,
+      builder: (context) => _buildQRCode(context, classCode),
+    );
   }
 }

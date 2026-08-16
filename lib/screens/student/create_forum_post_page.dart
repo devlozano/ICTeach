@@ -1,7 +1,9 @@
-// screens/student/create_forum_post_page.dart
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../models/forum_model.dart';
 import '../../services/forum_service.dart';
 
@@ -25,6 +27,17 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
   final _contentController = TextEditingController();
   bool _isLoading = false;
   final ForumService _forumService = ForumService();
+  final List<File> _selectedImages = [];
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage();
+    if (images.isNotEmpty) {
+      setState(() {
+        _selectedImages.addAll(images.map((x) => File(x.path)));
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -33,9 +46,25 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
     super.dispose();
   }
 
-  // In create_forum_post_page.dart, update the _createPost method:
+  Future<List<String>> _uploadSelectedImages() async {
+    if (_selectedImages.isEmpty) return const [];
 
-// In create_forum_post_page.dart, update the success message:
+    final storage = FirebaseStorage.instance;
+    final List<String> urls = [];
+
+    for (int i = 0; i < _selectedImages.length; i++) {
+      final file = _selectedImages[i];
+      final ref = storage.ref().child(
+            'classes/${widget.classId}/forum_posts/${DateTime.now().millisecondsSinceEpoch}_$i.jpg',
+          );
+
+      final uploadTask = await ref.putFile(file);
+      final url = await uploadTask.ref.getDownloadURL();
+      urls.add(url);
+    }
+
+    return urls;
+  }
 
   Future<void> _createPost() async {
     if (!_formKey.currentState!.validate()) return;
@@ -54,12 +83,13 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
           .doc(user.uid)
           .get();
 
-      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      final userData = userDoc.data() ?? {};
       final authorName = userData['displayName']?.toString() ??
           userData['name']?.toString() ??
           user.displayName ??
           'Student';
       final authorRole = userData['role']?.toString() ?? 'student';
+      final imageUrls = await _uploadSelectedImages();
 
       final post = ForumPost(
         id: '',
@@ -69,6 +99,7 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
         authorId: user.uid,
         authorName: authorName,
         authorRole: authorRole,
+        imageUrls: imageUrls,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         likeCount: 0,
@@ -194,6 +225,55 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // Image Picker Row
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: _pickImages,
+                    icon: const Icon(Icons.image, color: Color(0xFF0B2B4A)),
+                    tooltip: 'Add Image',
+                  ),
+                  if (_selectedImages.isNotEmpty)
+                    Expanded(
+                      child: SizedBox(
+                        height: 80,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          itemBuilder: (context, index) {
+                            return Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              width: 80,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                image: DecorationImage(
+                                  image: FileImage(_selectedImages[index]),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: IconButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedImages.removeAt(index);
+                                    });
+                                  },
+                                  icon: const Icon(Icons.close,
+                                      color: Colors.red, size: 16),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 16),
 

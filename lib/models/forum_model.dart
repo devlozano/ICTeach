@@ -9,6 +9,7 @@ class ForumPost {
   final String authorId;
   final String authorName;
   final String authorRole; // 'teacher', 'trainer', 'student'
+  final List<String> imageUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int likeCount;
@@ -24,6 +25,7 @@ class ForumPost {
     required this.authorId,
     required this.authorName,
     required this.authorRole,
+    this.imageUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.likeCount = 0,
@@ -42,6 +44,7 @@ class ForumPost {
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? 'Unknown',
       authorRole: data['authorRole'] ?? 'student',
+      imageUrls: List<String>.from(data['imageUrls'] ?? []),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       likeCount: data['likeCount'] ?? 0,
@@ -59,6 +62,7 @@ class ForumPost {
       'authorId': authorId,
       'authorName': authorName,
       'authorRole': authorRole,
+      'imageUrls': imageUrls,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'likeCount': likeCount,
@@ -76,6 +80,7 @@ class ForumPost {
     String? authorId,
     String? authorName,
     String? authorRole,
+    List<String>? imageUrls,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? likeCount,
@@ -91,6 +96,7 @@ class ForumPost {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorRole: authorRole ?? this.authorRole,
+      imageUrls: imageUrls ?? this.imageUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       likeCount: likeCount ?? this.likeCount,

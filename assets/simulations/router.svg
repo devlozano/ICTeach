@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="18" fill="#DBEAFE"/>
+  <rect x="24" y="40" width="80" height="52" rx="12" fill="#3B82F6"/>
+  <circle cx="44" cy="66" r="8" fill="#EFF6FF"/>
+  <circle cx="64" cy="66" r="8" fill="#EFF6FF"/>
+  <circle cx="84" cy="66" r="8" fill="#EFF6FF"/>
+  <text x="64" y="108" font-size="16" text-anchor="middle" fill="#1E3A8A" font-family="Arial, sans-serif" font-weight="700">ROUTER</text>
+</svg>

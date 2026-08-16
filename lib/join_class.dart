@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class JoinClassPage extends StatefulWidget {
   const JoinClassPage({super.key});
@@ -12,11 +14,120 @@ class JoinClassPage extends StatefulWidget {
 class _JoinClassPageState extends State<JoinClassPage> {
   final TextEditingController _classCodeController = TextEditingController();
   bool _isLoading = false;
+  final MobileScannerController _scannerController = MobileScannerController(
+    autoStart: false,
+    detectionSpeed: DetectionSpeed.normal,
+    facing: CameraFacing.back,
+    formats: [BarcodeFormat.qrCode],
+  );
 
   @override
   void dispose() {
     _classCodeController.dispose();
+    _scannerController.dispose();
     super.dispose();
+  }
+
+  void _applyScannedCode(String? rawValue) {
+    final value = rawValue?.trim();
+    if (value == null || value.isEmpty) return;
+
+    final normalized = value.toUpperCase();
+    final validCode = normalized.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+    if (validCode.length != 7) {
+      _showMessage('This QR code is not a valid class code.');
+      return;
+    }
+
+    _classCodeController.text = validCode;
+    _classCodeController.selection = TextSelection.collapsed(
+      offset: _classCodeController.text.length,
+    );
+    setState(() {});
+  }
+
+  Future<void> _openScanner() async {
+    if (!mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) {
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          if (!mounted) return;
+          try {
+            await _scannerController.start();
+          } catch (_) {
+            // Ignore startup races while the controller initializes.
+          }
+        });
+
+        return Container(
+          height: MediaQuery.of(modalContext).size.height * 0.82,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Scan class QR code',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0B2B4A),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        _scannerController.stop();
+                        Navigator.of(modalContext).pop();
+                      },
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: MobileScanner(
+                  controller: _scannerController,
+                  fit: BoxFit.contain,
+                  onDetect: (capture) {
+                    if (!mounted) return;
+
+                    final barcode = capture.barcodes.firstOrNull;
+                    final rawValue = barcode?.rawValue;
+
+                    if (rawValue == null || rawValue.isEmpty) {
+                      return;
+                    }
+
+                    _applyScannedCode(rawValue);
+                    _scannerController.stop();
+                    if (mounted) {
+                      Navigator.of(modalContext).pop();
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (mounted) {
+      _scannerController.stop();
+    }
   }
 
   Future<void> _joinClass() async {
@@ -74,7 +185,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
       String userEmail = user.email ?? '';
 
       if (userDoc.exists) {
-        userData = userDoc.data() as Map<String, dynamic>? ?? {};
+        userData = userDoc.data() ?? {};
         userRole = userData['role']?.toString() ?? 'student';
         userName = userData['name']?.toString() ??
             userData['displayName']?.toString() ??
@@ -89,7 +200,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
             .get();
 
         if (studentDoc.exists) {
-          final studentData = studentDoc.data() as Map<String, dynamic>? ?? {};
+          final studentData = studentDoc.data() ?? {};
           userRole = studentData['role']?.toString() ?? 'student';
           userName = studentData['name']?.toString() ??
               studentData['displayName']?.toString() ??
@@ -114,7 +225,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          print('✅ Created user document from students collection');
+          debugPrint('✅ Created user document from students collection');
         } else {
           // ✅ Create minimal user document
           await FirebaseFirestore.instance
@@ -129,7 +240,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
             'createdAt': FieldValue.serverTimestamp(),
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          print('✅ Created minimal user document');
+          debugPrint('✅ Created minimal user document');
         }
       }
 
@@ -160,9 +271,9 @@ class _JoinClassPageState extends State<JoinClassPage> {
       final teacherEmail = classData['teacherEmail']?.toString() ?? '';
       final schoolYear = classData['schoolYear']?.toString() ?? '';
 
-      print('👤 User joining class: $userName');
-      print('👤 User role: $userRole');
-      print('📚 Class: $className');
+      debugPrint('👤 User joining class: $userName');
+      debugPrint('👤 User role: $userRole');
+      debugPrint('📚 Class: $className');
 
       // ✅ STEP 1: Add user to class's students subcollection
       await FirebaseFirestore.instance
@@ -179,7 +290,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
         'status': 'active',
       });
 
-      print('✅ Added user to class subcollection with role: $userRole');
+      debugPrint('✅ Added user to class subcollection with role: $userRole');
 
       // ✅ STEP 2: Update enrolledStudentIds array in class document
       await classDoc.reference.update({
@@ -187,7 +298,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ Updated enrolledStudentIds array');
+      debugPrint('✅ Updated enrolledStudentIds array');
 
       // ✅ STEP 3: Store ALL class data in user's subcollection
       await FirebaseFirestore.instance
@@ -209,7 +320,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
         'status': 'active',
       });
 
-      print('✅ Added class to user\'s subcollection');
+      debugPrint('✅ Added class to user\'s subcollection');
 
       // ✅ STEP 4: Update the user's main document with class info
       await FirebaseFirestore.instance
@@ -221,7 +332,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
         'currentTeacherName': teacherName,
         'updatedAt': FieldValue.serverTimestamp(),
       });
-      print('✅ Updated user main document');
+      debugPrint('✅ Updated user main document');
 
       // ✅ STEP 5: Also update students collection if it exists
       final studentDocCheck = await FirebaseFirestore.instance
@@ -239,7 +350,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
           'currentTeacherName': teacherName,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-        print('✅ Updated students collection');
+        debugPrint('✅ Updated students collection');
       }
 
       if (!mounted) return;
@@ -277,7 +388,7 @@ class _JoinClassPageState extends State<JoinClassPage> {
 
       Navigator.pop(context, true);
     } catch (error) {
-      print("❌ Error joining class: $error");
+      debugPrint("❌ Error joining class: $error");
       _showMessage("Failed to join class: $error");
     } finally {
       if (mounted) {
@@ -377,6 +488,11 @@ class _JoinClassPageState extends State<JoinClassPage> {
                         labelText: "Class Code",
                         hintText: "Enter 7-character code (e.g., ABC1234)",
                         prefixIcon: const Icon(Icons.key),
+                        suffixIcon: IconButton(
+                          onPressed: _openScanner,
+                          icon: const Icon(Icons.qr_code_scanner_rounded),
+                          tooltip: 'Scan QR code',
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -398,7 +514,6 @@ class _JoinClassPageState extends State<JoinClassPage> {
                       textCapitalization: TextCapitalization.characters,
                       maxLength: 7,
                       onChanged: (value) {
-                        // Auto-uppercase
                         if (value != value.toUpperCase()) {
                           _classCodeController.value = TextEditingValue(
                             text: value.toUpperCase(),
@@ -407,8 +522,49 @@ class _JoinClassPageState extends State<JoinClassPage> {
                             ),
                           );
                         }
+                        setState(() {});
                       },
                     ),
+                    const SizedBox(height: 16),
+                    if (_classCodeController.text.trim().isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Join Code QR',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              QrImageView(
+                                data: _classCodeController.text
+                                    .trim()
+                                    .toUpperCase(),
+                                version: QrVersions.auto,
+                                size: 180,
+                                backgroundColor: Colors.white,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _classCodeController.text.trim().toUpperCase(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 24),
 
                     // Join Button

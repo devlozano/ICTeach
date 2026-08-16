@@ -1,21 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class ManageTrainersPage extends StatelessWidget {
-  const ManageTrainersPage({super.key});
+class ManageTeachersPage extends StatelessWidget {
+  const ManageTeachersPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Trainers'),
+        title: const Text('Manage Teachers'),
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              // Show create trainer dialog
+              // Show create teacher dialog
             },
           ),
         ],
@@ -23,7 +23,7 @@ class ManageTrainersPage extends StatelessWidget {
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
-            .where('role', isEqualTo: 'trainer')
+            .where('role', isEqualTo: 'teacher')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -33,7 +33,7 @@ class ManageTrainersPage extends StatelessWidget {
           final docs = snapshot.data?.docs ?? [];
           if (docs.isEmpty) {
             return const Center(
-              child: Text('No trainers found.'),
+              child: Text('No teachers found.'),
             );
           }
 
@@ -42,8 +42,8 @@ class ManageTrainersPage extends StatelessWidget {
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
               return ListTile(
-                leading: const CircleAvatar(child: Icon(Icons.verified_user)),
-                title: Text(data['name'] ?? data['displayName'] ?? 'Trainer'),
+                leading: const CircleAvatar(child: Icon(Icons.person)),
+                title: Text(data['name'] ?? data['displayName'] ?? 'Teacher'),
                 subtitle: Text(data['email'] ?? ''),
               );
             },
