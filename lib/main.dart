@@ -61,7 +61,7 @@ class MyApp extends StatelessWidget {
       builder: (context, child) => OfflineIndicator(child: child!),
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xffF8FAFC),
-        pageTransitionsTheme: const PageTransitionsTheme(
+        pageTransitionsTheme: PageTransitionsTheme(
           builders: {
             TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
             TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),

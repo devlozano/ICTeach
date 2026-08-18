@@ -23,7 +23,7 @@ jobs:
         run: flutter pub get
 
       - name: Build Flutter web
-        run: flutter build web --release --no-tree-shake-icons
+        run: flutter build web --release --no-tree-shake-icons --no-wasm-dry-run
 
       - name: Add Hostinger .htaccess for SPA routing
         run: |
