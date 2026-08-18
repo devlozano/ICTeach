@@ -1,4 +1,4 @@
-name: Deploy Flutter Web to Hostinger
+name: Build and Deploy Flutter Web
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Flutter
@@ -24,10 +24,10 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build Flutter web
+      - name: Build Flutter Web
         run: flutter build web --release --no-tree-shake-icons --no-wasm-dry-run
 
-      - name: Add Hostinger .htaccess for SPA routing
+      - name: Add .htaccess
         run: |
           cat > build/web/.htaccess <<'EOF'
           <IfModule mod_rewrite.c>
@@ -39,20 +39,20 @@ jobs:
             RewriteRule . /index.html [L]
           </IfModule>
           EOF
-          ls -la build/web
 
-      - name: Deploy to Hostinger via FTP
+      - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          # Use the actual FTP hostname from Hostinger, for example: ftp.yourdomain.com or ftpupload.net
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
+          protocol: ftps
           port: 21
           server-dir: /public_html/
           local-dir: ./build/web/
           log-level: verbose
+          security: strict
+          timeout: 60000
           exclude: |
             **/.git*
             **/.git*/**
