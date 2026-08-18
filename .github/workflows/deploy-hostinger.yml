@@ -43,6 +43,8 @@ jobs:
       - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
+          # Hostinger FTP endpoint is an IP-based server; the certificate is issued for a host under hstgr.io,
+          # so loose validation is required when using the raw IP from the hosting account.
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
@@ -51,7 +53,7 @@ jobs:
           server-dir: /public_html/
           local-dir: ./build/web/
           log-level: verbose
-          security: strict
+          security: loose
           timeout: 60000
           exclude: |
             **/.git*
