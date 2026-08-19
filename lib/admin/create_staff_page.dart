@@ -10,7 +10,7 @@ class CreateStaffPage extends StatefulWidget {
   const CreateStaffPage({super.key, required this.selectedRole});
 
   @override
-  State<CreateStaffPage> createState() => _CreateStaffPageState();
+  State<CreateStaffPages> createState() => _CreateStaffPageState();
 }
 
 class _CreateStaffPageState extends State<CreateStaffPage> {
