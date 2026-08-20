@@ -26,8 +26,11 @@ class SimulationPage extends StatefulWidget {
 
 class _SimulationPageState extends State<SimulationPage> {
   sim_models.Simulation? _simulation;
+  List<sim_models.Simulation> _prerequisites = [];
   bool _isLoading = true;
   bool _hasStarted = false;
+  bool _isCompleted = false;
+  bool _prerequisiteCompleted = true;
 
   @override
   void initState() {
@@ -36,6 +39,7 @@ class _SimulationPageState extends State<SimulationPage> {
   }
 
   Future<void> _loadSimulation() async {
+    sim_models.Simulation? simulation;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('classes')
@@ -43,19 +47,51 @@ class _SimulationPageState extends State<SimulationPage> {
           .collection('simulations')
           .doc(widget.simulationId)
           .get();
-
-      if (doc.exists) {
-        setState(() {
-          _simulation = sim_models.Simulation.fromFirestore(doc);
-          _isLoading = false;
-        });
-        return;
-      }
+      if (doc.exists) simulation = sim_models.Simulation.fromFirestore(doc);
     } catch (_) {}
 
-    final simulation = SimulationData.getSimulationById(widget.simulationId);
+    simulation ??= SimulationData.getSimulationById(widget.simulationId);
+    var completed = false;
+    var prerequisiteCompleted = true;
+    final prerequisites = simulation == null
+        ? <sim_models.Simulation>[]
+        : SimulationData.getPrerequisiteChain(simulation.id);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && simulation != null) {
+      try {
+        final progressRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('simulation_progress');
+        final progress = await progressRef
+            .doc('${widget.classId}_${simulation.id}')
+            .get();
+        completed =
+            progress.data()?['completed'] == true &&
+            progress.data()?['passed'] == true;
+
+        if (simulation.requiredSimulationId != null) {
+          final requiredProgress = await progressRef
+              .doc('${widget.classId}_${simulation.requiredSimulationId}')
+              .get();
+          prerequisiteCompleted =
+              requiredProgress.data()?['completed'] == true &&
+              requiredProgress.data()?['passed'] == true;
+        }
+      } catch (_) {
+        prerequisiteCompleted = simulation.requiredSimulationId == null;
+      }
+    } else {
+      prerequisiteCompleted = simulation?.requiredSimulationId == null;
+    }
+
+    if (!mounted) return;
     setState(() {
       _simulation = simulation;
+      _prerequisites = prerequisites;
+      _isCompleted = completed;
+      _prerequisiteCompleted = prerequisiteCompleted;
       _isLoading = false;
     });
   }
@@ -63,24 +99,11 @@ class _SimulationPageState extends State<SimulationPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          backgroundColor: const Color(0xFF0B2B4A),
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return _scaffold(const Center(child: CircularProgressIndicator()));
     }
-
     if (_simulation == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          backgroundColor: const Color(0xFF0B2B4A),
-          foregroundColor: Colors.white,
-        ),
-        body: const Center(
+      return _scaffold(
+        const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -91,65 +114,32 @@ class _SimulationPageState extends State<SimulationPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),
-              Text(
-                'Please try again later.',
-                style: TextStyle(color: Colors.grey),
-              ),
+              Text('Please try again later.'),
             ],
           ),
         ),
       );
     }
-
-    if (!_hasStarted) {
-      return _buildStartPage();
-    }
+    if (_isCompleted) return _buildCompletedPage();
+    if (!_hasStarted) return _buildStartPage();
 
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
-      appBar: AppBar(
-        title: Text(widget.className != null
-            ? '${widget.title} • ${widget.className}'
-            : widget.title),
-        backgroundColor: const Color(0xFF0B2B4A),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.help_outline),
-            onPressed: _showHelp,
-            tooltip: 'Help',
-          ),
-        ],
-      ),
+      appBar: _appBar(_simulation!.title, showHelp: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+            _notice(Icons.info_outline, _getInstructionText(), Colors.blue),
+            if (_prerequisites.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _notice(
+                Icons.lock,
+                'Prerequisites: ${_prerequisites.map((item) => item.title).join(' -> ')}',
+                Colors.orange,
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Drag and drop the components to their correct positions. '
-                      'You need ${_simulation!.passingScore}% to pass.',
-                      style: TextStyle(
-                        color: Colors.blue.shade800,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            ],
             const SizedBox(height: 16),
             DragDropSimulation(
               simulation: _simulation!,
@@ -161,18 +151,55 @@ class _SimulationPageState extends State<SimulationPage> {
     );
   }
 
+  Scaffold _scaffold(Widget body) =>
+      Scaffold(appBar: _appBar(widget.title), body: body);
+
+  AppBar _appBar(String title, {bool showHelp = false}) => AppBar(
+    title: Text(
+      widget.className == null ? title : '$title • ${widget.className}',
+    ),
+    backgroundColor: const Color(0xFF0B2B4A),
+    foregroundColor: Colors.white,
+    automaticallyImplyLeading: !_isCompleted,
+    actions: showHelp
+        ? [
+            IconButton(
+              icon: const Icon(Icons.help_outline),
+              onPressed: _showHelp,
+              tooltip: 'Help',
+            ),
+          ]
+        : null,
+  );
+
+  Widget _notice(IconData icon, String text, MaterialColor color) => Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: color.shade50,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.shade200),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: color.shade700),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(color: color.shade800, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
+
   Widget _buildStartPage() {
+    final locked = _isLocked();
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
-      appBar: AppBar(
-        title: Text(widget.className != null
-            ? '${widget.title} • ${widget.className}'
-            : widget.title),
-        backgroundColor: const Color(0xFF0B2B4A),
-        foregroundColor: Colors.white,
-      ),
+      appBar: _appBar(_simulation!.title),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -181,13 +208,13 @@ class _SimulationPageState extends State<SimulationPage> {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade100,
+                  color: _competencyColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   _getSimulationIcon(_simulation!.type),
                   size: 60,
-                  color: Colors.blue.shade700,
+                  color: _competencyColor,
                 ),
               ),
               const SizedBox(height: 24),
@@ -202,34 +229,46 @@ class _SimulationPageState extends State<SimulationPage> {
               const SizedBox(height: 8),
               Text(
                 _simulation!.description,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
                     _buildInfoRow('Competency', _simulation!.competency),
                     _buildInfoRow(
-                        'Learning Outcome', _simulation!.learningOutcome),
+                      'Learning Outcome',
+                      _simulation!.learningOutcome,
+                    ),
                     _buildInfoRow(
-                        'Items to Place', '${_simulation!.items.length}'),
+                      'Items to Place',
+                      '${_simulation!.items.length}',
+                    ),
                     _buildInfoRow(
-                        'Time Limit', '${_simulation!.timeLimit} minutes'),
+                      'Time Limit',
+                      '${_simulation!.timeLimit} minutes',
+                    ),
                     _buildInfoRow(
-                        'Passing Score', '${_simulation!.passingScore}%'),
+                      'Passing Score',
+                      '${_simulation!.passingScore}%',
+                    ),
                     if (_simulation!.requiredSimulationId != null)
                       _buildInfoRow(
                         'Requirement',
-                        'Complete previous simulation first',
+                        'Complete: ${_getPrerequisiteName()}',
                         warning: true,
                       ),
                   ],
@@ -239,13 +278,11 @@ class _SimulationPageState extends State<SimulationPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _simulation!.isLocked
+                  onPressed: locked
                       ? null
-                      : () {
-                          setState(() => _hasStarted = true);
-                        },
+                      : () => setState(() => _hasStarted = true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _simulation!.isLocked
+                    backgroundColor: locked
                         ? Colors.grey
                         : const Color(0xFF0B2B4A),
                     foregroundColor: Colors.white,
@@ -255,7 +292,7 @@ class _SimulationPageState extends State<SimulationPage> {
                     ),
                   ),
                   child: Text(
-                    _simulation!.isLocked ? '🔒 Locked' : 'Start Simulation',
+                    locked ? 'Locked' : 'Start Simulation',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -263,11 +300,12 @@ class _SimulationPageState extends State<SimulationPage> {
                   ),
                 ),
               ),
-              if (_simulation!.isLocked) ...[
+              if (locked) ...[
                 const SizedBox(height: 8),
                 const Text(
                   'Complete the required simulation first to unlock this.',
                   style: TextStyle(color: Colors.grey, fontSize: 13),
+                  textAlign: TextAlign.center,
                 ),
               ],
               const SizedBox(height: 16),
@@ -282,68 +320,110 @@ class _SimulationPageState extends State<SimulationPage> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool warning = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-            ),
-          ),
-          const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: warning ? Colors.orange : Colors.black87,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHelp() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('How to Play'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildCompletedPage() => Scaffold(
+    backgroundColor: const Color(0xffF8FAFC),
+    appBar: _appBar(_simulation!.title),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('1. Drag a component from the bottom'),
-            const SizedBox(height: 4),
-            const Text('2. Drop it onto the correct target area'),
-            const SizedBox(height: 4),
-            const Text('3. All components must be placed'),
-            const SizedBox(height: 4),
-            Text('4. Get at least ${_simulation!.passingScore}% to pass'),
+            const Icon(Icons.check_circle, size: 80, color: Colors.green),
+            const SizedBox(height: 16),
+            const Text(
+              'Simulation Completed!',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your progress for "${_simulation!.title}" has been saved.',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => setState(() {
+                      _hasStarted = false;
+                      _isCompleted = false;
+                    }),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Back to List'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0B2B4A),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it!'),
-          ),
-        ],
       ),
-    );
-  }
+    ),
+  );
+
+  Widget _buildInfoRow(String label, String value, {bool warning = false}) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            const Spacer(),
+            Flexible(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: warning ? Colors.orange : Colors.black87,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  void _showHelp() => showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('How to Play'),
+      content: Text(
+        '1. Drag an item from the available components.\n\n2. Drop it onto the correct target.\n\n3. Place all items.\n\n4. Score at least ${_simulation!.passingScore}% to pass.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Got it'),
+        ),
+      ],
+    ),
+  );
 
   void _onComplete(int score, int total, bool passed) {
+    if (passed && mounted) setState(() => _isCompleted = true);
     _saveProgress(score, total, passed);
   }
 
   Future<void> _saveProgress(int score, int total, bool passed) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
     try {
       await FirebaseFirestore.instance
           .collection('users')
@@ -351,18 +431,49 @@ class _SimulationPageState extends State<SimulationPage> {
           .collection('simulation_progress')
           .doc('${widget.classId}_${widget.simulationId}')
           .set({
-        'classId': widget.classId,
-        'simulationId': widget.simulationId,
-        'score': score,
-        'total': total,
-        'percentage': (score / total * 100).round(),
-        'passed': passed,
-        'completed': true,
-        'completedAt': FieldValue.serverTimestamp(),
-        'attempts': FieldValue.increment(1),
-      }, SetOptions(merge: true));
+            'classId': widget.classId,
+            'simulationId': widget.simulationId,
+            'score': score,
+            'total': total,
+            'percentage': total == 0 ? 0 : (score / total * 100).round(),
+            'passed': passed,
+            'completed': passed,
+            'completedAt': passed ? FieldValue.serverTimestamp() : null,
+            'attempts': FieldValue.increment(1),
+          }, SetOptions(merge: true));
+      if (passed) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('completed_content')
+            .doc(widget.simulationId)
+            .set({
+              'classId': widget.classId,
+              'contentId': widget.simulationId,
+              'completedAt': FieldValue.serverTimestamp(),
+            });
+      }
+      if (mounted && passed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Progress saved!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (_) {}
   }
+
+  String _getInstructionText() =>
+      'Drag and drop each item to its correct position. You need ${_simulation!.passingScore}% to pass.';
+  bool _isLocked() => _simulation!.isLocked || !_prerequisiteCompleted;
+  String _getPrerequisiteName() =>
+      SimulationData.getSimulationById(
+        _simulation!.requiredSimulationId ?? '',
+      )?.title ??
+      'Previous simulation';
+  Color get _competencyColor =>
+      _simulation!.competency == 'COC1' ? Colors.blue : Colors.green;
 
   IconData _getSimulationIcon(String type) {
     switch (type) {

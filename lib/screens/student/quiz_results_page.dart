@@ -51,10 +51,7 @@ class QuizResultsPage extends StatelessWidget {
                 children: [
                   const Text(
                     'Your Score',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -86,10 +83,7 @@ class QuizResultsPage extends StatelessWidget {
                     ),
                     child: Text(
                       'Time spent: ${_formatTime(result.timeSpent)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
                 ],
@@ -100,10 +94,7 @@ class QuizResultsPage extends StatelessWidget {
             // Summary
             const Text(
               'Review Answers',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
 
@@ -127,7 +118,7 @@ class QuizResultsPage extends StatelessWidget {
                 question: question,
                 userAnswer: userAnswer,
               );
-            }).toList(),
+            }),
 
             const SizedBox(height: 20),
 
@@ -149,10 +140,7 @@ class QuizResultsPage extends StatelessWidget {
                 ),
                 child: const Text(
                   'Done',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -203,8 +191,9 @@ class _AnswerReviewCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color:
-                      isCorrect ? Colors.green.shade100 : Colors.red.shade100,
+                  color: isCorrect
+                      ? Colors.green.shade100
+                      : Colors.red.shade100,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Icon(
@@ -217,9 +206,7 @@ class _AnswerReviewCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Q${index + 1}: ${question.text}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],

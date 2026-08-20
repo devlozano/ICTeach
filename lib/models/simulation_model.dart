@@ -7,6 +7,8 @@ class DraggableItem {
   final String imageUrl;
   final String correctSlot;
   final String category;
+  final int step;
+  final String tooltip;
 
   DraggableItem({
     required this.id,
@@ -15,25 +17,31 @@ class DraggableItem {
     required this.imageUrl,
     required this.correctSlot,
     required this.category,
+    this.step = 0,
+    this.tooltip = '',
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'imageUrl': imageUrl,
-        'correctSlot': correctSlot,
-        'category': category,
-      };
+    'id': id,
+    'name': name,
+    'description': description,
+    'imageUrl': imageUrl,
+    'correctSlot': correctSlot,
+    'category': category,
+    'step': step,
+    'tooltip': tooltip,
+  };
 
   factory DraggableItem.fromJson(Map<String, dynamic> json) => DraggableItem(
-        id: json['id']?.toString() ?? '',
-        name: json['name']?.toString() ?? '',
-        description: json['description']?.toString() ?? '',
-        imageUrl: json['imageUrl']?.toString() ?? '',
-        correctSlot: json['correctSlot']?.toString() ?? '',
-        category: json['category']?.toString() ?? '',
-      );
+    id: json['id']?.toString() ?? '',
+    name: json['name']?.toString() ?? '',
+    description: json['description']?.toString() ?? '',
+    imageUrl: json['imageUrl']?.toString() ?? '',
+    correctSlot: json['correctSlot']?.toString() ?? '',
+    category: json['category']?.toString() ?? '',
+    step: json['step'] is int ? json['step'] as int : 0,
+    tooltip: json['tooltip']?.toString() ?? '',
+  );
 }
 
 class Simulation {

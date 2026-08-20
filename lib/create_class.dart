@@ -48,7 +48,7 @@ class _CreateClassPageState extends State<CreateClassPage> {
       attempts++;
       if (attempts > 10) {
         // If we can't generate a unique code after 10 attempts, add timestamp
-        code = '${code}${DateTime.now().millisecondsSinceEpoch % 1000}';
+        code = '$code${DateTime.now().millisecondsSinceEpoch % 1000}';
         break;
       }
     } while (!isUnique);

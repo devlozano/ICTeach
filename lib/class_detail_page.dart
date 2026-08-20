@@ -30,7 +30,6 @@ class ClassDetailPage extends StatefulWidget {
 
 class _ClassDetailPageState extends State<ClassDetailPage> {
   String? _userRole;
-  bool _isLoading = true;
 
   @override
   void initState() {
@@ -47,18 +46,14 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
             .doc(user.uid)
             .get();
         if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>?;
+          final data = doc.data();
           setState(() {
             _userRole = data?['role']?.toString() ?? 'student';
-            _isLoading = false;
           });
         }
       } catch (e) {
         print('Error getting user role: $e');
-        setState(() => _isLoading = false);
       }
-    } else {
-      setState(() => _isLoading = false);
     }
   }
 
@@ -137,8 +132,9 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF428DEB)
-                                    .withValues(alpha: 0.1),
+                                color: const Color(
+                                  0xFF428DEB,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
@@ -171,7 +167,8 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
                             ),
                             // Class Code Badge
                             InkWell(
-                              onTap: () => _showQRCodeDialog(context, classCode),
+                              onTap: () =>
+                                  _showQRCodeDialog(context, classCode),
                               borderRadius: BorderRadius.circular(20),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -181,14 +178,18 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
                                 decoration: BoxDecoration(
                                   color: Colors.amber.shade100,
                                   borderRadius: BorderRadius.circular(20),
-                                  border:
-                                      Border.all(color: Colors.amber.shade300),
+                                  border: Border.all(
+                                    color: Colors.amber.shade300,
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.qr_code,
-                                        size: 14, color: Colors.amber.shade900),
+                                    Icon(
+                                      Icons.qr_code,
+                                      size: 14,
+                                      color: Colors.amber.shade900,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       classCode,
@@ -395,10 +396,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
   void _navigateToForum() {
     NavigationService.navigateTo(
       context,
-      ForumsPage(
-        classId: widget.classId,
-        className: widget.className,
-      ),
+      ForumsPage(classId: widget.classId, className: widget.className),
     );
   }
 
@@ -498,8 +496,8 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
           .collection('classes')
           .doc(widget.classId)
           .update({
-        'enrolledStudentIds': FieldValue.arrayRemove([user.uid]),
-      });
+            'enrolledStudentIds': FieldValue.arrayRemove([user.uid]),
+          });
 
       await FirebaseFirestore.instance
           .collection('users')
@@ -552,9 +550,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
 
   Widget _buildQRCode(BuildContext context, String classCode) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -562,10 +558,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
           children: [
             const Text(
               'Class QR Code',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(

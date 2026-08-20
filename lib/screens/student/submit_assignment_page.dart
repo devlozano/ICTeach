@@ -1,11 +1,7 @@
-import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
-import '../../services/network_service.dart';
 
 class SubmitAssignmentPage extends StatefulWidget {
   final String classId;

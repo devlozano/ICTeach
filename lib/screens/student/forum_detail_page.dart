@@ -26,7 +26,6 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
   ForumPost? _post;
   bool _isPostLoaded = false;
   String? _currentUserId;
-  String? _currentUserRole;
 
   @override
   void initState() {
@@ -45,25 +44,15 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUserId = user.uid;
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get()
-          .then((doc) {
-        if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>?;
-          setState(() {
-            _currentUserRole = data?['role']?.toString() ?? 'student';
-          });
-        }
-      });
     }
   }
 
   Future<void> _loadPost() async {
     try {
-      final post =
-          await _forumService.getForumPost(widget.classId, widget.postId);
+      final post = await _forumService.getForumPost(
+        widget.classId,
+        widget.postId,
+      );
 
       // Ensure the author role is correctly set
       if (post.authorRole.isEmpty || post.authorRole == 'student') {
@@ -72,14 +61,17 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
             .doc(post.authorId)
             .get();
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           final actualRole = userData?['role']?.toString() ?? 'student';
-          final displayName = userData?['displayName']?.toString() ??
+          final displayName =
+              userData?['displayName']?.toString() ??
               userData?['name']?.toString() ??
               post.authorName;
           setState(() {
-            _post =
-                post.copyWith(authorRole: actualRole, authorName: displayName);
+            _post = post.copyWith(
+              authorRole: actualRole,
+              authorName: displayName,
+            );
             _isPostLoaded = true;
           });
         } else {
@@ -99,8 +91,10 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
       await _forumService.incrementViewCount(widget.classId, widget.postId);
 
       // ✅ Reload post after view count update
-      final updatedPost =
-          await _forumService.getForumPost(widget.classId, widget.postId);
+      final updatedPost = await _forumService.getForumPost(
+        widget.classId,
+        widget.postId,
+      );
       setState(() {
         _post = updatedPost.copyWith(
           authorRole: _post?.authorRole ?? updatedPost.authorRole,
@@ -122,8 +116,10 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
 
   Future<void> _refreshPost() async {
     try {
-      final post =
-          await _forumService.getForumPost(widget.classId, widget.postId);
+      final post = await _forumService.getForumPost(
+        widget.classId,
+        widget.postId,
+      );
       setState(() {
         _post = post;
       });
@@ -154,10 +150,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -282,8 +275,8 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                               backgroundColor: post.authorRole == 'teacher'
                                   ? Colors.blue.shade100
                                   : post.authorRole == 'trainer'
-                                      ? Colors.purple.shade100
-                                      : Colors.grey.shade100,
+                                  ? Colors.purple.shade100
+                                  : Colors.grey.shade100,
                               child: Text(
                                 post.authorName.isNotEmpty
                                     ? post.authorName[0].toUpperCase()
@@ -293,8 +286,8 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                   color: post.authorRole == 'teacher'
                                       ? Colors.blue.shade700
                                       : post.authorRole == 'trainer'
-                                          ? Colors.purple.shade700
-                                          : Colors.grey.shade700,
+                                      ? Colors.purple.shade700
+                                      : Colors.grey.shade700,
                                 ),
                               ),
                             ),
@@ -333,10 +326,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                         // Content
                         Text(
                           post.content,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 1.5,
-                          ),
+                          style: const TextStyle(fontSize: 15, height: 1.5),
                         ),
                         if (post.imageUrls.isNotEmpty) ...[
                           const SizedBox(height: 16),
@@ -346,21 +336,22 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                             itemCount: post.imageUrls.length,
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 8,
-                              mainAxisSpacing: 8,
-                              childAspectRatio: 1,
-                            ),
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 1,
+                                ),
                             itemBuilder: (context, index) {
                               return ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
                                 child: Image.network(
                                   post.imageUrls[index],
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                                  errorBuilder: (_, _, _) => Container(
                                     color: Colors.grey.shade200,
-                                    child:
-                                        const Icon(Icons.broken_image_outlined),
+                                    child: const Icon(
+                                      Icons.broken_image_outlined,
+                                    ),
                                   ),
                                 ),
                               );
@@ -440,17 +431,16 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                   // Replies Section
                   const Text(
                     'Replies',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
 
                   // Replies List
                   StreamBuilder<List<ForumReply>>(
-                    stream:
-                        _forumService.getReplies(widget.classId, widget.postId),
+                    stream: _forumService.getReplies(
+                      widget.classId,
+                      widget.postId,
+                    ),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Center(
@@ -462,9 +452,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                       }
 
                       if (snapshot.hasError) {
-                        return Center(
-                          child: Text('Error: ${snapshot.error}'),
-                        );
+                        return Center(child: Text('Error: ${snapshot.error}'));
                       }
 
                       final replies = snapshot.data ?? [];
@@ -475,9 +463,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                           alignment: Alignment.center,
                           child: Text(
                             'No replies yet. Be the first to reply!',
-                            style: TextStyle(
-                              color: Colors.grey.shade500,
-                            ),
+                            style: TextStyle(color: Colors.grey.shade500),
                           ),
                         );
                       }
@@ -488,8 +474,9 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                         itemCount: replies.length,
                         itemBuilder: (context, index) {
                           final reply = replies[index];
-                          final isLiked =
-                              reply.likedBy.contains(_currentUserId);
+                          final isLiked = reply.likedBy.contains(
+                            _currentUserId,
+                          );
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
@@ -497,9 +484,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Colors.grey.shade200,
-                              ),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -510,10 +495,10 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                       radius: 14,
                                       backgroundColor:
                                           reply.authorRole == 'teacher'
-                                              ? Colors.blue.shade100
-                                              : reply.authorRole == 'trainer'
-                                                  ? Colors.purple.shade100
-                                                  : Colors.grey.shade100,
+                                          ? Colors.blue.shade100
+                                          : reply.authorRole == 'trainer'
+                                          ? Colors.purple.shade100
+                                          : Colors.grey.shade100,
                                       child: Text(
                                         reply.authorName.isNotEmpty
                                             ? reply.authorName[0].toUpperCase()
@@ -524,8 +509,8 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                           color: reply.authorRole == 'teacher'
                                               ? Colors.blue.shade700
                                               : reply.authorRole == 'trainer'
-                                                  ? Colors.purple.shade700
-                                                  : Colors.grey.shade700,
+                                              ? Colors.purple.shade700
+                                              : Colors.grey.shade700,
                                         ),
                                       ),
                                     ),

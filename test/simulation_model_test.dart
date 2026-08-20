@@ -2,13 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:icteach/data/simulation_data.dart';
 
 void main() {
-  test('simulation data contains valid easy scenarios', () {
-    expect(simulationLibrary, isNotEmpty);
+  test('simulation data contains valid scenarios', () {
+    final simulations = SimulationData.getAllSimulations();
+    expect(simulations, isNotEmpty);
 
-    final simulation = simulationLibrary.first;
+    final simulation = simulations.first;
     expect(simulation.title, isNotEmpty);
-    expect(simulation.steps, isNotEmpty);
-    expect(simulation.steps.first.options, hasLength(greaterThanOrEqualTo(2)));
-    expect(simulation.steps.first.correctIndex, isNotNull);
+    expect(simulation.items, isNotEmpty);
+    expect(simulation.slots, hasLength(simulation.items.length));
   });
 }

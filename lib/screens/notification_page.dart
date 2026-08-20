@@ -11,8 +11,6 @@ import '../screens/student/forums_page.dart';
 import '../screens/teacher/manage_quizzes_page.dart';
 import '../screens/teacher/manage_assignments_page.dart';
 import '../screens/teacher/manage_modules_page.dart';
-import '../screens/teacher/quiz_results_page.dart';
-import '../screens/student/post_detail_page.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -24,7 +22,6 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState extends State<NotificationPage> {
   final NotificationService _notificationService = NotificationService();
   String? _userRole;
-  String? _userId;
 
   @override
   void initState() {
@@ -35,14 +32,13 @@ class _NotificationPageState extends State<NotificationPage> {
   Future<void> _getCurrentUser() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      _userId = user.uid;
       try {
         final doc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .get();
         if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>?;
+          final data = doc.data();
           setState(() {
             _userRole = data?['role']?.toString() ?? 'student';
           });
@@ -112,10 +108,7 @@ class _NotificationPageState extends State<NotificationPage> {
                   SizedBox(height: 16),
                   Text(
                     'No notifications',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
                   Text(
@@ -164,8 +157,9 @@ class _NotificationPageState extends State<NotificationPage> {
           .doc(classId)
           .get();
       if (classDoc.exists) {
-        final data = classDoc.data() as Map<String, dynamic>?;
-        className = data?['name']?.toString() ??
+        final data = classDoc.data();
+        className =
+            data?['name']?.toString() ??
             data?['className']?.toString() ??
             'Class';
       }
@@ -195,8 +189,12 @@ class _NotificationPageState extends State<NotificationPage> {
     }
   }
 
-  void _navigateToQuiz(BuildContext context, NotificationModel notification,
-      String classId, String className) {
+  void _navigateToQuiz(
+    BuildContext context,
+    NotificationModel notification,
+    String classId,
+    String className,
+  ) {
     // Close notification page
     Navigator.pop(context);
 
@@ -207,10 +205,8 @@ class _NotificationPageState extends State<NotificationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ManageQuizzesPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (context) =>
+                ManageQuizzesPage(classId: classId, className: className),
           ),
         );
       } else {
@@ -218,18 +214,20 @@ class _NotificationPageState extends State<NotificationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => StudentQuizzesPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (context) =>
+                StudentQuizzesPage(classId: classId, className: className),
           ),
         );
       }
     });
   }
 
-  void _navigateToAssignment(BuildContext context,
-      NotificationModel notification, String classId, String className) {
+  void _navigateToAssignment(
+    BuildContext context,
+    NotificationModel notification,
+    String classId,
+    String className,
+  ) {
     // Close notification page
     Navigator.pop(context);
 
@@ -240,10 +238,8 @@ class _NotificationPageState extends State<NotificationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ManageAssignmentsPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (context) =>
+                ManageAssignmentsPage(classId: classId, className: className),
           ),
         );
       } else {
@@ -251,18 +247,20 @@ class _NotificationPageState extends State<NotificationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => StudentAssignmentsPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (context) =>
+                StudentAssignmentsPage(classId: classId, className: className),
           ),
         );
       }
     });
   }
 
-  void _navigateToForum(BuildContext context, NotificationModel notification,
-      String classId, String className) {
+  void _navigateToForum(
+    BuildContext context,
+    NotificationModel notification,
+    String classId,
+    String className,
+  ) {
     // Close notification page
     Navigator.pop(context);
 
@@ -271,17 +269,19 @@ class _NotificationPageState extends State<NotificationPage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ForumsPage(
-            classId: classId,
-            className: className,
-          ),
+          builder: (context) =>
+              ForumsPage(classId: classId, className: className),
         ),
       );
     });
   }
 
-  void _navigateToModule(BuildContext context, NotificationModel notification,
-      String classId, String className) {
+  void _navigateToModule(
+    BuildContext context,
+    NotificationModel notification,
+    String classId,
+    String className,
+  ) {
     // Close notification page
     Navigator.pop(context);
 
@@ -292,10 +292,8 @@ class _NotificationPageState extends State<NotificationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ManageModulesPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (context) =>
+                ManageModulesPage(classId: classId, className: className),
           ),
         );
       } else {
@@ -303,10 +301,8 @@ class _NotificationPageState extends State<NotificationPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ModuleViewPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (context) =>
+                ModuleViewPage(classId: classId, className: className),
           ),
         );
       }
@@ -510,8 +506,9 @@ class _NotificationCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: _getTypeColor(notification.type)
-                                .withValues(alpha: 0.1),
+                            color: _getTypeColor(
+                              notification.type,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
 import '../../services/notification_service.dart';
@@ -86,8 +83,9 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
         dueDate: _dueDate,
         maxScore: int.tryParse(_maxScoreController.text) ?? 100,
         isPublished: _isPublished,
-        createdAt:
-            _isEditing ? widget.assignmentToEdit!.createdAt : DateTime.now(),
+        createdAt: _isEditing
+            ? widget.assignmentToEdit!.createdAt
+            : DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
@@ -152,7 +150,8 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                '❌ Error ${_isEditing ? 'updating' : 'creating'} assignment: $e'),
+              '❌ Error ${_isEditing ? 'updating' : 'creating'} assignment: $e',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -167,9 +166,9 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
-        title: Text(_isEditing
-            ? 'Edit Assignment'
-            : 'Create Assignment'), // ✅ Dynamic title
+        title: Text(
+          _isEditing ? 'Edit Assignment' : 'Create Assignment',
+        ), // ✅ Dynamic title
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
         elevation: 0,
@@ -179,7 +178,7 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
             onChanged: (value) {
               setState(() => _isPublished = value);
             },
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
           ),
           const SizedBox(width: 8),
           const Text('Publish', style: TextStyle(color: Colors.white70)),
@@ -290,16 +289,20 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
               InkWell(
                 onTap: _selectDueDate,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today,
-                          color: Color(0xFF0B2B4A)),
+                      const Icon(
+                        Icons.calendar_today,
+                        color: Color(0xFF0B2B4A),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -436,11 +439,11 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                       : Text(
                           _isEditing
                               ? (_isPublished
-                                  ? 'Update & Publish'
-                                  : 'Update Draft')
+                                    ? 'Update & Publish'
+                                    : 'Update Draft')
                               : (_isPublished
-                                  ? 'Publish Assignment'
-                                  : 'Save as Draft'),
+                                    ? 'Publish Assignment'
+                                    : 'Save as Draft'),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

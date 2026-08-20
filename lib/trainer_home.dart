@@ -4,11 +4,8 @@ import 'package:flutter/material.dart';
 import 'login.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
-import '../screens/teacher/create_module_page.dart';
 import '../screens/teacher/manage_modules_page.dart';
-import '../screens/teacher/create_quiz_page.dart';
 import '../screens/teacher/manage_quizzes_page.dart';
-import '../screens/teacher/create_assignment_page.dart';
 import '../screens/teacher/manage_assignments_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
@@ -24,8 +21,6 @@ class TrainerHomePage extends StatefulWidget {
 
 class _TrainerHomePageState extends State<TrainerHomePage> {
   int _selectedIndex = 0;
-  String? _selectedClassId;
-  String? _selectedClassName;
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -104,9 +99,10 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
               .doc(classId)
               .get();
           if (classDoc.exists) {
-            final classData = classDoc.data() as Map<String, dynamic>? ?? {};
-            final enrolledIds =
-                List<String>.from(classData['enrolledStudentIds'] ?? []);
+            final classData = classDoc.data() ?? {};
+            final enrolledIds = List<String>.from(
+              classData['enrolledStudentIds'] ?? [],
+            );
             totalStudents += enrolledIds.length;
           }
         }
@@ -364,10 +360,10 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseAuth.instance.currentUser != null
           ? FirebaseFirestore.instance
-              .collection('users')
-              .doc(FirebaseAuth.instance.currentUser!.uid)
-              .collection('classes')
-              .get()
+                .collection('users')
+                .doc(FirebaseAuth.instance.currentUser!.uid)
+                .collection('classes')
+                .get()
           : null,
       builder: (context, classSnapshot) {
         final classCount = classSnapshot.data?.docs.length ?? 0;
@@ -380,13 +376,19 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
             return Row(
               children: [
                 Expanded(
-                  child:
-                      _buildStatCard('My Classes', '$classCount', primaryColor),
+                  child: _buildStatCard(
+                    'My Classes',
+                    '$classCount',
+                    primaryColor,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatCard(
-                      'Students', '$totalStudents', primaryColor),
+                    'Students',
+                    '$totalStudents',
+                    primaryColor,
+                  ),
                 ),
               ],
             );
@@ -536,10 +538,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 const SizedBox(height: 16),
                 const Text(
                   'No forums available',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -557,7 +556,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           itemBuilder: (context, index) {
             final doc = classDocs[index];
             final data = doc.data() as Map<String, dynamic>? ?? {};
-            final className = data['className']?.toString() ??
+            final className =
+                data['className']?.toString() ??
                 data['name']?.toString() ??
                 'Unnamed Class';
             final classId = data['classId']?.toString() ?? '';
@@ -585,10 +585,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ForumsPage(
-                        classId: classId,
-                        className: className,
-                      ),
+                      builder: (_) =>
+                          ForumsPage(classId: classId, className: className),
                     ),
                   );
                 },
@@ -632,8 +630,11 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 16),
                     Text('Error: ${snapshot.error}'),
                   ],
@@ -692,12 +693,12 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
             final actionTitle = actionType == 'modules'
                 ? 'Modules'
                 : actionType == 'quizzes'
-                    ? 'Quizzes'
-                    : actionType == 'assignments'
-                        ? 'Assignments'
-                        : actionType == 'progress'
-                            ? 'Progress'
-                            : 'Content';
+                ? 'Quizzes'
+                : actionType == 'assignments'
+                ? 'Assignments'
+                : actionType == 'progress'
+                ? 'Progress'
+                : 'Content';
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,12 +717,12 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                         actionType == 'modules'
                             ? Icons.menu_book_rounded
                             : actionType == 'quizzes'
-                                ? Icons.quiz_rounded
-                                : actionType == 'assignments'
-                                    ? Icons.assignment_rounded
-                                    : actionType == 'progress'
-                                        ? Icons.analytics_rounded
-                                        : Icons.video_library_rounded,
+                            ? Icons.quiz_rounded
+                            : actionType == 'assignments'
+                            ? Icons.assignment_rounded
+                            : actionType == 'progress'
+                            ? Icons.analytics_rounded
+                            : Icons.video_library_rounded,
                         color: Colors.purple,
                       ),
                       const SizedBox(width: 12),
@@ -762,7 +763,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                     itemBuilder: (context, index) {
                       final doc = classDocs[index];
                       final data = doc.data() as Map<String, dynamic>? ?? {};
-                      final className = data['className']?.toString() ??
+                      final className =
+                          data['className']?.toString() ??
                           data['name']?.toString() ??
                           'Unnamed Class';
                       final classId = data['classId']?.toString() ?? '';
@@ -782,29 +784,33 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                               actionType == 'modules'
                                   ? Icons.menu_book_rounded
                                   : actionType == 'quizzes'
-                                      ? Icons.quiz_rounded
-                                      : actionType == 'assignments'
-                                          ? Icons.assignment_rounded
-                                          : actionType == 'progress'
-                                              ? Icons.analytics_rounded
-                                              : Icons.video_library_rounded,
+                                  ? Icons.quiz_rounded
+                                  : actionType == 'assignments'
+                                  ? Icons.assignment_rounded
+                                  : actionType == 'progress'
+                                  ? Icons.analytics_rounded
+                                  : Icons.video_library_rounded,
                               color: Colors.purple,
                               size: 20,
                             ),
                           ),
                           title: Text(
                             className,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           subtitle: Text('Teacher: $teacherName'),
-                          trailing:
-                              const Icon(Icons.arrow_forward_ios, size: 16),
+                          trailing: const Icon(
+                            Icons.arrow_forward_ios,
+                            size: 16,
+                          ),
                           onTap: () {
                             Navigator.pop(context);
                             _navigateToAction(
-                                context, actionType, classId, className);
+                              context,
+                              actionType,
+                              classId,
+                              className,
+                            );
                           },
                         ),
                       );
@@ -819,17 +825,19 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     );
   }
 
-  void _navigateToAction(BuildContext context, String actionType,
-      String classId, String className) {
+  void _navigateToAction(
+    BuildContext context,
+    String actionType,
+    String classId,
+    String className,
+  ) {
     switch (actionType) {
       case 'modules':
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ManageModulesPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (_) =>
+                ManageModulesPage(classId: classId, className: className),
           ),
         );
         break;
@@ -837,10 +845,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProgressTrackerPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (_) =>
+                ProgressTrackerPage(classId: classId, className: className),
           ),
         );
         break;
@@ -848,10 +854,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ManageQuizzesPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (_) =>
+                ManageQuizzesPage(classId: classId, className: className),
           ),
         );
         break;
@@ -859,10 +863,8 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ManageAssignmentsPage(
-              classId: classId,
-              className: className,
-            ),
+            builder: (_) =>
+                ManageAssignmentsPage(classId: classId, className: className),
           ),
         );
         break;
@@ -1058,10 +1060,12 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                     if (hasClass) ...[
                       ...classDocs.map((doc) {
                         final data = doc.data() as Map<String, dynamic>? ?? {};
-                        final className = data['className']?.toString() ??
+                        final className =
+                            data['className']?.toString() ??
                             data['name']?.toString() ??
                             'Unnamed Class';
-                        final teacherName = data['teacherName']?.toString() ??
+                        final teacherName =
+                            data['teacherName']?.toString() ??
                             'Unknown Teacher';
                         final schoolYear = data['schoolYear']?.toString() ?? '';
                         final classId = data['classId']?.toString() ?? '';

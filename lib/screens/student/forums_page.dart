@@ -42,7 +42,7 @@ class _ForumsPageState extends State<ForumsPage> {
           .get()
           .then((doc) {
         if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>?;
+          final data = doc.data();
           setState(() {
             _currentUserRole = data?['role']?.toString() ?? 'student';
           });
@@ -212,7 +212,7 @@ class _ForumsPageState extends State<ForumsPage> {
             .get();
 
         if (userDoc.exists) {
-          final userData = userDoc.data() as Map<String, dynamic>?;
+          final userData = userDoc.data();
           final actualRole = userData?['role']?.toString() ?? 'student';
           final displayName = userData?['displayName']?.toString() ??
               userData?['name']?.toString() ??
@@ -458,7 +458,7 @@ class _ForumPostCard extends StatelessWidget {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: post.imageUrls.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (context, index) {
                       final imageUrl = post.imageUrls[index];
                       return ClipRRect(
@@ -467,7 +467,7 @@ class _ForumPostCard extends StatelessWidget {
                           imageUrl,
                           width: 180,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (_, _, _) => Container(
                             width: 180,
                             color: Colors.grey.shade200,
                             child: const Icon(Icons.broken_image_outlined),

@@ -61,7 +61,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
           .doc(user.uid)
           .get();
 
-      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      final userData = userDoc.data() ?? {};
       final authorName = userData['displayName']?.toString() ??
           userData['name']?.toString() ??
           user.displayName ??

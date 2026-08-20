@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -35,8 +34,9 @@ class _StudentAssignmentsPageState extends State<StudentAssignmentsPage> {
         elevation: 0,
       ),
       body: StreamBuilder<List<AssignmentModel>>(
-        stream:
-            _assignmentService.getPublishedAssignmentsForClass(widget.classId),
+        stream: _assignmentService.getPublishedAssignmentsForClass(
+          widget.classId,
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -67,8 +67,11 @@ class _StudentAssignmentsPageState extends State<StudentAssignmentsPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.assignment_outlined,
-                      size: 64, color: Colors.grey.shade300),
+                  Icon(
+                    Icons.assignment_outlined,
+                    size: 64,
+                    color: Colors.grey.shade300,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'No assignments available',
@@ -197,8 +200,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
 
   @override
   Widget build(BuildContext context) {
-    final daysLeft =
-        widget.assignment.dueDate.difference(DateTime.now()).inDays;
+    final daysLeft = widget.assignment.dueDate
+        .difference(DateTime.now())
+        .inDays;
     final isOverdue = daysLeft < 0;
     final isDueSoon = daysLeft >= 0 && daysLeft <= 2;
 
@@ -218,8 +222,8 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
         border: _hasSubmitted
             ? Border.all(color: Colors.green.shade300, width: 2)
             : isOverdue
-                ? Border.all(color: Colors.red.shade300, width: 1)
-                : null,
+            ? Border.all(color: Colors.red.shade300, width: 1)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +271,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                         if (_hasSubmitted) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.green.shade100,
                               borderRadius: BorderRadius.circular(10),
@@ -295,7 +301,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                         ] else if (isOverdue) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.red.shade100,
                               borderRadius: BorderRadius.circular(10),
@@ -312,7 +320,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                         ] else if (isDueSoon) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.orange.shade100,
                               borderRadius: BorderRadius.circular(10),
@@ -342,15 +352,18 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                           'Due: ${widget.assignment.dueDate.day}/${widget.assignment.dueDate.month}/${widget.assignment.dueDate.year}',
                           style: TextStyle(
                             fontSize: 11,
-                            color:
-                                isOverdue ? Colors.red : Colors.grey.shade600,
+                            color: isOverdue
+                                ? Colors.red
+                                : Colors.grey.shade600,
                           ),
                         ),
                         if (!isOverdue && !_hasSubmitted) ...[
                           const SizedBox(width: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 1),
+                              horizontal: 4,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: isDueSoon
                                   ? Colors.orange.shade100
@@ -380,10 +393,7 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
           // ✅ Description - Smaller text
           Text(
             widget.assignment.description,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -405,8 +415,10 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                   _submission!.isGraded) ...[
                 const SizedBox(width: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade100,
                     borderRadius: BorderRadius.circular(8),
@@ -439,7 +451,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF428DEB),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -459,7 +473,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                       backgroundColor: Colors.grey.shade300,
                       foregroundColor: Colors.grey.shade600,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -479,7 +495,9 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
                       backgroundColor: const Color(0xFF428DEB),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -549,8 +567,10 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
               color: Colors.transparent,
               child: Center(
                 child: Container(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 20,
+                  ),
                   constraints: const BoxConstraints(
                     maxWidth: 500,
                     maxHeight: 650,
@@ -620,10 +640,7 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.white,
-            Colors.grey.shade50,
-          ],
+          colors: [Colors.white, Colors.grey.shade50],
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -647,8 +664,8 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                   end: Alignment.bottomRight,
                   colors: isGraded
                       ? isPassed
-                          ? [Colors.green.shade700, Colors.green.shade500]
-                          : [Colors.orange.shade700, Colors.orange.shade500]
+                            ? [Colors.green.shade700, Colors.green.shade500]
+                            : [Colors.orange.shade700, Colors.orange.shade500]
                       : [const Color(0xFF428DEB), const Color(0xFF2F80ED)],
                 ),
                 borderRadius: const BorderRadius.vertical(
@@ -666,8 +683,8 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                     child: Icon(
                       isGraded
                           ? isPassed
-                              ? Icons.emoji_events
-                              : Icons.sentiment_dissatisfied
+                                ? Icons.emoji_events
+                                : Icons.sentiment_dissatisfied
                           : Icons.pending_actions,
                       color: Colors.white,
                       size: 32,
@@ -677,8 +694,8 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                   Text(
                     isGraded
                         ? isPassed
-                            ? '🎉 Excellent Work!'
-                            : 'Keep Improving!'
+                              ? '🎉 Excellent Work!'
+                              : 'Keep Improving!'
                         : 'Pending Review',
                     style: const TextStyle(
                       color: Colors.white,
@@ -690,8 +707,8 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                   Text(
                     isGraded
                         ? isPassed
-                            ? 'You passed this assignment!'
-                            : 'Review the feedback to improve'
+                              ? 'You passed this assignment!'
+                              : 'Review the feedback to improve'
                         : 'Your submission is being reviewed by the teacher',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.85),
@@ -933,10 +950,7 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.grey.shade200,
-                        width: 1,
-                      ),
+                      border: Border.all(color: Colors.grey.shade200, width: 1),
                     ),
                     child: Column(
                       children: [
@@ -997,9 +1011,12 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                                   const SizedBox(height: 10),
                                   TextButton.icon(
                                     onPressed: () => widget.onOpenAttachment(
-                                        widget.submission.attachmentUrl!),
-                                    icon:
-                                        const Icon(Icons.attach_file, size: 16),
+                                      widget.submission.attachmentUrl!,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.attach_file,
+                                      size: 16,
+                                    ),
                                     label: const Text('View Attachment'),
                                   ),
                                 ],
@@ -1019,10 +1036,7 @@ class _SubmissionDetailsContentState extends State<_SubmissionDetailsContent> {
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.grey.shade200,
-                        width: 1,
-                      ),
+                      border: Border.all(color: Colors.grey.shade200, width: 1),
                     ),
                     child: Column(
                       children: [
@@ -1078,26 +1092,18 @@ class _InfoRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final bool isMultiLine;
-
   const _InfoRow({
     required this.icon,
     required this.label,
     required this.value,
-    this.isMultiLine = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment:
-          isMultiLine ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(
-          icon,
-          size: 14,
-          color: Colors.grey.shade600,
-        ),
+        Icon(icon, size: 14, color: Colors.grey.shade600),
         const SizedBox(width: 6),
         SizedBox(
           width: 70,
@@ -1115,13 +1121,12 @@ class _InfoRow extends StatelessWidget {
           child: Text(
             value,
             style: TextStyle(
-              fontSize: isMultiLine ? 12 : 12,
-              color: isMultiLine ? Colors.black87 : Colors.grey.shade800,
-              height: isMultiLine ? 1.4 : 1,
+              fontSize: 12,
+              color: Colors.grey.shade800,
+              height: 1,
             ),
-            maxLines: isMultiLine ? 6 : 1,
-            overflow:
-                isMultiLine ? TextOverflow.ellipsis : TextOverflow.ellipsis,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

@@ -1,6 +1,5 @@
 // screens/student/forum_detail_page.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/forum_model.dart';
 import '../../services/forum_service.dart';
@@ -26,7 +25,6 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
   late ForumPost _post;
   bool _isPostLoaded = false;
   String? _currentUserId;
-  String? _currentUserRole;
 
   @override
   void initState() {
@@ -39,25 +37,15 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       _currentUserId = user.uid;
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get()
-          .then((doc) {
-        if (doc.exists) {
-          final data = doc.data() as Map<String, dynamic>?;
-          setState(() {
-            _currentUserRole = data?['role']?.toString() ?? 'student';
-          });
-        }
-      });
     }
   }
 
   Future<void> _loadPost() async {
     try {
-      final post =
-          await _forumService.getForumPost(widget.classId, widget.postId);
+      final post = await _forumService.getForumPost(
+        widget.classId,
+        widget.postId,
+      );
       setState(() {
         _post = post;
         _isPostLoaded = true;
@@ -97,10 +85,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -201,10 +186,10 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                     radius: 16,
                                     backgroundColor:
                                         _post.authorRole == 'teacher'
-                                            ? Colors.blue.shade100
-                                            : _post.authorRole == 'trainer'
-                                                ? Colors.purple.shade100
-                                                : Colors.grey.shade100,
+                                        ? Colors.blue.shade100
+                                        : _post.authorRole == 'trainer'
+                                        ? Colors.purple.shade100
+                                        : Colors.grey.shade100,
                                     child: Text(
                                       _post.authorName.isNotEmpty
                                           ? _post.authorName[0].toUpperCase()
@@ -214,8 +199,8 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                         color: _post.authorRole == 'teacher'
                                             ? Colors.blue.shade700
                                             : _post.authorRole == 'trainer'
-                                                ? Colors.purple.shade700
-                                                : Colors.grey.shade700,
+                                            ? Colors.purple.shade700
+                                            : Colors.grey.shade700,
                                       ),
                                     ),
                                   ),
@@ -302,8 +287,10 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                               ? Icons.favorite
                                               : Icons.favorite_border,
                                           size: 18,
-                                          color: _post.likedBy
-                                                  .contains(_currentUserId)
+                                          color:
+                                              _post.likedBy.contains(
+                                                _currentUserId,
+                                              )
                                               ? Colors.red
                                               : Colors.grey.shade400,
                                         ),
@@ -339,7 +326,9 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                         // Replies List
                         StreamBuilder<List<ForumReply>>(
                           stream: _forumService.getReplies(
-                              widget.classId, widget.postId),
+                            widget.classId,
+                            widget.postId,
+                          ),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -365,9 +354,7 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                 alignment: Alignment.center,
                                 child: Text(
                                   'No replies yet. Be the first to reply!',
-                                  style: TextStyle(
-                                    color: Colors.grey.shade500,
-                                  ),
+                                  style: TextStyle(color: Colors.grey.shade500),
                                 ),
                               );
                             }
@@ -378,8 +365,9 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                               itemCount: replies.length,
                               itemBuilder: (context, index) {
                                 final reply = replies[index];
-                                final isLiked =
-                                    reply.likedBy.contains(_currentUserId);
+                                final isLiked = reply.likedBy.contains(
+                                  _currentUserId,
+                                );
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 8),
@@ -399,27 +387,28 @@ class _ForumDetailPageState extends State<ForumDetailPage> {
                                         children: [
                                           CircleAvatar(
                                             radius: 14,
-                                            backgroundColor: reply.authorRole ==
-                                                    'teacher'
+                                            backgroundColor:
+                                                reply.authorRole == 'teacher'
                                                 ? Colors.blue.shade100
                                                 : reply.authorRole == 'trainer'
-                                                    ? Colors.purple.shade100
-                                                    : Colors.grey.shade100,
+                                                ? Colors.purple.shade100
+                                                : Colors.grey.shade100,
                                             child: Text(
                                               reply.authorName.isNotEmpty
                                                   ? reply.authorName[0]
-                                                      .toUpperCase()
+                                                        .toUpperCase()
                                                   : '?',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
-                                                color: reply.authorRole ==
+                                                color:
+                                                    reply.authorRole ==
                                                         'teacher'
                                                     ? Colors.blue.shade700
                                                     : reply.authorRole ==
-                                                            'trainer'
-                                                        ? Colors.purple.shade700
-                                                        : Colors.grey.shade700,
+                                                          'trainer'
+                                                    ? Colors.purple.shade700
+                                                    : Colors.grey.shade700,
                                               ),
                                             ),
                                           ),

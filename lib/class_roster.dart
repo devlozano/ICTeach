@@ -125,7 +125,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
         return;
       }
 
-      final data = classDoc.data() as Map<String, dynamic>? ?? {};
+      final data = classDoc.data() ?? {};
       final enrolledIds = List<String>.from(data['enrolledStudentIds'] ?? []);
 
       print('📊 Total enrolled IDs: ${enrolledIds.length}');
@@ -249,7 +249,7 @@ class _ClassRosterPageState extends State<ClassRosterPage> {
           String role = 'student';
 
           if (subDoc.exists) {
-            final subData = subDoc.data() as Map<String, dynamic>? ?? {};
+            final subData = subDoc.data() ?? {};
             name = subData['name']?.toString() ?? name;
             email = _extractEmail(subData);
             role = subData['role']?.toString() ?? 'student';

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../models/quiz_model.dart';
@@ -46,10 +45,12 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
       final quiz = widget.quizToEdit!;
       _titleController.text = quiz.title;
       _descriptionController.text = quiz.description;
-      _timeLimitController.text =
-          quiz.timeLimit > 0 ? quiz.timeLimit.toString() : '';
-      _passingScoreController.text =
-          quiz.passingScore > 0 ? quiz.passingScore.toString() : ''; // ✅ ADDED
+      _timeLimitController.text = quiz.timeLimit > 0
+          ? quiz.timeLimit.toString()
+          : '';
+      _passingScoreController.text = quiz.passingScore > 0
+          ? quiz.passingScore.toString()
+          : ''; // ✅ ADDED
       _questions = List.from(quiz.questions);
       _isPublished = quiz.isPublished;
       _quizId = quiz.id;
@@ -68,13 +69,15 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
 
   void _addQuestion() {
     setState(() {
-      _questions.add(Question(
-        id: const Uuid().v4(),
-        text: '',
-        options: ['', '', '', ''],
-        correctAnswer: 0,
-        explanation: '',
-      ));
+      _questions.add(
+        Question(
+          id: const Uuid().v4(),
+          text: '',
+          options: ['', '', '', ''],
+          correctAnswer: 0,
+          explanation: '',
+        ),
+      );
     });
   }
 
@@ -185,10 +188,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -207,7 +207,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
             onChanged: (value) {
               setState(() => _isPublished = value);
             },
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
           ),
           const SizedBox(width: 8),
           const Text('Publish', style: TextStyle(color: Colors.white70)),
@@ -408,7 +408,7 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                     onUpdate: (updated) => _updateQuestion(index, updated),
                     onRemove: () => _removeQuestion(index),
                   );
-                }).toList(),
+                }),
 
               const SizedBox(height: 24),
 
@@ -468,8 +468,11 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.check_circle_outline,
-                              color: Colors.green.shade700, size: 18),
+                          Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green.shade700,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Passing Score: ${_passingScoreController.text} / $_totalPoints',
@@ -507,8 +510,10 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.notifications_active,
-                          color: Colors.green.shade700),
+                      Icon(
+                        Icons.notifications_active,
+                        color: Colors.green.shade700,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -550,11 +555,11 @@ class _CreateQuizPageState extends State<CreateQuizPage> {
                       : Text(
                           _isEditing
                               ? (_isPublished
-                                  ? 'Update & Publish'
-                                  : 'Update Draft')
+                                    ? 'Update & Publish'
+                                    : 'Update Draft')
                               : (_isPublished
-                                  ? 'Publish Quiz'
-                                  : 'Save as Draft'),
+                                    ? 'Publish Quiz'
+                                    : 'Save as Draft'),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -693,7 +698,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               },
               onChanged: (_) => _updateQuestion(),
             );
-          }).toList(),
+          }),
           const SizedBox(height: 8),
           TextFormField(
             controller: _explanationController,

@@ -151,7 +151,7 @@ class AssignmentService {
 
       if (doc.exists) {
         return AssignmentSubmission.fromFirestore(
-            doc as DocumentSnapshot<Map<String, dynamic>>);
+            doc);
       }
       return null;
     } catch (e) {

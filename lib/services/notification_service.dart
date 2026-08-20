@@ -128,7 +128,7 @@ class NotificationService {
         return allUserIds;
       }
 
-      final classData = classDoc.data() as Map<String, dynamic>? ?? {};
+      final classData = classDoc.data() ?? {};
 
       // 1. Add teacher
       final teacherId = classData['teacherId']?.toString() ?? '';
@@ -194,7 +194,7 @@ class NotificationService {
               await _firestore.collection('users').doc(userId).get();
           if (userDoc.exists) {
             validUserIds.add(userId);
-            final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+            final userData = userDoc.data() ?? {};
             final role = userData['role']?.toString() ?? 'student';
             final name = userData['displayName'] ?? userData['name'] ?? userId;
             print('   ✅ Valid user: $name (Role: $role, ID: $userId)');
@@ -229,7 +229,7 @@ class NotificationService {
       try {
         final userDoc =
             await _firestore.collection('users').doc(userId).get();
-        final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+        final userData = userDoc.data() ?? {};
         final role = userData['role']?.toString().toLowerCase() ?? '';
 
         if (role == 'teacher' || role == 'trainer') {
@@ -586,7 +586,7 @@ class NotificationService {
       final classDoc =
           await _firestore.collection('classes').doc(classId).get();
       if (classDoc.exists) {
-        final data = classDoc.data() as Map<String, dynamic>? ?? {};
+        final data = classDoc.data() ?? {};
         print('📚 Class: ${data['name']}');
         print('👨‍🏫 Teacher: ${data['teacherId']}');
 
@@ -595,7 +595,7 @@ class NotificationService {
         for (final id in enrolledIds) {
           final userDoc = await _firestore.collection('users').doc(id).get();
           if (userDoc.exists) {
-            final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+            final userData = userDoc.data() ?? {};
             print(
                 '   ✅ Student: ${userData['displayName'] ?? userData['name'] ?? id}');
           } else {

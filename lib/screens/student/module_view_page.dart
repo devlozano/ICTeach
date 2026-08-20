@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
@@ -30,7 +29,7 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
     'All',
     'In Progress',
     'Completed',
-    'Not Started'
+    'Not Started',
   ];
 
   String extractYouTubeId(String url) {
@@ -46,44 +45,46 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
     return videoId;
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _selectedModuleIndex == null ? AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Learning Modules',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
+      appBar: _selectedModuleIndex == null
+          ? AppBar(
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Learning Modules',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    widget.className,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Text(
-              widget.className,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: const Color(0xFF0F172A),
-        elevation: 0,
-        toolbarHeight: 70,
-      ) : null,
+              backgroundColor: Colors.transparent,
+              foregroundColor: const Color(0xFF0F172A),
+              elevation: 0,
+              toolbarHeight: 70,
+            )
+          : null,
       body: StreamBuilder<List<ModuleModel>>(
         stream: _moduleService.getPublishedModulesForClass(widget.classId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF4F46E5)));
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
+            );
           }
 
           if (snapshot.hasError) {
@@ -97,19 +98,39 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                       color: Colors.red.shade50,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                    child: Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red.shade400,
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Oops! Something went wrong', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade800)),
+                  Text(
+                    'Oops! Something went wrong',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('${snapshot.error}', style: TextStyle(color: Colors.grey.shade600), textAlign: TextAlign.center),
+                  Text(
+                    '${snapshot.error}',
+                    style: TextStyle(color: Colors.grey.shade600),
+                    textAlign: TextAlign.center,
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF4F46E5),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () => setState(() {}),
                     icon: const Icon(Icons.refresh),
@@ -133,12 +154,20 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                       color: Colors.indigo.shade50,
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.menu_book_rounded, size: 64, color: Colors.indigo.shade300),
+                    child: Icon(
+                      Icons.menu_book_rounded,
+                      size: 64,
+                      color: Colors.indigo.shade300,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   const Text(
                     'No modules available',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -166,7 +195,7 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _filters.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
                     itemBuilder: (context, index) {
                       final filter = _filters[index];
                       final isSelected = _selectedFilter == filter;
@@ -178,8 +207,12 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                             filter,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                              color: isSelected ? Colors.white : const Color(0xFF475569),
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF475569),
                             ),
                           ),
                           selected: isSelected,
@@ -196,10 +229,15 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
-                              color: isSelected ? Colors.transparent : Colors.grey.shade300,
+                              color: isSelected
+                                  ? Colors.transparent
+                                  : Colors.grey.shade300,
                             ),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
                       );
                     },
@@ -210,7 +248,11 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
               // Module List
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.only(left: 20, right: 20, bottom: 30),
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    bottom: 30,
+                  ),
                   itemCount: modules.length,
                   itemBuilder: (context, index) {
                     final module = modules[index];
@@ -236,7 +278,9 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
   Widget _buildModuleDetailView(ModuleModel module, int totalModules) {
     final hasVideo = module.videoUrl != null && module.videoUrl!.isNotEmpty;
     // Mock progress calculation for UI effect based on index
-    final progress = _selectedModuleIndex == 0 ? 1.0 : (_selectedModuleIndex == 1 ? 0.45 : 0.0);
+    final progress = _selectedModuleIndex == 0
+        ? 1.0
+        : (_selectedModuleIndex == 1 ? 0.45 : 0.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -292,7 +336,11 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                   Container(
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [Color(0xFF4F46E5), Color(0xFF6366F1), Color(0xFF818CF8)],
+                        colors: [
+                          Color(0xFF4F46E5),
+                          Color(0xFF6366F1),
+                          Color(0xFF818CF8),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -332,7 +380,10 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.25),
                             borderRadius: BorderRadius.circular(8),
@@ -514,15 +565,18 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                           try {
                             final uri = Uri.parse(module.attachmentUrl!);
                             if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri,
-                                  mode: LaunchMode.externalApplication);
+                              await launchUrl(
+                                uri,
+                                mode: LaunchMode.externalApplication,
+                              );
                             }
                           } catch (e) {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                  content: Text('Cannot open file'),
-                                  backgroundColor: Colors.red),
+                                content: Text('Cannot open file'),
+                                backgroundColor: Colors.red,
+                              ),
                             );
                           }
                         },
@@ -549,7 +603,10 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                                   color: Colors.indigo.shade50,
                                   borderRadius: BorderRadius.circular(12),
                                 ),
-                                child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF4F46E5)),
+                                child: const Icon(
+                                  Icons.picture_as_pdf_rounded,
+                                  color: Color(0xFF4F46E5),
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
@@ -575,7 +632,10 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.download_rounded, color: Color(0xFF4F46E5)),
+                              const Icon(
+                                Icons.download_rounded,
+                                color: Color(0xFF4F46E5),
+                              ),
                             ],
                           ),
                         ),
@@ -594,7 +654,10 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                           SnackBar(
                             content: const Row(
                               children: [
-                                Icon(Icons.check_circle_rounded, color: Colors.white),
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  color: Colors.white,
+                                ),
                                 SizedBox(width: 12),
                                 Text('Module marked as completed!'),
                               ],
@@ -655,20 +718,28 @@ class _ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = index == 0 ? 'Completed' : index == 1 ? 'In Progress' : 'Not Started';
-    final progress = index == 0 ? 1.0 : index == 1 ? 0.45 : 0.0;
-    
+    final status = index == 0
+        ? 'Completed'
+        : index == 1
+        ? 'In Progress'
+        : 'Not Started';
+    final progress = index == 0
+        ? 1.0
+        : index == 1
+        ? 0.45
+        : 0.0;
+
     final statusColor = status == 'Completed'
         ? Colors.green.shade600
         : status == 'In Progress'
-            ? const Color(0xFFF59E0B) // Amber 500
-            : Colors.grey.shade500;
-            
+        ? const Color(0xFFF59E0B) // Amber 500
+        : Colors.grey.shade500;
+
     final statusBgColor = status == 'Completed'
         ? Colors.green.shade50
         : status == 'In Progress'
-            ? Colors.amber.shade50
-            : Colors.grey.shade100;
+        ? Colors.amber.shade50
+        : Colors.grey.shade100;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -697,7 +768,10 @@ class _ModuleCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: statusBgColor,
                         borderRadius: BorderRadius.circular(12),
@@ -910,7 +984,9 @@ class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
                   SnackBar(
                     content: const Text('✅ URL copied'),
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               }
@@ -920,11 +996,7 @@ class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
           ),
         ],
       ),
-      body: Center(
-        child: YoutubePlayer(
-          controller: _controller,
-        ),
-      ),
+      body: Center(child: YoutubePlayer(controller: _controller)),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         color: const Color(0xFF111827), // Gray 900
@@ -937,21 +1009,36 @@ class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
                   color: Colors.red.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.play_arrow_rounded, color: Colors.red, size: 20),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.red,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
-              const Text('Playing inside the app',
-                  style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+              const Text(
+                'Playing inside the app',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               const Spacer(),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.white,
                   backgroundColor: Colors.white.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                 ),
-                child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),

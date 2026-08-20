@@ -44,7 +44,7 @@ class ForumService {
 
     // Get user role from users collection
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+    final userData = userDoc.data() ?? {};
 
     String authorRole = userData['role']?.toString() ?? 'student';
     String authorName = userData['displayName']?.toString() ??
@@ -155,7 +155,7 @@ class ForumService {
 
     // Get user role and name
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+    final userData = userDoc.data() ?? {};
     final authorRole = userData['role']?.toString() ?? 'student';
     final authorName = userData['displayName']?.toString() ??
         userData['name']?.toString() ??
@@ -252,7 +252,7 @@ class ForumService {
     if (post.authorId != user.uid) {
       // Check if user is teacher
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+      final userData = userDoc.data() ?? {};
       final role = userData['role']?.toString() ?? 'student';
       if (role != 'teacher' && role != 'trainer') {
         throw Exception('Only the author or teacher can delete this post');

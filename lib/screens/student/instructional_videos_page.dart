@@ -1,6 +1,4 @@
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/module_model.dart';
@@ -10,11 +8,7 @@ class InstructionalVideosPage extends StatefulWidget {
   final String? classId;
   final String? className;
 
-  const InstructionalVideosPage({
-    super.key,
-    this.classId,
-    this.className,
-  });
+  const InstructionalVideosPage({super.key, this.classId, this.className});
 
   @override
   State<InstructionalVideosPage> createState() =>
@@ -27,7 +21,6 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
   bool _isLoading = true;
   String? _selectedVideoUrl;
   String? _selectedVideoTitle;
-  bool _isPlaying = false;
   YoutubePlayerController? _youtubeController;
 
   @override
@@ -50,30 +43,32 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
 
     try {
       // ✅ Use listen instead of first
-      _moduleService.getPublishedModulesForClass(widget.classId!).listen(
-        (modules) {
-          final videos = modules
-              .where((m) => m.videoUrl != null && m.videoUrl!.isNotEmpty)
-              .toList();
+      _moduleService
+          .getPublishedModulesForClass(widget.classId!)
+          .listen(
+            (modules) {
+              final videos = modules
+                  .where((m) => m.videoUrl != null && m.videoUrl!.isNotEmpty)
+                  .toList();
 
-          setState(() {
-            _videos = videos;
-            _isLoading = false;
+              setState(() {
+                _videos = videos;
+                _isLoading = false;
 
-            // Auto-play first video if available and no video selected
-            if (_videos.isNotEmpty && _selectedVideoUrl == null) {
-              _playVideo(_videos.first);
-            }
-          });
-        },
-        onError: (error) {
-          print('Error loading videos: $error');
-          setState(() {
-            _isLoading = false;
-            _videos = [];
-          });
-        },
-      );
+                // Auto-play first video if available and no video selected
+                if (_videos.isNotEmpty && _selectedVideoUrl == null) {
+                  _playVideo(_videos.first);
+                }
+              });
+            },
+            onError: (error) {
+              print('Error loading videos: $error');
+              setState(() {
+                _isLoading = false;
+                _videos = [];
+              });
+            },
+          );
     } catch (e) {
       print('Error loading videos: $e');
       setState(() {
@@ -90,7 +85,6 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
     setState(() {
       _selectedVideoUrl = videoUrl;
       _selectedVideoTitle = module.title;
-      _isPlaying = false;
     });
 
     if (videoId.isNotEmpty) {
@@ -141,7 +135,6 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,49 +142,42 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       appBar: AppBar(
         title: const Text(
           'Instructional Videos',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: Colors.grey.shade200,
-          ),
+          child: Container(height: 1, color: Colors.grey.shade200),
         ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _videos.isEmpty
-              ? _buildEmptyState()
-              : Column(
-                  children: [
-                    _buildVideoPlayer(),
-                    _buildStatsRow(),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _videos.length,
-                        itemBuilder: (context, index) {
-                          final module = _videos[index];
-                          final isSelected =
-                              _selectedVideoUrl == module.videoUrl;
-                          return _VideoCard(
-                            module: module,
-                            index: index,
-                            isSelected: isSelected,
-                            onTap: () => _playVideo(module),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+          ? _buildEmptyState()
+          : Column(
+              children: [
+                _buildVideoPlayer(),
+                _buildStatsRow(),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _videos.length,
+                    itemBuilder: (context, index) {
+                      final module = _videos[index];
+                      final isSelected = _selectedVideoUrl == module.videoUrl;
+                      return _VideoCard(
+                        module: module,
+                        index: index,
+                        isSelected: isSelected,
+                        onTap: () => _playVideo(module),
+                      );
+                    },
+                  ),
                 ),
+              ],
+            ),
     );
   }
 
@@ -208,18 +194,12 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
           const SizedBox(height: 16),
           const Text(
             'No Videos Available',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Check back later for instructional videos',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
@@ -246,18 +226,11 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.play_circle_outline,
-                size: 48,
-                color: Colors.white54,
-              ),
+              Icon(Icons.play_circle_outline, size: 48, color: Colors.white54),
               SizedBox(height: 8),
               Text(
                 'Select a video to play',
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.white54, fontSize: 14),
               ),
             ],
           ),
@@ -274,24 +247,18 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       color: Colors.black,
       child: Stack(
         children: [
-          if (isYouTube && _youtubeController != null) YoutubePlayer(controller: _youtubeController!),
+          if (isYouTube && _youtubeController != null)
+            YoutubePlayer(controller: _youtubeController!),
           if (!isYouTube)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.video_file,
-                    size: 48,
-                    color: Colors.white54,
-                  ),
+                  const Icon(Icons.video_file, size: 48, color: Colors.white54),
                   const SizedBox(height: 8),
                   Text(
                     _selectedVideoTitle ?? 'Video',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
@@ -320,9 +287,7 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -332,21 +297,13 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
             label: '${_videos.length} Videos',
             color: const Color(0xFF2F80ED),
           ),
-          Container(
-            width: 1,
-            height: 24,
-            color: Colors.grey.shade300,
-          ),
+          Container(width: 1, height: 24, color: Colors.grey.shade300),
           _StatItem(
             icon: Icons.timer_rounded,
             label: '${totalDuration ~/ 60} hrs Total',
             color: Colors.orange,
           ),
-          Container(
-            width: 1,
-            height: 24,
-            color: Colors.grey.shade300,
-          ),
+          Container(width: 1, height: 24, color: Colors.grey.shade300),
           _StatItem(
             icon: Icons.visibility_rounded,
             label: '${(totalViews ~/ 1000)}k+ Views',
@@ -492,7 +449,9 @@ class _VideoCard extends StatelessWidget {
                           right: 4,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 2),
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.7),
                               borderRadius: BorderRadius.circular(2),
@@ -520,8 +479,9 @@ class _VideoCard extends StatelessWidget {
                         module.title,
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w600,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w600,
                           color: isSelected
                               ? const Color(0xFF2F80ED)
                               : Colors.black,
@@ -547,7 +507,9 @@ class _VideoCard extends StatelessWidget {
                           if (isYouTube)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(4),
@@ -564,7 +526,9 @@ class _VideoCard extends StatelessWidget {
                           if (!isYouTube)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(4),
@@ -581,7 +545,9 @@ class _VideoCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(4),

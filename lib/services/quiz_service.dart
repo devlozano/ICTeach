@@ -89,7 +89,7 @@ class QuizService {
 
     if (doc.exists) {
       return QuizModel.fromFirestore(
-          doc as DocumentSnapshot<Map<String, dynamic>>);
+          doc);
     }
     return null;
   }

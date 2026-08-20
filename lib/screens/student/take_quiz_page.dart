@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:uuid/uuid.dart';
 import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
 import 'quiz_results_page.dart'; // ✅ ADD THIS IMPORT
@@ -80,13 +79,15 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
 
       if (isCorrect) correctCount++;
 
-      userAnswers.add(UserAnswer(
-        questionId: question.id,
-        selectedAnswer: selected ?? -1,
-        isCorrect: isCorrect,
-        correctAnswerText: question.options[question.correctAnswer],
-        explanation: question.explanation,
-      ));
+      userAnswers.add(
+        UserAnswer(
+          questionId: question.id,
+          selectedAnswer: selected ?? -1,
+          isCorrect: isCorrect,
+          correctAnswerText: question.options[question.correctAnswer],
+          explanation: question.explanation,
+        ),
+      );
     }
 
     final userDoc = await FirebaseFirestore.instance
@@ -172,9 +173,7 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
             color: Colors.grey.shade300,
             child: FractionallySizedBox(
               widthFactor: progress / 100,
-              child: Container(
-                color: const Color(0xFF0B2B4A),
-              ),
+              child: Container(color: const Color(0xFF0B2B4A)),
             ),
           ),
           Expanded(
@@ -186,10 +185,7 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
                   // Question counter
                   Text(
                     'Question ${_currentQuestionIndex + 1} of ${widget.quiz.questions.length}',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
 
@@ -276,7 +272,7 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
 
                   const SizedBox(height: 24),
 
@@ -365,8 +361,9 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children:
-                        List.generate(widget.quiz.questions.length, (index) {
+                    children: List.generate(widget.quiz.questions.length, (
+                      index,
+                    ) {
                       final isAnswered = _selectedAnswers[index] != null;
                       final isCurrent = index == _currentQuestionIndex;
                       return Container(
@@ -377,8 +374,8 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
                           color: isAnswered
                               ? const Color(0xFF0B2B4A)
                               : isCurrent
-                                  ? Colors.grey.shade500
-                                  : Colors.grey.shade300,
+                              ? Colors.grey.shade500
+                              : Colors.grey.shade300,
                         ),
                       );
                     }),

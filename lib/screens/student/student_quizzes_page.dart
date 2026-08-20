@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/quiz_model.dart';
@@ -22,12 +21,9 @@ class StudentQuizzesPage extends StatefulWidget {
 
 class _StudentQuizzesPageState extends State<StudentQuizzesPage> {
   final QuizService _quizService = QuizService();
-  String? _userId;
-
   @override
   void initState() {
     super.initState();
-    _userId = FirebaseAuth.instance.currentUser?.uid;
   }
 
   Future<void> _takeQuiz(QuizModel quiz) async {
@@ -93,10 +89,7 @@ class _StudentQuizzesPageState extends State<StudentQuizzesPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TakeQuizPage(
-          classId: widget.classId,
-          quiz: quiz,
-        ),
+        builder: (context) => TakeQuizPage(classId: widget.classId, quiz: quiz),
       ),
     );
   }
@@ -247,11 +240,14 @@ class _QuizCardState extends State<_QuizCard> {
 
   Future<void> _checkIfTaken() async {
     try {
-      final hasTaken =
-          await widget.quizService.hasTakenQuiz(widget.userId, widget.quiz.id);
+      final hasTaken = await widget.quizService.hasTakenQuiz(
+        widget.userId,
+        widget.quiz.id,
+      );
       if (hasTaken) {
-        final results =
-            await widget.quizService.getStudentQuizResults(widget.userId);
+        final results = await widget.quizService.getStudentQuizResults(
+          widget.userId,
+        );
         final result = results.firstWhere((r) => r.quizId == widget.quiz.id);
         setState(() {
           _hasTaken = true;
@@ -320,7 +316,9 @@ class _QuizCardState extends State<_QuizCard> {
                         if (_hasTaken == true && _result != null)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: _result!.isPassed
                                   ? Colors.green.shade100
@@ -364,10 +362,7 @@ class _QuizCardState extends State<_QuizCard> {
             const SizedBox(height: 8),
             Text(
               widget.quiz.description,
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -377,8 +372,10 @@ class _QuizCardState extends State<_QuizCard> {
             children: [
               if (_hasTaken == true && _result != null) ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),

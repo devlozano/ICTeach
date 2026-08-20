@@ -28,10 +28,14 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
     Color color,
   ) {
     String rankBadge;
-    if (index == 0) rankBadge = '🥇';
-    else if (index == 1) rankBadge = '🥈';
-    else if (index == 2) rankBadge = '🥉';
-    else rankBadge = '${index + 1}';
+    if (index == 0) {
+      rankBadge = '🥇';
+    } else if (index == 1)
+      rankBadge = '🥈';
+    else if (index == 2)
+      rankBadge = '🥉';
+    else
+      rankBadge = '${index + 1}';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -39,7 +43,9 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: index < 3 ? Border.all(color: color.withOpacity(0.5), width: 1.5) : null,
+        border: index < 3
+            ? Border.all(color: color.withOpacity(0.5), width: 1.5)
+            : null,
         boxShadow: [
           BoxShadow(
             color: color.withOpacity(0.08),
@@ -137,16 +143,15 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
     }
 
     // Calculate averages
-    final studentAverages = studentResults.entries.map((entry) {
-      final avg = entry.value.fold<double>(0, (sum, r) => sum + r.percentage) /
-          entry.value.length;
-      return {
-        'name': entry.value.first.studentName,
-        'average': avg,
-      };
-    }).toList()
-      ..sort((a, b) =>
-          (b['average'] as double).compareTo(a['average'] as double));
+    final studentAverages =
+        studentResults.entries.map((entry) {
+          final avg =
+              entry.value.fold<double>(0, (sum, r) => sum + r.percentage) /
+              entry.value.length;
+          return {'name': entry.value.first.studentName, 'average': avg};
+        }).toList()..sort(
+          (a, b) => (b['average'] as double).compareTo(a['average'] as double),
+        );
 
     return SizedBox(
       height: 300,
@@ -258,7 +263,10 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.white.withOpacity(0.2),
                                     borderRadius: BorderRadius.circular(20),
@@ -305,16 +313,27 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.analytics_outlined, size: 80, color: Colors.grey.shade300),
+                        Icon(
+                          Icons.analytics_outlined,
+                          size: 80,
+                          color: Colors.grey.shade300,
+                        ),
                         const SizedBox(height: 16),
                         const Text(
                           'No Progress Data',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'No quiz results found for this class.',
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 15,
+                          ),
                         ),
                       ],
                     ),
@@ -324,27 +343,24 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
                 SliverPadding(
                   padding: const EdgeInsets.all(24),
                   sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final data = leaderboard[index];
-                        final color = index == 0
-                            ? const Color(0xFFFFB800) // Gold
-                            : index == 1
-                                ? const Color(0xFF94A3B8) // Silver
-                                : index == 2
-                                    ? const Color(0xFFCD7F32) // Bronze
-                                    : const Color(0xFF168D92); // Default brand
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final data = leaderboard[index];
+                      final color = index == 0
+                          ? const Color(0xFFFFB800) // Gold
+                          : index == 1
+                          ? const Color(0xFF94A3B8) // Silver
+                          : index == 2
+                          ? const Color(0xFFCD7F32) // Bronze
+                          : const Color(0xFF168D92); // Default brand
 
-                        return _buildLeaderboardItem(
-                          index,
-                          data['studentName'] as String,
-                          data['percentage'] as int,
-                          data['quizCount'] as int,
-                          color,
-                        );
-                      },
-                      childCount: leaderboard.length,
-                    ),
+                      return _buildLeaderboardItem(
+                        index,
+                        data['studentName'] as String,
+                        data['percentage'] as int,
+                        data['quizCount'] as int,
+                        color,
+                      );
+                    }, childCount: leaderboard.length),
                   ),
                 ),
             ],
@@ -354,4 +370,3 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
     );
   }
 }
-

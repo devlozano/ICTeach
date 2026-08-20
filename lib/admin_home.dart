@@ -253,7 +253,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: teachers.length > 5 ? 5 : teachers.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final doc = teachers[index];
                           final data =
@@ -546,7 +546,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: students.length > 5 ? 5 : students.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final data =
                               students[index].data() as Map<String, dynamic>? ??
@@ -1189,7 +1189,7 @@ class _SummaryRowState extends State<_SummaryRow> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cards.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (_, index) =>
             SizedBox(width: 220, child: _SmallStat(data: cards[index])),
       ),
@@ -1978,7 +1978,7 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final doc = filtered[index];
                           final data = doc.data() as Map<String, dynamic>;
@@ -2352,7 +2352,7 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: leaderboard.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
                   final data = leaderboard[index];
                   final isTop3 = index < 3;

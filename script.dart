@@ -3,10 +3,15 @@ import 'dart:io';
 void main() {
   final file = File('lib/screens/student/module_view_page.dart');
   var content = file.readAsStringSync();
-  
-  final RegExp regExp = RegExp(r'class _YouTubePlayerPageState extends State<YouTubePlayerPage> \{.*?^\}', multiLine: true, dotAll: true);
-  
-  final String newClass = '''class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
+
+  final RegExp regExp = RegExp(
+    r'class _YouTubePlayerPageState extends State<YouTubePlayerPage> \{.*?^\}',
+    multiLine: true,
+    dotAll: true,
+  );
+
+  final String newClass =
+      '''class _YouTubePlayerPageState extends State<YouTubePlayerPage> {
   late final YoutubePlayerController _controller;
 
   @override
@@ -41,7 +46,7 @@ void main() {
 
   void _openInYouTubeApp() async {
     try {
-      final youtubeUri = Uri.parse('vnd.youtube://watch?v=\');
+      final youtubeUri = Uri.parse('vnd.youtube://watch?v=');
       if (await canLaunchUrl(youtubeUri)) {
         await launchUrl(youtubeUri, mode: LaunchMode.externalApplication);
       } else {

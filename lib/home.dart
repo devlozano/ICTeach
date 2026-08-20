@@ -908,19 +908,19 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         _buildProgressStat(
                             'Quiz',
-                            '${quizCompleted}/$totalQuizzes',
+                            '$quizCompleted/$totalQuizzes',
                             '${stats.quizPercent.toStringAsFixed(0)}%'),
                         _buildProgressStat(
                             'Modules',
-                            '${moduleCompleted}/$totalModules',
+                            '$moduleCompleted/$totalModules',
                             '${stats.modulePercent.toStringAsFixed(0)}%'),
                         _buildProgressStat(
                             'Simulation',
-                            '${simulationCompleted}/$simulationTotal',
+                            '$simulationCompleted/$simulationTotal',
                             '${stats.simulationPercent.toStringAsFixed(0)}%'),
                         _buildProgressStat(
                             'Assessment',
-                            '${assessmentCompleted}/$assessmentTotal',
+                            '$assessmentCompleted/$assessmentTotal',
                             '${stats.assessmentPercent.toStringAsFixed(0)}%'),
                       ],
                     ),
