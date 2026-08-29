@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'login.dart';
+import 'admin_login.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import '../screens/teacher/manage_modules_page.dart';
@@ -46,7 +48,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
+        MaterialPageRoute(
+          builder: (_) => kIsWeb ? const AdminLoginPage() : const LoginPage(),
+        ),
         (route) => false,
       );
     }
@@ -116,7 +120,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Colors.purple.shade900;
+    const primaryColor = Color(0xFF102A43);
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -147,83 +151,101 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
             setState(() => _selectedIndex = 0);
           },
           child: Scaffold(
-            backgroundColor: const Color(0xffF8FAFC),
-            appBar: AppBar(
-              backgroundColor: primaryColor,
-              elevation: 0,
-              title: const Text(
-                "ICTEACH",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              actions: [
-                NotificationBadge(
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.push(
+            backgroundColor: const Color(0xFFF4F7FA),
+            appBar: MediaQuery.sizeOf(context).width >= 1000
+                ? null
+                : AppBar(
+                    backgroundColor: primaryColor,
+                    elevation: 0,
+                    title: const Text(
+                      "ICTEACH",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    actions: [
+                      NotificationBadge(
+                        child: IconButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NotificationPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          tooltip: 'Notifications',
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.logout_rounded,
+                          color: Colors.white,
+                        ),
+                        onPressed: _logout,
+                        tooltip: 'Logout',
+                      ),
+                    ],
+                  ),
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                final workspace = IndexedStack(
+                  index: _selectedIndex,
+                  children: [
+                    _buildHomeContent(primaryColor, trainerName, user.uid),
+                    _buildDiscussionForums(primaryColor),
+                    _buildProfileContent(profile, user),
+                  ],
+                );
+                if (constraints.maxWidth < 1000) return workspace;
+                return Row(
+                  children: [
+                    _TrainerDesktopNav(
+                      currentIndex: _selectedIndex,
+                      trainerName: trainerName,
+                      onChanged: (index) =>
+                          setState(() => _selectedIndex = index),
+                      onNotifications: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const NotificationPage(),
+                          builder: (_) => const NotificationPage(),
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white,
-                      size: 28,
+                      ),
+                      onLogout: _logout,
                     ),
-                    tooltip: 'Notifications',
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.logout_rounded, color: Colors.white),
-                  onPressed: _logout,
-                  tooltip: 'Logout',
-                ),
-              ],
-            ),
-            body: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                _buildHomeContent(primaryColor, trainerName, user.uid),
-                _buildDiscussionForums(primaryColor),
-                _buildProfileContent(profile, user),
-              ],
-            ),
-            bottomNavigationBar: BottomNavigationBar(
-              currentIndex: _selectedIndex,
-              onTap: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
+                    const VerticalDivider(width: 1),
+                    Expanded(child: workspace),
+                  ],
+                );
               },
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: primaryColor,
-              unselectedItemColor: Colors.grey.shade500,
-              showUnselectedLabels: true,
-              selectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-              unselectedLabelStyle: const TextStyle(fontSize: 12),
-              items: const [
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.forum_rounded),
-                  label: 'Discussions',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person_rounded),
-                  label: 'Profile',
-                ),
-              ],
             ),
+            bottomNavigationBar: MediaQuery.sizeOf(context).width >= 1000
+                ? null
+                : BottomNavigationBar(
+                    currentIndex: _selectedIndex,
+                    onTap: (index) => setState(() => _selectedIndex = index),
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.home_rounded),
+                        label: 'Home',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.forum_rounded),
+                        label: 'Discussions',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.person_rounded),
+                        label: 'Profile',
+                      ),
+                    ],
+                  ),
           ),
         );
       },
@@ -249,11 +271,11 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 bottomRight: Radius.circular(24),
               ),
             ),
-            padding: const EdgeInsets.only(
+            padding: EdgeInsets.only(
               left: 20,
               right: 20,
-              bottom: 30,
-              top: 10,
+              bottom: MediaQuery.sizeOf(context).width >= 1000 ? 18 : 30,
+              top: MediaQuery.sizeOf(context).width >= 1000 ? 8 : 10,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,12 +352,16 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           ),
 
           Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: EdgeInsets.all(
+              MediaQuery.sizeOf(context).width >= 1000 ? 16 : 20,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildStatsRow(primaryColor),
-                const SizedBox(height: 24),
+                SizedBox(
+                  height: MediaQuery.sizeOf(context).width >= 1000 ? 14 : 24,
+                ),
                 const Text(
                   'Trainer Tools',
                   style: TextStyle(
@@ -496,17 +522,26 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
       ),
     ];
 
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.15,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-      ),
-      itemBuilder: (context, index) => items[index],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 900
+            ? 6
+            : constraints.maxWidth >= 600
+            ? 3
+            : 2;
+        return GridView.builder(
+          itemCount: items.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: columns == 6 ? 1.05 : 1.15,
+            crossAxisSpacing: columns == 6 ? 10 : 14,
+            mainAxisSpacing: 10,
+          ),
+          itemBuilder: (context, index) => items[index],
+        );
+      },
     );
   }
 
@@ -1325,6 +1360,112 @@ class _TrainerToolItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TrainerDesktopNav extends StatelessWidget {
+  const _TrainerDesktopNav({
+    required this.currentIndex,
+    required this.trainerName,
+    required this.onChanged,
+    required this.onNotifications,
+    required this.onLogout,
+  });
+
+  final int currentIndex;
+  final String trainerName;
+  final ValueChanged<int> onChanged;
+  final VoidCallback onNotifications;
+  final VoidCallback onLogout;
+
+  static const _items = [
+    (Icons.home_outlined, Icons.home_rounded, 'Overview'),
+    (Icons.forum_outlined, Icons.forum_rounded, 'Discussions'),
+    (Icons.person_outline, Icons.person_rounded, 'Profile'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 248,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset('assets/ict_logo.png', width: 42, height: 42),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ICTeach',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'TRAINER WORKSPACE',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFF627487),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .8,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 34),
+          for (var index = 0; index < _items.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                selected: currentIndex == index,
+                selectedTileColor: const Color(0xFFEAF1FD),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                leading: Icon(
+                  currentIndex == index ? _items[index].$2 : _items[index].$1,
+                ),
+                title: Text(_items[index].$3),
+                onTap: () => onChanged(index),
+              ),
+            ),
+          const SizedBox(height: 14),
+          ListTile(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            leading: const Icon(Icons.notifications_none_rounded),
+            title: const Text('Notifications'),
+            onTap: onNotifications,
+          ),
+          const Spacer(),
+          const Divider(),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            leading: const CircleAvatar(
+              child: Icon(Icons.badge_outlined, size: 19),
+            ),
+            title: Text(
+              trainerName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: const Text('Trainer'),
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            leading: const Icon(Icons.logout_rounded),
+            title: const Text('Sign out'),
+            onTap: onLogout,
+          ),
+        ],
       ),
     );
   }

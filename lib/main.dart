@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +11,7 @@ import 'admin_login.dart';
 import 'login.dart';
 import 'widgets/offline_indicator.dart';
 import 'services/navigation_service.dart';
+import 'utils/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,28 +56,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ICTeach',
+      title: 'ICTeach Learning Portal',
       debugShowCheckedModeBanner: false,
-      navigatorKey: NavigationService.navigatorKey, // ✅ Add navigator key
+      navigatorKey: NavigationService.navigatorKey,
       builder: (context, child) => OfflineIndicator(child: child!),
-      theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xffF8FAFC),
-        pageTransitionsTheme: PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-          },
-        ),
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0B2B4A),
-          primary: const Color(0xFF0B2B4A),
-        ),
-      ),
+      theme: AppTheme.light,
       home: const _AppEntry(),
       routes: {
         '/home': (context) => const HomeRouter(),
         '/login': (context) => const LoginPage(),
+        '/web-login': (context) => const AdminLoginPage(),
         '/admin-login': (context) => const AdminLoginPage(),
       },
     );

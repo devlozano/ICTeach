@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/services.dart';
 
 import '../models/simulation_model.dart';
@@ -6,11 +7,13 @@ import '../models/simulation_model.dart';
 class DraggableItemWidget extends StatelessWidget {
   final DraggableItem item;
   final bool isComplete;
+  final bool compact;
 
   const DraggableItemWidget({
     super.key,
     required this.item,
     required this.isComplete,
+    this.compact = false,
   });
 
   @override
@@ -19,9 +22,7 @@ class DraggableItemWidget extends StatelessWidget {
       data: item.id,
       feedback: Material(
         elevation: 8,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         child: Container(
           width: 110,
           height: 82,
@@ -34,11 +35,7 @@ class DraggableItemWidget extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                _getIconForCategory(item.category),
-                color: _getColorForCategory(item.category),
-                size: 24,
-              ),
+              _buildVisual(size: 36),
               const SizedBox(height: 4),
               Text(
                 item.name,
@@ -53,10 +50,7 @@ class DraggableItemWidget extends StatelessWidget {
           ),
         ),
       ),
-      childWhenDragging: Opacity(
-        opacity: 0.3,
-        child: _buildItemCard(),
-      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: _buildItemCard()),
       onDragStarted: () {
         HapticFeedback.mediumImpact();
       },
@@ -65,6 +59,54 @@ class DraggableItemWidget extends StatelessWidget {
   }
 
   Widget _buildItemCard() {
+    if (compact) {
+      return Container(
+        width: double.infinity,
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: const Color(0xFFDCE3EA)),
+        ),
+        child: Row(
+          children: [
+            _buildVisual(size: 32),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (item.step > 0)
+                    Text(
+                      'Step ${item.step}',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Color(0xFF627487),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.drag_indicator_rounded,
+              size: 16,
+              color: Color(0xFF9AA9B7),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
       width: 110,
       height: 82,
@@ -84,22 +126,69 @@ class DraggableItemWidget extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _getIconForCategory(item.category),
-            color: _getColorForCategory(item.category),
-            size: 28,
-          ),
+          _buildVisual(size: 42),
           const SizedBox(height: 4),
           Text(
             item.name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             textAlign: TextAlign.center,
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVisual({required double size}) {
+    final color = _getColorForCategory(item.category);
+    return SizedBox(
+      width: size + 10,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(child: _buildImage(size: size)),
+          Positioned(
+            right: -3,
+            bottom: -2,
+            child: Container(
+              width: 19,
+              height: 19,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
+              ),
+              child: Icon(
+                _getIconForCategory(item.category),
+                color: Colors.white,
+                size: 11,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImage({required double size}) {
+    if (item.imageUrl.endsWith('.svg')) {
+      return SvgPicture.asset(
+        item.imageUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+      );
+    }
+    return Image.asset(
+      item.imageUrl,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => Icon(
+        _getIconForCategory(item.category),
+        size: size * .75,
+        color: _getColorForCategory(item.category),
       ),
     );
   }
@@ -121,7 +210,11 @@ class DraggableItemWidget extends StatelessWidget {
       case 'network':
         return Icons.wifi;
       case 'cable':
-        return Icons.linear_scale;
+        return Icons.cable_rounded;
+      case 'procedure':
+        return Icons.format_list_numbered_rounded;
+      case 'diagnostic':
+        return Icons.troubleshoot_rounded;
       default:
         return Icons.device_hub;
     }
@@ -145,6 +238,10 @@ class DraggableItemWidget extends StatelessWidget {
         return Colors.indigo;
       case 'cable':
         return Colors.teal;
+      case 'procedure':
+        return Colors.blueGrey;
+      case 'diagnostic':
+        return Colors.deepOrange;
       default:
         return Colors.grey;
     }

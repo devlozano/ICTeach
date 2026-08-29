@@ -9,13 +9,21 @@ import 'admin/manage_trainers_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'package:icteach/services/quiz_service.dart';
+import 'admin_login.dart';
 
 // ─── Color constants ──────────────────────────────────────────────────────────
-const _kNavColor = Color(0xFF0B2B4A);
-const _kAccentBlue = Color(0xFF1EA4FF);
-const _kCardBorder = Color(0xFFECECEC);
-const _kSubtextColor = Color(0xFF8A8A8A);
-const _kBgColor = Color(0xffF8FAFC);
+const _kNavColor = Color(0xFF0F172A);
+const _kAccentBlue = Color(0xFF0891B2);
+const _kCardBorder = Color(0xFFDCE4EC);
+const _kSubtextColor = Color(0xFF64748B);
+const _kBgColor = Color(0xFFF1F5F9);
+
+void _openWebLogin(BuildContext context) {
+  Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const AdminLoginPage()),
+    (route) => false,
+  );
+}
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
@@ -77,36 +85,25 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           _TopBar(name: name, showMenuButton: !isWide),
                           Expanded(
                             child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(24),
+                              padding: const EdgeInsets.fromLTRB(
+                                28,
+                                24,
+                                28,
+                                36,
+                              ),
                               child: ConstrainedBox(
                                 constraints: const BoxConstraints(
-                                  maxWidth: 1200,
+                                  maxWidth: 1400,
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      _currentSelectedLabel,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .headlineSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 28,
-                                          ),
+                                    _AdminPageHeading(
+                                      title: _currentSelectedLabel,
+                                      subtitle: _getSubtitle(),
+                                      icon: _sectionIcon(),
                                     ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      _getSubtitle(),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyMedium
-                                          ?.copyWith(
-                                            color: Colors.black54,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 18),
+                                    const SizedBox(height: 20),
                                     _buildActivePanelContent(),
                                     const SizedBox(height: 40),
                                   ],
@@ -145,6 +142,25 @@ class _AdminHomePageState extends State<AdminHomePage> {
         return 'Manage your account and app preferences';
       default:
         return '';
+    }
+  }
+
+  IconData _sectionIcon() {
+    switch (_currentSelectedLabel) {
+      case 'Manage Users':
+        return Icons.manage_accounts_outlined;
+      case 'Manage Classes':
+        return Icons.school_outlined;
+      case 'Performance':
+        return Icons.analytics_outlined;
+      case 'Reports':
+        return Icons.description_outlined;
+      case 'LRN Registry':
+        return Icons.badge_outlined;
+      case 'Settings':
+        return Icons.settings_outlined;
+      default:
+        return Icons.space_dashboard_outlined;
     }
   }
 
@@ -190,8 +206,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           color: const Color(0xFF2F80ED).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.school_rounded,
-                            color: Color(0xFF2F80ED), size: 20),
+                        child: const Icon(
+                          Icons.school_rounded,
+                          color: Color(0xFF2F80ED),
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       const Text(
@@ -263,8 +282,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           final isActive = data['isActive'] ?? true;
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor:
-                                  const Color(0xFF2F80ED).withOpacity(0.1),
+                              backgroundColor: const Color(
+                                0xFF2F80ED,
+                              ).withOpacity(0.1),
                               child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : 'T',
                                 style: const TextStyle(
@@ -273,17 +293,22 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                 ),
                               ),
                             ),
-                            title: Text(name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
+                            title: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             subtitle: Text(email),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 _StatusBadge(isActive: isActive),
                                 const SizedBox(width: 8),
-                                const Icon(Icons.chevron_right,
-                                    color: _kSubtextColor),
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: _kSubtextColor,
+                                ),
                               ],
                             ),
                           );
@@ -323,8 +348,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           color: Colors.purple.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.verified_user_rounded,
-                            color: Colors.purple, size: 20),
+                        child: const Icon(
+                          Icons.verified_user_rounded,
+                          color: Colors.purple,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       const Text(
@@ -406,16 +434,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       color: const Color(0xFF0B2B4A).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.numbers,
-                        color: Color(0xFF0B2B4A), size: 20),
+                    child: const Icon(
+                      Icons.numbers,
+                      color: Color(0xFF0B2B4A),
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
                     'LRN Registration',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -426,9 +454,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const ManageLRNPage(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ManageLRNPage()),
                     );
                   },
                   icon: const Icon(Icons.numbers, color: Color(0xFF0B2B4A)),
@@ -467,16 +493,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
                       color: const Color(0xFF28C76F).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.people_alt_rounded,
-                        color: Color(0xFF28C76F), size: 20),
+                    child: const Icon(
+                      Icons.people_alt_rounded,
+                      color: Color(0xFF28C76F),
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
                     'Students',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -512,12 +538,16 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           ),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                              color: const Color(0xFF28C76F).withOpacity(0.2)),
+                            color: const Color(0xFF28C76F).withOpacity(0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.people_alt,
-                                color: Color(0xFF28C76F), size: 32),
+                            const Icon(
+                              Icons.people_alt,
+                              color: Color(0xFF28C76F),
+                              size: 32,
+                            ),
                             const SizedBox(width: 16),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,8 +563,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                 Text(
                                   'Total registered students',
                                   style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 13),
+                                    color: Colors.grey.shade600,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -550,7 +581,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         itemBuilder: (context, index) {
                           final data =
                               students[index].data() as Map<String, dynamic>? ??
-                                  {};
+                              {};
                           final name =
                               data['name']?.toString() ?? 'Unknown Student';
                           final email = data['email']?.toString() ?? '';
@@ -558,8 +589,9 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             dense: true,
                             leading: CircleAvatar(
                               radius: 16,
-                              backgroundColor:
-                                  const Color(0xFF28C76F).withOpacity(0.1),
+                              backgroundColor: const Color(
+                                0xFF28C76F,
+                              ).withOpacity(0.1),
                               child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : 'S',
                                 style: const TextStyle(
@@ -569,10 +601,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
                                 ),
                               ),
                             ),
-                            title: Text(name,
-                                style: const TextStyle(fontSize: 13)),
-                            subtitle: Text(email,
-                                style: const TextStyle(fontSize: 11)),
+                            title: Text(
+                              name,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                            subtitle: Text(
+                              email,
+                              style: const TextStyle(fontSize: 11),
+                            ),
                           );
                         },
                       ),
@@ -662,28 +698,34 @@ class _SideNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 240,
-      color: _kNavColor,
+      width: 260,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF0F172A), Color(0xFF162A3D)],
+        ),
+      ),
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          const Row(
+          Row(
             children: [
-              SizedBox(width: 12),
-              CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(
-                  'IC',
-                  style: TextStyle(
-                    color: _kNavColor,
-                    fontWeight: FontWeight.w900,
-                  ),
+              const SizedBox(width: 10),
+              Container(
+                width: 42,
+                height: 42,
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(11),
                 ),
+                child: Image.asset('assets/ict_logo.png', fit: BoxFit.contain),
               ),
-              SizedBox(width: 12),
-              Text(
+              const SizedBox(width: 12),
+              const Text(
                 'ICTeach',
                 style: TextStyle(
                   color: Colors.white,
@@ -802,10 +844,7 @@ class _SideNav extends StatelessWidget {
                       ),
                       const Text(
                         'Administrator',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 10,
-                        ),
+                        style: TextStyle(color: Colors.white54, fontSize: 10),
                       ),
                     ],
                   ),
@@ -819,8 +858,9 @@ class _SideNav extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         title: const Text('Sign Out'),
-                        content:
-                            const Text('Are you sure you want to sign out?'),
+                        content: const Text(
+                          'Are you sure you want to sign out?',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
@@ -840,15 +880,17 @@ class _SideNav extends StatelessWidget {
                     if (confirm == true) {
                       await FirebaseAuth.instance.signOut();
                       if (context.mounted) {
-                        Navigator.of(context)
-                            .pushNamedAndRemoveUntil('/', (route) => false);
+                        _openWebLogin(context);
                       }
                     }
                   },
                   child: const Padding(
                     padding: EdgeInsets.all(4),
-                    child: Icon(Icons.logout_rounded,
-                        color: Colors.white54, size: 18),
+                    child: Icon(
+                      Icons.logout_rounded,
+                      color: Colors.white54,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
@@ -929,6 +971,91 @@ class _NavTile extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 // TOP BAR (FIXED: removed duplicate notification icon, fixed hardcoded avatar)
 // ═══════════════════════════════════════════════════════════════════════════════
+class _AdminPageHeading extends StatelessWidget {
+  const _AdminPageHeading({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.white, Color(0xFFEFFBFD)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kCardBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: _kAccentBlue.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _kAccentBlue, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.4,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: _kSubtextColor, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2F7F9),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.circle, size: 8, color: Color(0xFF059669)),
+                SizedBox(width: 6),
+                Text(
+                  'SYSTEM ONLINE',
+                  style: TextStyle(
+                    color: Color(0xFF0F766E),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: .5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TopBar extends StatelessWidget {
   const _TopBar({required this.name, required this.showMenuButton});
   final String name;
@@ -939,9 +1066,12 @@ class _TopBar extends StatelessWidget {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
 
     return Container(
-      height: 72,
+      height: 68,
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 18),
+      foregroundDecoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _kCardBorder)),
+      ),
       child: Row(
         children: [
           if (showMenuButton) ...[
@@ -952,11 +1082,10 @@ class _TopBar extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           Text(
-            'Admin Panel',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700),
+            'Administration Workspace',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
           const Spacer(),
           // Notification bell
@@ -1044,35 +1173,36 @@ class _DashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _SummaryRow(),
-        const SizedBox(height: 18),
-        const _RecentClassesGrid(),
-        const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth > 700) {
-              return const Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final desktop = constraints.maxWidth > 800;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _SummaryRow(),
+            SizedBox(height: desktop ? 12 : 16),
+            if (desktop)
+              const Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 3, child: _RecentActivityCard()),
-                  SizedBox(width: 16),
-                  Expanded(flex: 1, child: _QuickActionsCard()),
+                  Expanded(child: _RecentClassesGrid()),
+                  SizedBox(width: 12),
+                  SizedBox(width: 250, child: _QuickActionsCard()),
                 ],
-              );
-            }
-            return const Column(
-              children: [
-                _RecentActivityCard(),
-                SizedBox(height: 16),
-                _QuickActionsCard(),
-              ],
-            );
-          },
-        ),
-      ],
+              )
+            else
+              const Column(
+                children: [
+                  _QuickActionsCard(),
+                  SizedBox(height: 16),
+                  _RecentClassesGrid(),
+                ],
+              ),
+            SizedBox(height: desktop ? 12 : 16),
+            const _RecentActivityCard(),
+          ],
+        );
+      },
     );
   }
 }
@@ -1143,7 +1273,7 @@ class _SummaryRowState extends State<_SummaryRow> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const _LoadingShimmer(height: 112);
+      return const _LoadingShimmer(height: 92);
     }
 
     final cards = [
@@ -1185,13 +1315,13 @@ class _SummaryRowState extends State<_SummaryRow> {
     ];
 
     return SizedBox(
-      height: 120,
+      height: 96,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: cards.length,
         separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (_, index) =>
-            SizedBox(width: 220, child: _SmallStat(data: cards[index])),
+            SizedBox(width: 210, child: _SmallStat(data: cards[index])),
       ),
     );
   }
@@ -1301,8 +1431,11 @@ class _RecentClassesGrid extends StatelessWidget {
                   color: const Color(0xFF2F80ED).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.class_rounded,
-                    color: Color(0xFF2F80ED), size: 18),
+                child: const Icon(
+                  Icons.class_rounded,
+                  color: Color(0xFF2F80ED),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -1446,8 +1579,11 @@ class _ClassCard extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                Icon(Icons.arrow_forward_ios,
-                    size: 14, color: Colors.grey.shade400),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 14,
+                  color: Colors.grey.shade400,
+                ),
               ],
             ),
           ],
@@ -1490,8 +1626,11 @@ class _RecentActivityCard extends StatelessWidget {
                   color: const Color(0xFFE76C31).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.history_rounded,
-                    color: Color(0xFFE76C31), size: 18),
+                child: const Icon(
+                  Icons.history_rounded,
+                  color: Color(0xFFE76C31),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -1533,11 +1672,12 @@ class _RecentActivityCard extends StatelessWidget {
                   final color = roleColors[role] ?? const Color(0xFF666666);
                   final name =
                       data['firstName'] != null && data['lastName'] != null
-                          ? '${data['firstName']} ${data['lastName']}'
-                          : data['name']?.toString() ?? 'Unknown User';
+                      ? '${data['firstName']} ${data['lastName']}'
+                      : data['name']?.toString() ?? 'Unknown User';
                   final createdAt = data['createdAt'] as Timestamp?;
-                  final dateStr =
-                      createdAt != null ? _formatDate(createdAt.toDate()) : '';
+                  final dateStr = createdAt != null
+                      ? _formatDate(createdAt.toDate())
+                      : '';
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Row(
@@ -1549,8 +1689,8 @@ class _RecentActivityCard extends StatelessWidget {
                             role == 'teacher'
                                 ? Icons.school
                                 : role == 'trainer'
-                                    ? Icons.verified_user
-                                    : Icons.person,
+                                ? Icons.verified_user
+                                : Icons.person,
                             color: color,
                             size: 18,
                           ),
@@ -1563,14 +1703,18 @@ class _RecentActivityCard extends StatelessWidget {
                               Text(
                                 name,
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 13),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: color.withOpacity(0.1),
                                       borderRadius: BorderRadius.circular(4),
@@ -1592,7 +1736,9 @@ class _RecentActivityCard extends StatelessWidget {
                         Text(
                           dateStr,
                           style: const TextStyle(
-                              color: Color(0xFFBDBDBD), fontSize: 11),
+                            color: Color(0xFFBDBDBD),
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -1621,7 +1767,8 @@ class _QuickActionsCard extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => CreateStaffPage(selectedRole: 'teacher')),
+            builder: (_) => CreateStaffPage(selectedRole: 'teacher'),
+          ),
         ),
       ),
       _ActionItem(
@@ -1631,7 +1778,8 @@ class _QuickActionsCard extends StatelessWidget {
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => CreateStaffPage(selectedRole: 'trainer')),
+            builder: (_) => CreateStaffPage(selectedRole: 'trainer'),
+          ),
         ),
       ),
     ];
@@ -1654,8 +1802,11 @@ class _QuickActionsCard extends StatelessWidget {
                   color: const Color(0xFF168D92).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.flash_on_rounded,
-                    color: Color(0xFF168D92), size: 18),
+                child: const Icon(
+                  Icons.flash_on_rounded,
+                  color: Color(0xFF168D92),
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -1674,8 +1825,10 @@ class _QuickActionsCard extends StatelessWidget {
                   onTap: a.onTap,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 10,
+                      horizontal: 8,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: a.color.withOpacity(0.15)),
@@ -1696,11 +1849,16 @@ class _QuickActionsCard extends StatelessWidget {
                           child: Text(
                             a.label,
                             style: const TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 13),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                        Icon(Icons.chevron_right,
-                            color: Colors.grey.shade400, size: 20),
+                        Icon(
+                          Icons.chevron_right,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -1792,7 +1950,9 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                       DropdownMenuItem(value: 'all', child: Text('All Status')),
                       DropdownMenuItem(value: 'active', child: Text('Active')),
                       DropdownMenuItem(
-                          value: 'archived', child: Text('Archived')),
+                        value: 'archived',
+                        child: Text('Archived'),
+                      ),
                     ],
                     onChanged: (v) =>
                         setState(() => _statusFilter = v ?? 'all'),
@@ -1824,13 +1984,14 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
             final filtered = allClasses.where((doc) {
               final data = doc.data() as Map<String, dynamic>;
               final name = (data['name'] as String? ?? '').toLowerCase();
-              final section =
-                  (data['sectionCode'] as String? ?? '').toLowerCase();
-              final teacher =
-                  (data['teacherName'] as String? ?? '').toLowerCase();
+              final section = (data['sectionCode'] as String? ?? '')
+                  .toLowerCase();
+              final teacher = (data['teacherName'] as String? ?? '')
+                  .toLowerCase();
               final status = data['status'] as String? ?? 'active';
 
-              final matchesSearch = _searchQuery.isEmpty ||
+              final matchesSearch =
+                  _searchQuery.isEmpty ||
                   name.contains(_searchQuery) ||
                   section.contains(_searchQuery) ||
                   teacher.contains(_searchQuery);
@@ -1863,8 +2024,11 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
 
             // Summary row
             final activeCount = allClasses
-                .where((d) =>
-                    (d.data() as Map<String, dynamic>)['status'] != 'archived')
+                .where(
+                  (d) =>
+                      (d.data() as Map<String, dynamic>)['status'] !=
+                      'archived',
+                )
                 .length;
             final totalStudents = allClasses.fold<int>(0, (sum, doc) {
               final data = doc.data() as Map<String, dynamic>;
@@ -1875,8 +2039,10 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
               children: [
                 // Stats bar
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -1929,47 +2095,70 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                       // Header
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: _kBgColor,
                           borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(14)),
+                            top: Radius.circular(14),
+                          ),
                         ),
                         child: const Row(
                           children: [
                             Expanded(
-                                flex: 3,
-                                child: Text('Class',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                        color: _kSubtextColor))),
+                              flex: 3,
+                              child: Text(
+                                'Class',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: _kSubtextColor,
+                                ),
+                              ),
+                            ),
                             Expanded(
-                                flex: 2,
-                                child: Text('Teacher',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                        color: _kSubtextColor))),
+                              flex: 2,
+                              child: Text(
+                                'Teacher',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: _kSubtextColor,
+                                ),
+                              ),
+                            ),
                             Expanded(
-                                child: Text('Students',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                        color: _kSubtextColor))),
+                              child: Text(
+                                'Students',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: _kSubtextColor,
+                                ),
+                              ),
+                            ),
                             Expanded(
-                                child: Text('Status',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                        color: _kSubtextColor))),
+                              child: Text(
+                                'Status',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: _kSubtextColor,
+                                ),
+                              ),
+                            ),
                             SizedBox(
-                                width: 60,
-                                child: Text('Actions',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 12,
-                                        color: _kSubtextColor))),
+                              width: 60,
+                              child: Text(
+                                'Actions',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                  color: _kSubtextColor,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1988,13 +2177,15 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                               data['teacherName'] as String? ?? 'Unknown';
                           final studentCount =
                               (data['enrolledStudentIds'] as List?)?.length ??
-                                  0;
+                              0;
                           final status = data['status'] as String? ?? 'active';
                           final classCode = data['classCode'] as String? ?? '';
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
                             child: Row(
                               children: [
                                 Expanded(
@@ -2003,37 +2194,50 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w700)),
+                                      Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                       const SizedBox(height: 2),
                                       Row(
                                         children: [
-                                          Text(section,
-                                              style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: _kSubtextColor)),
+                                          Text(
+                                            section,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: _kSubtextColor,
+                                            ),
+                                          ),
                                           if (classCode.isNotEmpty) ...[
                                             const SizedBox(width: 8),
                                             InkWell(
                                               onTap: () {
-                                                Clipboard.setData(ClipboardData(
-                                                    text: classCode));
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
+                                                Clipboard.setData(
+                                                  ClipboardData(
+                                                    text: classCode,
+                                                  ),
+                                                );
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
                                                   SnackBar(
                                                     content: Text(
-                                                        'Code "$classCode" copied!'),
+                                                      'Code "$classCode" copied!',
+                                                    ),
                                                     duration: const Duration(
-                                                        seconds: 2),
+                                                      seconds: 2,
+                                                    ),
                                                   ),
                                                 );
                                               },
                                               child: Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                        horizontal: 6,
-                                                        vertical: 2),
+                                                      horizontal: 6,
+                                                      vertical: 2,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color: _kAccentBlue
                                                       .withOpacity(0.1),
@@ -2054,9 +2258,11 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                                       ),
                                                     ),
                                                     const SizedBox(width: 4),
-                                                    const Icon(Icons.copy,
-                                                        size: 10,
-                                                        color: _kAccentBlue),
+                                                    const Icon(
+                                                      Icons.copy,
+                                                      size: 10,
+                                                      color: _kAccentBlue,
+                                                    ),
                                                   ],
                                                 ),
                                               ),
@@ -2069,30 +2275,41 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                 ),
                                 Expanded(
                                   flex: 2,
-                                  child: Text(teacherName,
-                                      style: const TextStyle(fontSize: 13)),
+                                  child: Text(
+                                    teacherName,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
                                 ),
                                 Expanded(
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.people_alt_outlined,
-                                          size: 14, color: _kSubtextColor),
+                                      const Icon(
+                                        Icons.people_alt_outlined,
+                                        size: 14,
+                                        color: _kSubtextColor,
+                                      ),
                                       const SizedBox(width: 4),
-                                      Text('$studentCount',
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600)),
+                                      Text(
+                                        '$studentCount',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                                 Expanded(
                                   child: _StatusBadge(
-                                      isActive: status == 'active'),
+                                    isActive: status == 'active',
+                                  ),
                                 ),
                                 SizedBox(
                                   width: 60,
                                   child: PopupMenuButton<String>(
-                                    icon: const Icon(Icons.more_vert,
-                                        color: _kSubtextColor),
+                                    icon: const Icon(
+                                      Icons.more_vert,
+                                      color: _kSubtextColor,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10),
                                     ),
@@ -2111,9 +2328,11 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                               color: Colors.orange,
                                             ),
                                             const SizedBox(width: 8),
-                                            Text(status == 'active'
-                                                ? 'Archive'
-                                                : 'Activate'),
+                                            Text(
+                                              status == 'active'
+                                                  ? 'Archive'
+                                                  : 'Activate',
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -2121,8 +2340,11 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                         value: 'delete',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.delete_outline,
-                                                size: 18, color: Colors.red),
+                                            Icon(
+                                              Icons.delete_outline,
+                                              size: 18,
+                                              color: Colors.red,
+                                            ),
                                             SizedBox(width: 8),
                                             Text('Delete'),
                                           ],
@@ -2130,7 +2352,11 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                                       ),
                                     ],
                                     onSelected: (value) => _handleClassAction(
-                                        context, doc.id, name, value),
+                                      context,
+                                      doc.id,
+                                      name,
+                                      value,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -2149,22 +2375,27 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
     );
   }
 
-  Future<void> _handleClassAction(BuildContext context, String classId,
-      String className, String action) async {
+  Future<void> _handleClassAction(
+    BuildContext context,
+    String classId,
+    String className,
+    String action,
+  ) async {
     if (action == 'archive' || action == 'activate') {
       final newStatus = action == 'archive' ? 'archived' : 'active';
       await FirebaseFirestore.instance
           .collection('classes')
           .doc(classId)
           .update({
-        'status': newStatus,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'status': newStatus,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Class "$className" ${action == 'archive' ? 'archived' : 'activated'}'),
+              'Class "$className" ${action == 'archive' ? 'archived' : 'activated'}',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -2173,8 +2404,9 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.red),
@@ -2183,7 +2415,8 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
             ],
           ),
           content: Text(
-              'Are you sure you want to delete "$className"? This action cannot be undone and will remove all associated data.'),
+            'Are you sure you want to delete "$className"? This action cannot be undone and will remove all associated data.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -2235,18 +2468,22 @@ class _MiniStat extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: color,
-            )),
-        Text(label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: _kSubtextColor,
-              fontWeight: FontWeight.w600,
-            )),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: _kSubtextColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
@@ -2316,8 +2553,11 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                         color: Colors.amber.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.emoji_events_rounded,
-                          color: Colors.amber, size: 20),
+                      child: const Icon(
+                        Icons.emoji_events_rounded,
+                        color: Colors.amber,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
@@ -2330,7 +2570,9 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _kAccentBlue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -2400,7 +2642,9 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                     subtitle: Text('${data['quizCount']} quizzes taken'),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
@@ -2511,12 +2755,16 @@ class _ReportsContentState extends State<_ReportsContent> {
 
       // Count global submissions
       final quizSubmissions = await db.collection('quiz_results').count().get();
-      final assignmentSubmissions =
-          await db.collection('submissions').count().get();
+      final assignmentSubmissions = await db
+          .collection('submissions')
+          .count()
+          .get();
 
       // Sort breakdown by student count
-      breakdown.sort((a, b) =>
-          (b['studentCount'] as int).compareTo(a['studentCount'] as int));
+      breakdown.sort(
+        (a, b) =>
+            (b['studentCount'] as int).compareTo(a['studentCount'] as int),
+      );
 
       if (mounted) {
         setState(() {
@@ -2564,8 +2812,11 @@ class _ReportsContentState extends State<_ReportsContent> {
                       color: const Color(0xFF2F80ED).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.insights_rounded,
-                        color: Color(0xFF2F80ED), size: 20),
+                    child: const Icon(
+                      Icons.insights_rounded,
+                      color: Color(0xFF2F80ED),
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -2645,14 +2896,19 @@ class _ReportsContentState extends State<_ReportsContent> {
                         color: const Color(0xFF28C76F).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.table_chart_rounded,
-                          color: Color(0xFF28C76F), size: 20),
+                      child: const Icon(
+                        Icons.table_chart_rounded,
+                        color: Color(0xFF28C76F),
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     const Text(
                       'Class-Level Breakdown',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ],
                 ),
@@ -2673,54 +2929,79 @@ class _ReportsContentState extends State<_ReportsContent> {
                     headingRowColor: WidgetStateProperty.all(_kBgColor),
                     columns: const [
                       DataColumn(
-                          label: Text('Class',
-                              style: TextStyle(fontWeight: FontWeight.w700))),
+                        label: Text(
+                          'Class',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
                       DataColumn(
-                          label: Text('Teacher',
-                              style: TextStyle(fontWeight: FontWeight.w700))),
+                        label: Text(
+                          'Teacher',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
                       DataColumn(
-                          label: Text('Students',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
-                          numeric: true),
+                        label: Text(
+                          'Students',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        numeric: true,
+                      ),
                       DataColumn(
-                          label: Text('Quizzes',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
-                          numeric: true),
+                        label: Text(
+                          'Quizzes',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        numeric: true,
+                      ),
                       DataColumn(
-                          label: Text('Assignments',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
-                          numeric: true),
+                        label: Text(
+                          'Assignments',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        numeric: true,
+                      ),
                       DataColumn(
-                          label: Text('Modules',
-                              style: TextStyle(fontWeight: FontWeight.w700)),
-                          numeric: true),
+                        label: Text(
+                          'Modules',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        numeric: true,
+                      ),
                     ],
                     rows: _classBreakdown.map((data) {
-                      return DataRow(cells: [
-                        DataCell(Text(data['className'] as String,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w600))),
-                        DataCell(Text(data['teacherName'] as String)),
-                        DataCell(Text('${data['studentCount']}')),
-                        DataCell(
-                          _CountBadge(
-                            count: data['quizCount'] as int,
-                            color: const Color(0xFF2F80ED),
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            Text(
+                              data['className'] as String,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                        ),
-                        DataCell(
-                          _CountBadge(
-                            count: data['assignmentCount'] as int,
-                            color: const Color(0xFFE76C31),
+                          DataCell(Text(data['teacherName'] as String)),
+                          DataCell(Text('${data['studentCount']}')),
+                          DataCell(
+                            _CountBadge(
+                              count: data['quizCount'] as int,
+                              color: const Color(0xFF2F80ED),
+                            ),
                           ),
-                        ),
-                        DataCell(
-                          _CountBadge(
-                            count: data['moduleCount'] as int,
-                            color: const Color(0xFF9C4FA1),
+                          DataCell(
+                            _CountBadge(
+                              count: data['assignmentCount'] as int,
+                              color: const Color(0xFFE76C31),
+                            ),
                           ),
-                        ),
-                      ]);
+                          DataCell(
+                            _CountBadge(
+                              count: data['moduleCount'] as int,
+                              color: const Color(0xFF9C4FA1),
+                            ),
+                          ),
+                        ],
+                      );
                     }).toList(),
                   ),
                 ),
@@ -2752,10 +3033,7 @@ class _ReportStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            color.withOpacity(0.06),
-            color.withOpacity(0.02),
-          ],
+          colors: [color.withOpacity(0.06), color.withOpacity(0.02)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -2896,9 +3174,9 @@ class _SettingsContentState extends State<_SettingsContent> {
 
   void _showSnack(String msg, Color color) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   @override
@@ -2912,9 +3190,9 @@ class _SettingsContentState extends State<_SettingsContent> {
         StreamBuilder<DocumentSnapshot>(
           stream: user != null
               ? FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .snapshots()
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots()
               : const Stream.empty(),
           builder: (context, snapshot) {
             final data = snapshot.data?.data() as Map<String, dynamic>?;
@@ -2941,14 +3219,19 @@ class _SettingsContentState extends State<_SettingsContent> {
                           color: _kAccentBlue.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.person_rounded,
-                            color: _kAccentBlue, size: 20),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: _kAccentBlue,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(
                         'Admin Profile',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w900),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ],
                   ),
@@ -2983,8 +3266,11 @@ class _SettingsContentState extends State<_SettingsContent> {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.email_outlined,
-                                    size: 14, color: _kSubtextColor),
+                                const Icon(
+                                  Icons.email_outlined,
+                                  size: 14,
+                                  color: _kSubtextColor,
+                                ),
                                 const SizedBox(width: 6),
                                 Text(
                                   email,
@@ -3000,7 +3286,9 @@ class _SettingsContentState extends State<_SettingsContent> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: _kAccentBlue.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(12),
@@ -3057,8 +3345,11 @@ class _SettingsContentState extends State<_SettingsContent> {
                       color: Colors.orange.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.lock_rounded,
-                        color: Colors.orange, size: 20),
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      color: Colors.orange,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -3112,8 +3403,10 @@ class _SettingsContentState extends State<_SettingsContent> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text('Update Password',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      : const Text(
+                          'Update Password',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                 ),
               ),
             ],
@@ -3140,8 +3433,11 @@ class _SettingsContentState extends State<_SettingsContent> {
                       color: Colors.red.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.info_rounded,
-                        color: Colors.red, size: 20),
+                    child: const Icon(
+                      Icons.info_rounded,
+                      color: Colors.red,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -3174,8 +3470,9 @@ class _SettingsContentState extends State<_SettingsContent> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         title: const Text('Sign Out'),
-                        content:
-                            const Text('Are you sure you want to sign out?'),
+                        content: const Text(
+                          'Are you sure you want to sign out?',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, false),
@@ -3195,14 +3492,15 @@ class _SettingsContentState extends State<_SettingsContent> {
                     if (confirm == true) {
                       await FirebaseAuth.instance.signOut();
                       if (context.mounted) {
-                        Navigator.of(context)
-                            .pushNamedAndRemoveUntil('/', (route) => false);
+                        _openWebLogin(context);
                       }
                     }
                   },
                   icon: const Icon(Icons.logout_rounded, color: Colors.red),
-                  label: const Text('Sign Out',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    'Sign Out',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
@@ -3241,15 +3539,15 @@ class _PasswordField extends StatelessWidget {
       obscureText: obscure,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
         suffixIcon: IconButton(
           icon: Icon(
             obscure ? Icons.visibility_off : Icons.visibility,
@@ -3281,18 +3579,12 @@ class _SettingRow extends StatelessWidget {
         const SizedBox(width: 12),
         Text(
           label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
         ),
         const Spacer(),
         Text(
           value,
-          style: const TextStyle(
-            color: _kSubtextColor,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: _kSubtextColor, fontSize: 14),
         ),
       ],
     );
@@ -3354,10 +3646,7 @@ class _LoadingShimmer extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Loading...',
-              style: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
             ),
           ],
         ),
@@ -3367,11 +3656,7 @@ class _LoadingShimmer extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({
-    required this.icon,
-    required this.message,
-    this.subtitle,
-  });
+  const _EmptyState({required this.icon, required this.message, this.subtitle});
 
   final IconData icon;
   final String message;
@@ -3398,10 +3683,7 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle!,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 textAlign: TextAlign.center,
               ),
             ],

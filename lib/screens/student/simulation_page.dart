@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/simulation_data.dart';
 import '../../models/simulation_model.dart' as sim_models;
@@ -31,11 +33,39 @@ class _SimulationPageState extends State<SimulationPage> {
   bool _hasStarted = false;
   bool _isCompleted = false;
   bool _prerequisiteCompleted = true;
+  bool _feedbackSubmitted = false;
 
   @override
   void initState() {
     super.initState();
+
     _loadSimulation();
+  }
+
+  @override
+  void dispose() {
+    _setGameplayOrientation(false);
+    super.dispose();
+  }
+
+  Future<void> _setGameplayOrientation(bool active) async {
+    if (kIsWeb) return;
+    await SystemChrome.setPreferredOrientations(
+      active
+          ? const [
+              DeviceOrientation.landscapeLeft,
+              DeviceOrientation.landscapeRight,
+            ]
+          : const [
+              DeviceOrientation.portraitUp,
+              DeviceOrientation.portraitDown,
+            ],
+    );
+  }
+
+  Future<void> _startGameplay() async {
+    await _setGameplayOrientation(true);
+    if (mounted) setState(() => _hasStarted = true);
   }
 
   Future<void> _loadSimulation() async {
@@ -278,9 +308,7 @@ class _SimulationPageState extends State<SimulationPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: locked
-                      ? null
-                      : () => setState(() => _hasStarted = true),
+                  onPressed: locked ? null : _startGameplay,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: locked
                         ? Colors.grey
@@ -343,14 +371,33 @@ class _SimulationPageState extends State<SimulationPage> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _feedbackSubmitted ? null : _showEvaluationDialog,
+                icon: Icon(
+                  _feedbackSubmitted ? Icons.check_circle : Icons.rate_review,
+                ),
+                label: Text(
+                  _feedbackSubmitted
+                      ? 'Evaluation submitted'
+                      : 'Rate difficulty and give feedback',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => setState(() {
-                      _hasStarted = false;
-                      _isCompleted = false;
-                    }),
+                    onPressed: () async {
+                      await _setGameplayOrientation(true);
+                      if (!mounted) return;
+                      setState(() {
+                        _hasStarted = true;
+                        _isCompleted = false;
+                      });
+                    },
                     icon: const Icon(Icons.refresh),
                     label: const Text('Retry'),
                   ),
@@ -374,6 +421,88 @@ class _SimulationPageState extends State<SimulationPage> {
       ),
     ),
   );
+
+  Future<void> _showEvaluationDialog() async {
+    var difficulty = 3;
+    final commentController = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Activity evaluation'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('How difficult was this activity?'),
+                Slider(
+                  value: difficulty.toDouble(),
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  label: '$difficulty / 5',
+                  onChanged: (value) =>
+                      setDialogState(() => difficulty = value.round()),
+                ),
+                Text(
+                  const [
+                    'Very easy',
+                    'Easy',
+                    'Appropriate',
+                    'Difficult',
+                    'Very difficult',
+                  ][difficulty - 1],
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: commentController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'What should be improved? (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+                await FirebaseFirestore.instance
+                    .collection('activity_feedback')
+                    .add({
+                      'studentId': user.uid,
+                      'classId': widget.classId,
+                      'simulationId': widget.simulationId,
+                      'simulationTitle': _simulation!.title,
+                      'difficulty': difficulty,
+                      'comment': commentController.text.trim(),
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+                if (dialogContext.mounted) Navigator.pop(dialogContext, true);
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+    commentController.dispose();
+    if (submitted == true && mounted) {
+      setState(() => _feedbackSubmitted = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thank you. Your evaluation was saved.')),
+      );
+    }
+  }
 
   Widget _buildInfoRow(String label, String value, {bool warning = false}) =>
       Padding(
@@ -416,8 +545,11 @@ class _SimulationPageState extends State<SimulationPage> {
     ),
   );
 
-  void _onComplete(int score, int total, bool passed) {
-    if (passed && mounted) setState(() => _isCompleted = true);
+  Future<void> _onComplete(int score, int total, bool passed) async {
+    if (passed) {
+      await _setGameplayOrientation(false);
+      if (mounted) setState(() => _isCompleted = true);
+    }
     _saveProgress(score, total, passed);
   }
 

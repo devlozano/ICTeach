@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home_router.dart';
@@ -55,7 +56,9 @@ class _AdminLoginPageState extends State<AdminLoginPage>
 
     final isConnected = await NetworkService().isConnected();
     if (!isConnected) {
-      _showError('You appear to be offline. Please connect to the internet to log in.');
+      _showError(
+        'You appear to be offline. Please connect to the internet to log in.',
+      );
       return;
     }
 
@@ -78,11 +81,16 @@ class _AdminLoginPageState extends State<AdminLoginPage>
           .collection('users')
           .doc(user.uid)
           .get();
-      final role = doc.data()?['role'] as String?;
-
-      if (role != 'admin') {
+      final role = doc.data()?['role']?.toString().toLowerCase() ?? '';
+      const webRoles = {'admin', 'teacher', 'trainer'};
+      if (!webRoles.contains(role)) {
         await FirebaseAuth.instance.signOut();
-        _showError('This account is not an administrator.');
+        if (!mounted) return;
+        _showError(
+          role == 'student'
+              ? 'Student accounts are available in the ICTeach mobile app only.'
+              : 'This account does not have access to the staff web portal.',
+        );
         return;
       }
 
@@ -91,7 +99,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
       ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Signed in as admin.')));
+      ).showSnackBar(SnackBar(content: Text('Signed in as $role.')));
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeRouter()),
@@ -126,455 +134,677 @@ class _AdminLoginPageState extends State<AdminLoginPage>
         statusBarIconBrightness: Brightness.light,
       ),
       child: Scaffold(
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFF0B2B4A),
-                const Color(0xFF1A4B7A),
-                const Color(0xFF2F80ED),
-              ],
-              stops: const [0.0, 0.4, 1.0],
-            ),
-          ),
-          child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 24,
-                ),
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Brand Section
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 28),
-                          child: Column(
-                            children: [
-                              // Logo Container
-                              Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF4A9BFF),
-                                      Color(0xFF2F80ED),
-                                    ],
-                                  ),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFF2F80ED,
-                                      ).withOpacity(0.3),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.admin_panel_settings_rounded,
-                                  color: Colors.white,
-                                  size: 34,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              const Text(
-                                'ICTeach',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  'Administrator',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 1.2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // ✅ NEW: Card-based Login Box
-                        Container(
-                          width: double.infinity,
-                          constraints: const BoxConstraints(maxWidth: 420),
-                          padding: const EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 40,
-                                offset: const Offset(0, 20),
-                              ),
-                            ],
-                          ),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: const Color(0xFF071B2D),
+        body: Stack(
+          children: [
+            const Positioned.fill(child: _LoginBackdrop()),
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = kIsWeb && constraints.maxWidth >= 900;
+                  final content = ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1240),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: wide ? 48 : 20,
+                        vertical: wide ? 28 : 20,
+                      ),
+                      child: wide
+                          ? Row(
                               children: [
-                                // Title
-                                const Text(
-                                  'Admin Access',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0B2B4A),
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Sign in to manage your ICTeach platform',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey.shade600,
-                                    height: 1.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 28),
-
-                                // Email Field
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Email',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade50,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: Colors.grey.shade200,
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: TextFormField(
-                                        controller: _emailController,
-                                        keyboardType:
-                                            TextInputType.emailAddress,
-                                        textInputAction: TextInputAction.next,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: Color(0xFF1A1A1A),
-                                        ),
-                                        validator: (v) {
-                                          final s = v?.trim() ?? '';
-                                          if (s.isEmpty) {
-                                            return 'Email is required.';
-                                          }
-                                          if (!_isValidEmail(s)) {
-                                            return 'Enter a valid email.';
-                                          }
-                                          return null;
-                                        },
-                                        decoration: InputDecoration(
-                                          hintText: 'admin@icteach.com',
-                                          hintStyle: TextStyle(
-                                            color: Colors.grey.shade400,
-                                            fontSize: 14,
-                                          ),
-                                          prefixIcon: Icon(
-                                            Icons.email_outlined,
-                                            color: Colors.grey.shade500,
-                                            size: 20,
-                                          ),
-                                          border: InputBorder.none,
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 16,
-                                                vertical: 16,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                const Expanded(child: _PortalIntroduction()),
+                                const SizedBox(width: 64),
+                                SizedBox(width: 440, child: _buildLoginCard()),
+                              ],
+                            )
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const _CompactBrand(),
+                                const SizedBox(height: 20),
+                                _buildLoginCard(),
                                 const SizedBox(height: 18),
-
-                                // Password Field
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Password',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade50,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: Colors.grey.shade200,
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: TextFormField(
-                                        controller: _passwordController,
-                                        obscureText: _obscure,
-                                        textInputAction: TextInputAction.done,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: Color(0xFF1A1A1A),
-                                        ),
-                                        validator: (v) {
-                                          if (v == null || v.isEmpty) {
-                                            return 'Password is required.';
-                                          }
-                                          if (v.length < 6) {
-                                            return 'Password must be at least 6 characters.';
-                                          }
-                                          return null;
-                                        },
-                                        decoration: InputDecoration(
-                                          hintText: '••••••••',
-                                          hintStyle: TextStyle(
-                                            color: Colors.grey.shade400,
-                                            fontSize: 14,
-                                          ),
-                                          prefixIcon: Icon(
-                                            Icons.lock_outline_rounded,
-                                            color: Colors.grey.shade500,
-                                            size: 20,
-                                          ),
-                                          suffixIcon: IconButton(
-                                            onPressed: () => setState(
-                                              () => _obscure = !_obscure,
-                                            ),
-                                            icon: Icon(
-                                              _obscure
-                                                  ? Icons
-                                                        .visibility_off_outlined
-                                                  : Icons.visibility_outlined,
-                                              color: Colors.grey.shade500,
-                                              size: 20,
-                                            ),
-                                          ),
-                                          border: InputBorder.none,
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 16,
-                                                vertical: 16,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-
-                                // Forgot Password
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () {},
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: const Color(0xFF2F80ED),
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: const Size(0, 0),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: const Text(
-                                      'Forgot password?',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Sign In Button
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 50,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF2F80ED),
-                                          Color(0xFF4A9BFF),
-                                        ],
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(
-                                            0xFF2F80ED,
-                                          ).withOpacity(0.3),
-                                          blurRadius: 16,
-                                          offset: const Offset(0, 6),
-                                        ),
-                                      ],
-                                    ),
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading
-                                          ? null
-                                          : _signInAdmin,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        foregroundColor: Colors.white,
-                                        shadowColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                        ),
-                                        elevation: 0,
-                                      ),
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              height: 22,
-                                              width: 22,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2.5,
-                                              ),
-                                            )
-                                          : const Text(
-                                              'Get Started',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                    ),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 24),
-
-                                // Divider
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Container(
-                                        height: 1,
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                      ),
-                                      child: Text(
-                                        'or',
-                                        style: TextStyle(
-                                          color: Colors.grey.shade400,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Container(
-                                        height: 1,
-                                        color: Colors.grey.shade200,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Back to Login
-                                Center(
-                                  child: TextButton(
-                                    onPressed: _isLoading
-                                        ? null
-                                        : () => Navigator.of(context).pop(),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: Colors.grey.shade600,
-                                      padding: EdgeInsets.zero,
-                                      minimumSize: const Size(0, 0),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.arrow_back_rounded,
-                                          size: 16,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Back to user sign in',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                                const _Copyright(),
                               ],
                             ),
-                          ),
-                        ),
+                    ),
+                  );
 
-                        // Footer
-                        const SizedBox(height: 24),
-                        Text(
-                          '© 2026 ICTeach. All rights reserved.',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.4),
-                            fontSize: 11,
-                          ),
-                          textAlign: TextAlign.center,
+                  if (wide && constraints.maxHeight >= 690) {
+                    return Center(child: content);
+                  }
+
+                  return SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    child: Center(child: content),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginCard() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.97),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x26000000),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F2FF),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified_user_outlined,
+                        size: 16,
+                        color: Color(0xFF1769C2),
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'SECURE PORTAL',
+                        style: TextStyle(
+                          color: Color(0xFF1769C2),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+                const Text(
+                  'Welcome back',
+                  style: TextStyle(
+                    color: Color(0xFF102A43),
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in to continue to your ICTeach workspace.',
+                  style: TextStyle(
+                    color: Colors.blueGrey.shade600,
+                    fontSize: 14,
+                    height: 1.45,
+                  ),
+                ),
+                const SizedBox(height: 28),
+                _fieldLabel('Email address'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.email],
+                  validator: (value) {
+                    final email = value?.trim() ?? '';
+                    if (email.isEmpty) return 'Email is required.';
+                    if (!_isValidEmail(email)) return 'Enter a valid email.';
+                    return null;
+                  },
+                  decoration: _inputDecoration(
+                    hint: 'name@school.edu.ph',
+                    icon: Icons.alternate_email_rounded,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _fieldLabel('Password'),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  onFieldSubmitted: (_) => _isLoading ? null : _signInAdmin(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password is required.';
+                    }
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters.';
+                    }
+                    return null;
+                  },
+                  decoration: _inputDecoration(
+                    hint: 'Enter your password',
+                    icon: Icons.lock_outline_rounded,
+                    suffix: IconButton(
+                      tooltip: _obscure ? 'Show password' : 'Hide password',
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                      icon: Icon(
+                        _obscure
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.blueGrey.shade500,
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.groups_2_outlined,
+                      size: 17,
+                      color: Colors.blueGrey.shade400,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'Staff portal for administrators, teachers, and trainers',
+                        style: TextStyle(
+                          color: Colors.blueGrey.shade500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _signInAdmin,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF1769C2),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: const Color(0xFF8BB6E5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 23,
+                            height: 23,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Sign in to ICTeach',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Icon(Icons.arrow_forward_rounded, size: 20),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.blueGrey.shade100)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'ICTeach Learning Management System',
+                        style: TextStyle(
+                          color: Colors.blueGrey.shade400,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.blueGrey.shade100)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fieldLabel(String label) => Text(
+    label,
+    style: const TextStyle(
+      color: Color(0xFF334E68),
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+    ),
+  );
+
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) => InputDecoration(
+    hintText: hint,
+    hintStyle: TextStyle(color: Colors.blueGrey.shade300, fontSize: 14),
+    prefixIcon: Icon(icon, color: const Color(0xFF1769C2), size: 21),
+    suffixIcon: suffix,
+    filled: true,
+    fillColor: const Color(0xFFF5F8FC),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFD9E2EC)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFD9E2EC)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFF1769C2), width: 1.8),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFD64545)),
+    ),
+  );
+}
+
+class _LoginBackdrop extends StatelessWidget {
+  const _LoginBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        const Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF071A2B),
+                  Color(0xFF0E3554),
+                  Color(0xFF15577A),
+                ],
+                stops: [0, .55, 1],
               ),
             ),
           ),
         ),
+        Positioned(
+          left: -160,
+          top: -190,
+          child: _BackgroundGlow(
+            size: 520,
+            color: const Color(0xFF16C5D7).withValues(alpha: .13),
+          ),
+        ),
+        Positioned(
+          right: -130,
+          bottom: -210,
+          child: _BackgroundGlow(
+            size: 560,
+            color: const Color(0xFF3988FF).withValues(alpha: .14),
+          ),
+        ),
+        const Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(painter: _CircuitBackdropPainter()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BackgroundGlow extends StatelessWidget {
+  const _BackgroundGlow({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
+      ),
+    );
+  }
+}
+
+class _CircuitBackdropPainter extends CustomPainter {
+  const _CircuitBackdropPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = Colors.white.withValues(alpha: .045)
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+    final accentPaint = Paint()
+      ..color = const Color(0xFF67E8F9).withValues(alpha: .12)
+      ..strokeWidth = 1.3
+      ..style = PaintingStyle.stroke;
+    final nodePaint = Paint()
+      ..color = const Color(0xFF8BE8F0).withValues(alpha: .20);
+
+    for (double x = 48; x < size.width; x += 96) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
+    }
+    for (double y = 42; y < size.height; y += 84) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
+    }
+
+    final traces = <Path>[
+      Path()
+        ..moveTo(0, size.height * .24)
+        ..lineTo(size.width * .18, size.height * .24)
+        ..lineTo(size.width * .24, size.height * .32)
+        ..lineTo(size.width * .43, size.height * .32),
+      Path()
+        ..moveTo(size.width, size.height * .18)
+        ..lineTo(size.width * .82, size.height * .18)
+        ..lineTo(size.width * .76, size.height * .28)
+        ..lineTo(size.width * .66, size.height * .28),
+      Path()
+        ..moveTo(size.width * .08, size.height)
+        ..lineTo(size.width * .08, size.height * .78)
+        ..lineTo(size.width * .16, size.height * .68)
+        ..lineTo(size.width * .32, size.height * .68),
+    ];
+    for (final trace in traces) {
+      canvas.drawPath(trace, accentPaint);
+    }
+
+    for (final point in [
+      Offset(size.width * .43, size.height * .32),
+      Offset(size.width * .66, size.height * .28),
+      Offset(size.width * .32, size.height * .68),
+    ]) {
+      canvas.drawCircle(point, 3.5, nodePaint);
+      canvas.drawCircle(point, 8, accentPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _PortalIntroduction extends StatelessWidget {
+  const _PortalIntroduction();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.zero,
+      color: Colors.transparent,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!kIsWeb)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: .1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Text(
+                'URDANETA CITY UNIVERSITY  •  ICT DEPARTMENT',
+                style: TextStyle(
+                  color: Color(0xFFBFE9EC),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .8,
+                ),
+              ),
+            ),
+          const SizedBox.shrink(),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 22, 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: .075),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: Colors.white.withValues(alpha: .15)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const _BrandLogo(size: 76),
+                Container(
+                  width: 1,
+                  height: 50,
+                  margin: const EdgeInsets.symmetric(horizontal: 18),
+                  color: Colors.white.withValues(alpha: .18),
+                ),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ICTeach',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: .2,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'LEARNING MANAGEMENT SYSTEM',
+                      style: TextStyle(
+                        color: Color(0xFF9AC7EE),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.7,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 46),
+          const Text(
+            'Build skills.\nPractice safely.\nTeach with insight.',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 42,
+              height: 1.16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.1,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const SizedBox(
+            width: 570,
+            child: Text(
+              'A structured workspace for competency-based instruction, practical simulations, assessment, and learner progress.',
+              style: TextStyle(
+                color: Color(0xFFC8DCEB),
+                fontSize: 16,
+                height: 1.6,
+              ),
+            ),
+          ),
+          const SizedBox(height: 34),
+          const Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _FeaturePill(Icons.memory_rounded, 'Interactive simulations'),
+              _FeaturePill(Icons.insights_rounded, 'Progress insights'),
+              _FeaturePill(Icons.school_rounded, 'Role-based workspace'),
+            ],
+          ),
+          const SizedBox(height: 54),
+          const _Copyright(),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactBrand extends StatelessWidget {
+  const _CompactBrand();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: .14)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _BrandLogo(size: 54),
+          SizedBox(width: 13),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ICTeach',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                'STAFF LEARNING PORTAL',
+                style: TextStyle(
+                  color: Color(0xFF9AC7EE),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.3,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrandLogo extends StatelessWidget {
+  const _BrandLogo({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      padding: EdgeInsets.all(size * .08),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFEAF8FF)],
+        ),
+        borderRadius: BorderRadius.circular(size * .25),
+        border: Border.all(color: Colors.white, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF38BDF8).withValues(alpha: .28),
+            blurRadius: 20,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * .18),
+        child: Image.asset('assets/ict_logo.png', fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class _FeaturePill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _FeaturePill(this.icon, this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: const Color(0xFF7CC8FF), size: 18),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Copyright extends StatelessWidget {
+  const _Copyright();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '\u00A9 2026 ICTeach. All rights reserved.',
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.52),
+        fontSize: 11,
       ),
     );
   }

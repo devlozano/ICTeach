@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:icteach/create_class.dart';
 import 'package:icteach/utils/app_navigation.dart';
 import 'package:icteach/screens/teacher/manage_modules_page.dart';
@@ -12,6 +13,7 @@ import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'class_roster.dart';
 import 'login.dart';
+import 'admin_login.dart';
 
 class TeacherHomePage extends StatefulWidget {
   const TeacherHomePage({super.key});
@@ -90,7 +92,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
+        MaterialPageRoute(
+          builder: (_) => kIsWeb ? const AdminLoginPage() : const LoginPage(),
+        ),
         (route) => false,
       );
     }
@@ -128,8 +132,9 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               ),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor:
-                      const Color(0xFF2F80ED).withValues(alpha: 0.1),
+                  backgroundColor: const Color(
+                    0xFF2F80ED,
+                  ).withValues(alpha: 0.1),
                   child: Text(
                     classData.className.isNotEmpty
                         ? classData.className[0].toUpperCase()
@@ -180,10 +185,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  const Color(0xFF2F80ED),
-                  const Color(0xFF1A5FA8),
-                ],
+                colors: [const Color(0xFF2F80ED), const Color(0xFF1A5FA8)],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
@@ -217,10 +219,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 const SizedBox(height: 4),
                 Text(
                   user.email ?? 'No email',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.white70),
                 ),
                 const SizedBox(height: 8),
                 Container(
@@ -256,16 +255,18 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 .where('teacherId', isEqualTo: user.uid)
                 .get(),
             builder: (context, snapshot) {
-              final classCount =
-                  snapshot.hasData ? snapshot.data!.docs.length : 0;
+              final classCount = snapshot.hasData
+                  ? snapshot.data!.docs.length
+                  : 0;
 
               int totalStudents = 0;
               int pendingReviews = 0;
               if (snapshot.hasData && snapshot.data != null) {
                 for (final doc in snapshot.data!.docs) {
                   final data = doc.data() as Map<String, dynamic>? ?? {};
-                  final enrolledIds =
-                      List<String>.from(data['enrolledStudentIds'] ?? []);
+                  final enrolledIds = List<String>.from(
+                    data['enrolledStudentIds'] ?? [],
+                  );
                   totalStudents += enrolledIds.length;
                   pendingReviews += data['pendingReviews'] as int? ?? 0;
                 }
@@ -374,59 +375,82 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 setState(() => _currentTabIndex = 0);
               },
               child: Scaffold(
-                backgroundColor: const Color(0xffF8FAFC),
+                backgroundColor: const Color(0xFFF4F7FA),
                 body: SafeArea(
                   top: false,
-                  child: Column(
-                    children: [
-                      _TeacherHeader(
-                        name: name,
-                        onLogout: _logout,
-                        classStream: _classesStream,
-                      ),
-                      Expanded(
-                        child: IndexedStack(
-                          index: _currentTabIndex,
-                          children: [
-                            _buildHomeTab(context, classCount, totalEnrolled,
-                                pendingReviewCount),
-                            buildClassesTab(),
-                            _buildDiscussionTab(),
-                            _buildAnalyticsTab(),
-                            _buildTeacherProfile(user, profile),
-                          ],
-                        ),
-                      ),
-                    ],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final desktop = constraints.maxWidth >= 1000;
+                      final workspace = Column(
+                        children: [
+                          _TeacherHeader(
+                            name: name,
+                            onLogout: _logout,
+                            classStream: _classesStream,
+                          ),
+                          Expanded(
+                            child: IndexedStack(
+                              index: _currentTabIndex,
+                              children: [
+                                _buildHomeTab(
+                                  context,
+                                  classCount,
+                                  totalEnrolled,
+                                  pendingReviewCount,
+                                ),
+                                buildClassesTab(),
+                                _buildDiscussionTab(),
+                                _buildAnalyticsTab(),
+                                _buildTeacherProfile(user, profile),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                      if (!desktop) return workspace;
+                      return Row(
+                        children: [
+                          _TeacherDesktopNav(
+                            currentIndex: _currentTabIndex,
+                            teacherName: name,
+                            onChanged: (index) =>
+                                setState(() => _currentTabIndex = index),
+                            onLogout: _logout,
+                          ),
+                          const VerticalDivider(width: 1),
+                          Expanded(child: workspace),
+                        ],
+                      );
+                    },
                   ),
                 ),
-                bottomNavigationBar: _TeacherBottomNavBar(
-                  currentIndex: _currentTabIndex,
-                  onTabChanged: (index) {
-                    setState(() {
-                      _currentTabIndex = index;
-                    });
-                  },
-                ),
+                bottomNavigationBar: MediaQuery.sizeOf(context).width >= 1000
+                    ? null
+                    : _TeacherBottomNavBar(
+                        currentIndex: _currentTabIndex,
+                        onTabChanged: (index) {
+                          setState(() => _currentTabIndex = index);
+                        },
+                      ),
                 floatingActionButton:
                     _currentTabIndex == 0 || _currentTabIndex == 1
-                        ? FloatingActionButton(
-                            heroTag: "createClass",
-                            backgroundColor: const Color(0xFF2F80ED),
-                            foregroundColor: Colors.white,
-                            child: const Icon(Icons.add),
-                            onPressed: () async {
-                              final result = await AppNavigation.push(
-                                context,
-                                const CreateClassPage(),
-                              );
+                    ? FloatingActionButton(
+                        heroTag: "createClass",
+                        backgroundColor: const Color(0xFF2F80ED),
+                        foregroundColor: Colors.white,
+                        child: const Icon(Icons.add),
+                        onPressed: () async {
+                          final result = await AppNavigation.push(
+                            context,
+                            const CreateClassPage(),
+                          );
 
-                              if (result == true && mounted) {
-                                setState(() {});
-                              }
-                            },
-                          )
-                        : null,
+                          if (result == true && mounted) {
+                            setState(() {});
+                          }
+                        },
+                      )
+                    : null,
               ),
             );
           },
@@ -435,10 +459,19 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
     );
   }
 
-  Widget _buildHomeTab(BuildContext context, int classCount, int totalEnrolled,
-      int pendingReviewCount) {
+  Widget _buildHomeTab(
+    BuildContext context,
+    int classCount,
+    int totalEnrolled,
+    int pendingReviewCount,
+  ) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+      padding: EdgeInsets.fromLTRB(
+        22,
+        MediaQuery.sizeOf(context).width >= 1000 ? 16 : 24,
+        22,
+        16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -447,13 +480,12 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             totalEnrolled: totalEnrolled,
             pendingReviewCount: pendingReviewCount,
           ),
-          const SizedBox(height: 22),
+          SizedBox(height: MediaQuery.sizeOf(context).width >= 1000 ? 14 : 22),
           Text(
             'Teacher Tools',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w900),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 10),
           _TeacherToolGrid(
@@ -488,8 +520,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.forum_outlined,
-                    size: 64, color: Colors.grey.shade300),
+                Icon(
+                  Icons.forum_outlined,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'No classes created',
@@ -522,10 +557,13 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               ),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor:
-                      const Color(0xFF2F80ED).withValues(alpha: 0.1),
-                  child:
-                      Icon(Icons.forum_rounded, color: const Color(0xFF2F80ED)),
+                  backgroundColor: const Color(
+                    0xFF2F80ED,
+                  ).withValues(alpha: 0.1),
+                  child: Icon(
+                    Icons.forum_rounded,
+                    color: const Color(0xFF2F80ED),
+                  ),
                 ),
                 title: Text(
                   classData.className,
@@ -566,7 +604,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.analytics_rounded, size: 64, color: Colors.grey.shade300),
+                Icon(
+                  Icons.analytics_rounded,
+                  size: 64,
+                  color: Colors.grey.shade300,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'No classes found',
@@ -599,9 +641,11 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               ),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor:
-                      const Color(0xFF2F80ED).withOpacity(0.1),
-                  child: const Icon(Icons.analytics_rounded, color: Color(0xFF2F80ED)),
+                  backgroundColor: const Color(0xFF2F80ED).withOpacity(0.1),
+                  child: const Icon(
+                    Icons.analytics_rounded,
+                    color: Color(0xFF2F80ED),
+                  ),
                 ),
                 title: Text(
                   classData.className,
@@ -651,7 +695,8 @@ class _TeacherClassData {
     final data = doc.data();
     return _TeacherClassData(
       classId: doc.id,
-      className: data['name']?.toString() ??
+      className:
+          data['name']?.toString() ??
           data['className']?.toString() ??
           'Untitled Class',
       teacherId: data['teacherId'] ?? '',
@@ -681,10 +726,7 @@ class _TeacherHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF2F80ED),
-            const Color(0xFF1A5FA8),
-          ],
+          colors: [const Color(0xFF2F80ED), const Color(0xFF1A5FA8)],
         ),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(24),
@@ -908,85 +950,95 @@ class _TeacherToolGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.1,
-      children: [
-        _ToolCard(
-          icon: Icons.class_,
-          title: 'Manage Classes',
-          subtitle: '$classCount classes',
-          color: const Color(0xFF2F80ED),
-          onTap: onManageClasses,
-        ),
-        _ToolCard(
-          icon: Icons.people,
-          title: 'Student Roster',
-          subtitle: 'View all students',
-          color: Colors.green,
-          onTap: onSwitchTab,
-        ),
-        _ToolCard(
-          icon: Icons.menu_book_rounded,
-          title: 'Modules',
-          subtitle: 'Create & manage',
-          color: Colors.purple,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ModuleClassSelector(moduleType: 'modules'),
-              ),
-            );
-          },
-        ),
-        _ToolCard(
-          icon: Icons.quiz_rounded,
-          title: 'Quizzes',
-          subtitle: 'Create & manage',
-          color: Colors.orange,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ModuleClassSelector(moduleType: 'quizzes'),
-              ),
-            );
-          },
-        ),
-        _ToolCard(
-          icon: Icons.assignment_rounded,
-          title: 'Assignments',
-          subtitle: 'Create & manage',
-          color: Colors.red.shade400,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ModuleClassSelector(moduleType: 'assignments'),
-              ),
-            );
-          },
-        ),
-        _ToolCard(
-          icon: Icons.forum_rounded,
-          title: 'Forums',
-          subtitle: 'Manage discussions',
-          color: Colors.teal,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ModuleClassSelector(moduleType: 'forums'),
-              ),
-            );
-          },
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 900
+            ? 6
+            : constraints.maxWidth >= 600
+            ? 3
+            : 2;
+        return GridView.count(
+          crossAxisCount: columns,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: columns == 6 ? 10 : 12,
+          mainAxisSpacing: 10,
+          childAspectRatio: columns == 6 ? 1.02 : 1.1,
+          children: [
+            _ToolCard(
+              icon: Icons.class_,
+              title: 'Manage Classes',
+              subtitle: '$classCount classes',
+              color: const Color(0xFF2F80ED),
+              onTap: onManageClasses,
+            ),
+            _ToolCard(
+              icon: Icons.people,
+              title: 'Student Roster',
+              subtitle: 'View all students',
+              color: Colors.green,
+              onTap: onSwitchTab,
+            ),
+            _ToolCard(
+              icon: Icons.menu_book_rounded,
+              title: 'Modules',
+              subtitle: 'Create & manage',
+              color: Colors.purple,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _ModuleClassSelector(moduleType: 'modules'),
+                  ),
+                );
+              },
+            ),
+            _ToolCard(
+              icon: Icons.quiz_rounded,
+              title: 'Quizzes',
+              subtitle: 'Create & manage',
+              color: Colors.orange,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _ModuleClassSelector(moduleType: 'quizzes'),
+                  ),
+                );
+              },
+            ),
+            _ToolCard(
+              icon: Icons.assignment_rounded,
+              title: 'Assignments',
+              subtitle: 'Create & manage',
+              color: Colors.red.shade400,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _ModuleClassSelector(moduleType: 'assignments'),
+                  ),
+                );
+              },
+            ),
+            _ToolCard(
+              icon: Icons.forum_rounded,
+              title: 'Forums',
+              subtitle: 'Manage discussions',
+              color: Colors.teal,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _ModuleClassSelector(moduleType: 'forums'),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1037,10 +1089,7 @@ class _ToolCard extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
             const SizedBox(height: 2),
             Text(
@@ -1050,6 +1099,103 @@ class _ToolCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TeacherDesktopNav extends StatelessWidget {
+  const _TeacherDesktopNav({
+    required this.currentIndex,
+    required this.teacherName,
+    required this.onChanged,
+    required this.onLogout,
+  });
+
+  final int currentIndex;
+  final String teacherName;
+  final ValueChanged<int> onChanged;
+  final VoidCallback onLogout;
+
+  static const _items = [
+    (Icons.home_outlined, Icons.home_rounded, 'Overview'),
+    (Icons.class_outlined, Icons.class_rounded, 'Classes'),
+    (Icons.forum_outlined, Icons.forum_rounded, 'Discussions'),
+    (Icons.analytics_outlined, Icons.analytics_rounded, 'Analytics'),
+    (Icons.person_outline, Icons.person_rounded, 'Profile'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 248,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset('assets/ict_logo.png', width: 42, height: 42),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ICTeach',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'TEACHER WORKSPACE',
+                    style: TextStyle(
+                      fontSize: 9,
+                      color: Color(0xFF627487),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .8,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 34),
+          for (var index = 0; index < _items.length; index++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: ListTile(
+                selected: currentIndex == index,
+                selectedTileColor: const Color(0xFFEAF1FD),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                leading: Icon(
+                  currentIndex == index ? _items[index].$2 : _items[index].$1,
+                ),
+                title: Text(_items[index].$3),
+                onTap: () => onChanged(index),
+              ),
+            ),
+          const Spacer(),
+          const Divider(),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            leading: const CircleAvatar(
+              child: Icon(Icons.person_outline, size: 19),
+            ),
+            title: Text(
+              teacherName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: const Text('Teacher'),
+          ),
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            leading: const Icon(Icons.logout_rounded),
+            title: const Text('Sign out'),
+            onTap: onLogout,
+          ),
+        ],
       ),
     );
   }
@@ -1139,10 +1285,7 @@ class _ProfileStat extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -1184,37 +1327,37 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
     final title = widget.moduleType == 'quizzes'
         ? 'Quizzes'
         : widget.moduleType == 'assignments'
-            ? 'Assignments'
-            : widget.moduleType == 'forums'
-                ? 'Forums'
-                : 'Modules';
+        ? 'Assignments'
+        : widget.moduleType == 'forums'
+        ? 'Forums'
+        : 'Modules';
 
     final subtitle = widget.moduleType == 'quizzes'
         ? 'Select a class to manage quizzes'
         : widget.moduleType == 'assignments'
-            ? 'Select a class to manage assignments'
-            : widget.moduleType == 'forums'
-                ? 'Select a class to manage discussions'
-                : 'Select a class to manage modules';
+        ? 'Select a class to manage assignments'
+        : widget.moduleType == 'forums'
+        ? 'Select a class to manage discussions'
+        : 'Select a class to manage modules';
 
     final icon = widget.moduleType == 'quizzes'
         ? Icons.quiz
         : widget.moduleType == 'assignments'
-            ? Icons.assignment
-            : widget.moduleType == 'forums'
-                ? Icons.forum
-                : Icons.menu_book;
+        ? Icons.assignment
+        : widget.moduleType == 'forums'
+        ? Icons.forum
+        : Icons.menu_book;
 
     final color = widget.moduleType == 'quizzes'
         ? Colors.orange
         : widget.moduleType == 'assignments'
-            ? Colors.red.shade400
-            : widget.moduleType == 'forums'
-                ? Colors.teal
-                : Colors.purple;
+        ? Colors.red.shade400
+        : widget.moduleType == 'forums'
+        ? Colors.teal
+        : Colors.purple;
 
     return Scaffold(
-      backgroundColor: const Color(0xffF8FAFC),
+      backgroundColor: const Color(0xFFF4F7FA),
       appBar: AppBar(
         title: Text('Manage $title'),
         backgroundColor: const Color(0xFF2F80ED),
@@ -1276,10 +1419,7 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   subtitle,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                 ),
               ),
               Expanded(
@@ -1297,16 +1437,11 @@ class _ModuleClassSelectorState extends State<_ModuleClassSelector> {
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: color.withValues(alpha: 0.1),
-                          child: Icon(
-                            icon,
-                            color: color,
-                          ),
+                          child: Icon(icon, color: color),
                         ),
                         title: Text(
                           classData.className,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text(
                           '${classData.enrolledStudentIds?.length ?? 0} total enrolled',
