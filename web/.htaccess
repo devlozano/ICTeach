@@ -1,8 +1,8 @@
 RewriteEngine On
 
-# Redirect the apex hostname to the canonical www deployment.
-RewriteCond %{HTTP_HOST} ^icteach\.ipeso\.website$ [NC]
-RewriteRule ^ https://www.icteach.ipeso.website%{REQUEST_URI} [R=301,L,NE]
+# Keep the non-www address as the canonical deployment.
+RewriteCond %{HTTP_HOST} ^www\.icteach\.ipeso\.website$ [NC]
+RewriteRule ^ https://icteach.ipeso.website%{REQUEST_URI} [R=301,L,NE]
 
 # Revalidate Flutter entry files after every deployment.
 <IfModule mod_headers.c>
