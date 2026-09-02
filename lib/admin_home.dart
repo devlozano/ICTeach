@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'admin/create_staff_page.dart';
 import 'admin/manage_lrn_page.dart';
 import 'admin/manage_trainers_page.dart';
+import 'admin/evaluation_reports_page.dart';
 import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'package:icteach/services/quiz_service.dart';
@@ -54,6 +55,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 1000;
+            final isCompact = constraints.maxWidth < 600;
             return Scaffold(
               backgroundColor: _kBgColor,
               drawer: isWide
@@ -85,11 +87,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
                           _TopBar(name: name, showMenuButton: !isWide),
                           Expanded(
                             child: SingleChildScrollView(
-                              padding: const EdgeInsets.fromLTRB(
-                                28,
-                                24,
-                                28,
-                                36,
+                              padding: EdgeInsets.fromLTRB(
+                                isCompact ? 12 : 28,
+                                isCompact ? 14 : 24,
+                                isCompact ? 12 : 28,
+                                isCompact ? 24 : 36,
                               ),
                               child: ConstrainedBox(
                                 constraints: const BoxConstraints(
@@ -195,8 +197,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
                 children: [
                   Row(
                     children: [
@@ -295,11 +300,17 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             ),
                             title: Text(
                               name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            subtitle: Text(email),
+                            subtitle: Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -337,8 +348,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
                 children: [
                   Row(
                     children: [
@@ -603,10 +617,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
                             ),
                             title: Text(
                               name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 13),
                             ),
                             subtitle: Text(
                               email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 11),
                             ),
                           );
@@ -1027,29 +1045,30 @@ class _AdminPageHeading extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE2F7F9),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.circle, size: 8, color: Color(0xFF059669)),
-                SizedBox(width: 6),
-                Text(
-                  'SYSTEM ONLINE',
-                  style: TextStyle(
-                    color: Color(0xFF0F766E),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: .5,
+          if (MediaQuery.sizeOf(context).width >= 600)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2F7F9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.circle, size: 8, color: Color(0xFF059669)),
+                  SizedBox(width: 6),
+                  Text(
+                    'SYSTEM ONLINE',
+                    style: TextStyle(
+                      color: Color(0xFF0F766E),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .5,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1064,11 +1083,14 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
+    final width = MediaQuery.sizeOf(context).width;
+    final showWorkspaceTitle = width >= 430;
+    final showProfileDetails = width >= 650;
 
     return Container(
       height: 68,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: EdgeInsets.symmetric(horizontal: width < 400 ? 6 : 18),
       foregroundDecoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: _kCardBorder)),
       ),
@@ -1081,13 +1103,19 @@ class _TopBar extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
-          Text(
-            'Administration Workspace',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const Spacer(),
+          if (showWorkspaceTitle)
+            Expanded(
+              child: Text(
+                'Administration Workspace',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            )
+          else
+            const Spacer(),
           // Notification bell
           NotificationBadge(
             child: IconButton(
@@ -1115,27 +1143,40 @@ class _TopBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE8E8E8)),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: showProfileDetails ? 14 : 7,
+              vertical: 7,
+            ),
             child: Row(
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+                if (showProfileDetails) ...[
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const Text(
+                          'Admin',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF888888),
+                          ),
+                        ),
+                      ],
                     ),
-                    const Text(
-                      'Admin',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 12),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 CircleAvatar(
                   radius: 18,
                   backgroundColor: _kAccentBlue,
@@ -1273,7 +1314,7 @@ class _SummaryRowState extends State<_SummaryRow> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const _LoadingShimmer(height: 92);
+      return const _LoadingShimmer(height: 124);
     }
 
     final cards = [
@@ -1314,15 +1355,29 @@ class _SummaryRowState extends State<_SummaryRow> {
       ),
     ];
 
-    return SizedBox(
-      height: 96,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: cards.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (_, index) =>
-            SizedBox(width: 210, child: _SmallStat(data: cards[index])),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1050
+            ? 5
+            : constraints.maxWidth >= 680
+            ? 3
+            : constraints.maxWidth >= 440
+            ? 2
+            : 1;
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: cards.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            mainAxisExtent: 124,
+          ),
+          itemBuilder: (_, index) => _SmallStat(data: cards[index]),
+        );
+      },
     );
   }
 }
@@ -1912,31 +1967,30 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: _kCardBorder),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  onChanged: (v) =>
-                      setState(() => _searchQuery = v.toLowerCase()),
-                  decoration: InputDecoration(
-                    hintText: 'Search classes by name, section, or teacher...',
-                    prefixIcon: const Icon(Icons.search, color: _kSubtextColor),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    filled: true,
-                    fillColor: _kBgColor,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final searchField = TextField(
+                onChanged: (v) =>
+                    setState(() => _searchQuery = v.toLowerCase()),
+                decoration: InputDecoration(
+                  hintText: constraints.maxWidth < 520
+                      ? 'Search classes...'
+                      : 'Search classes by name, section, or teacher...',
+                  prefixIcon: const Icon(Icons.search, color: _kSubtextColor),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  filled: true,
+                  fillColor: _kBgColor,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
+              );
+              final filter = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
@@ -1946,6 +2000,7 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _statusFilter,
+                    isExpanded: constraints.maxWidth < 520,
                     items: const [
                       DropdownMenuItem(value: 'all', child: Text('All Status')),
                       DropdownMenuItem(value: 'active', child: Text('Active')),
@@ -1958,8 +2013,24 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                         setState(() => _statusFilter = v ?? 'all'),
                   ),
                 ),
-              ),
-            ],
+              );
+              if (constraints.maxWidth < 520) {
+                return Column(
+                  children: [
+                    searchField,
+                    const SizedBox(height: 10),
+                    SizedBox(width: double.infinity, child: filter),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: searchField),
+                  const SizedBox(width: 12),
+                  filter,
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 16),
@@ -2053,319 +2124,355 @@ class _ManageClassesContentState extends State<_ManageClassesContent> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: _kAccentBlue.withOpacity(0.15)),
                   ),
-                  child: Row(
-                    children: [
-                      _MiniStat(
-                        label: 'Total',
-                        value: '${allClasses.length}',
-                        color: _kNavColor,
-                      ),
-                      const SizedBox(width: 24),
-                      _MiniStat(
-                        label: 'Active',
-                        value: '$activeCount',
-                        color: const Color(0xFF28C76F),
-                      ),
-                      const SizedBox(width: 24),
-                      _MiniStat(
-                        label: 'Students',
-                        value: '$totalStudents',
-                        color: _kAccentBlue,
-                      ),
-                      const SizedBox(width: 24),
-                      _MiniStat(
-                        label: 'Showing',
-                        value: '${filtered.length}',
-                        color: const Color(0xFFE94560),
-                      ),
-                    ],
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _MiniStat(
+                          label: 'Total',
+                          value: '${allClasses.length}',
+                          color: _kNavColor,
+                        ),
+                        const SizedBox(width: 24),
+                        _MiniStat(
+                          label: 'Active',
+                          value: '$activeCount',
+                          color: const Color(0xFF28C76F),
+                        ),
+                        const SizedBox(width: 24),
+                        _MiniStat(
+                          label: 'Students',
+                          value: '$totalStudents',
+                          color: _kAccentBlue,
+                        ),
+                        const SizedBox(width: 24),
+                        _MiniStat(
+                          label: 'Showing',
+                          value: '${filtered.length}',
+                          color: const Color(0xFFE94560),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
 
-                // Class rows
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _kCardBorder),
-                  ),
-                  child: Column(
-                    children: [
-                      // Header
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _kBgColor,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(14),
+                // Class rows remain readable on narrow admin windows.
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final tableWidth = constraints.maxWidth < 760
+                        ? 760.0
+                        : constraints.maxWidth;
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _kCardBorder),
                           ),
-                        ),
-                        child: const Row(
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                'Class',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                  color: _kSubtextColor,
+                          child: Column(
+                            children: [
+                              // Header
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
                                 ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                'Teacher',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                  color: _kSubtextColor,
+                                decoration: BoxDecoration(
+                                  color: _kBgColor,
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(14),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Students',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                  color: _kSubtextColor,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                'Status',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                  color: _kSubtextColor,
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: 60,
-                              child: Text(
-                                'Actions',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                  color: _kSubtextColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final doc = filtered[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          final name = data['name'] as String? ?? 'Untitled';
-                          final section = data['sectionCode'] as String? ?? '';
-                          final teacherName =
-                              data['teacherName'] as String? ?? 'Unknown';
-                          final studentCount =
-                              (data['enrolledStudentIds'] as List?)?.length ??
-                              0;
-                          final status = data['status'] as String? ?? 'active';
-                          final classCode = data['classCode'] as String? ?? '';
-
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        name,
-                                        style: const TextStyle(
+                                child: const Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        'Class',
+                                        style: TextStyle(
                                           fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                          color: _kSubtextColor,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            section,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: _kSubtextColor,
-                                            ),
-                                          ),
-                                          if (classCode.isNotEmpty) ...[
-                                            const SizedBox(width: 8),
-                                            InkWell(
-                                              onTap: () {
-                                                Clipboard.setData(
-                                                  ClipboardData(
-                                                    text: classCode,
-                                                  ),
-                                                );
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      'Code "$classCode" copied!',
-                                                    ),
-                                                    duration: const Duration(
-                                                      seconds: 2,
-                                                    ),
-                                                  ),
-                                                );
-                                              },
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: _kAccentBlue
-                                                      .withOpacity(0.1),
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'Teacher',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                          color: _kSubtextColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'Students',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                          color: _kSubtextColor,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        'Status',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                          color: _kSubtextColor,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 60,
+                                      child: Text(
+                                        'Actions',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12,
+                                          color: _kSubtextColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, _) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final doc = filtered[index];
+                                  final data =
+                                      doc.data() as Map<String, dynamic>;
+                                  final name =
+                                      data['name'] as String? ?? 'Untitled';
+                                  final section =
+                                      data['sectionCode'] as String? ?? '';
+                                  final teacherName =
+                                      data['teacherName'] as String? ??
+                                      'Unknown';
+                                  final studentCount =
+                                      (data['enrolledStudentIds'] as List?)
+                                          ?.length ??
+                                      0;
+                                  final status =
+                                      data['status'] as String? ?? 'active';
+                                  final classCode =
+                                      data['classCode'] as String? ?? '';
+
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          flex: 3,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w700,
                                                 ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Text(
-                                                      classCode,
-                                                      style: const TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                        color: _kAccentBlue,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    section,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      color: _kSubtextColor,
+                                                    ),
+                                                  ),
+                                                  if (classCode.isNotEmpty) ...[
+                                                    const SizedBox(width: 8),
+                                                    InkWell(
+                                                      onTap: () {
+                                                        Clipboard.setData(
+                                                          ClipboardData(
+                                                            text: classCode,
+                                                          ),
+                                                        );
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                              'Code "$classCode" copied!',
+                                                            ),
+                                                            duration:
+                                                                const Duration(
+                                                                  seconds: 2,
+                                                                ),
+                                                          ),
+                                                        );
+                                                      },
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 6,
+                                                              vertical: 2,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: _kAccentBlue
+                                                              .withOpacity(0.1),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                4,
+                                                              ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              classCode,
+                                                              style: const TextStyle(
+                                                                fontSize: 10,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color:
+                                                                    _kAccentBlue,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                              width: 4,
+                                                            ),
+                                                            const Icon(
+                                                              Icons.copy,
+                                                              size: 10,
+                                                              color:
+                                                                  _kAccentBlue,
+                                                            ),
+                                                          ],
+                                                        ),
                                                       ),
                                                     ),
-                                                    const SizedBox(width: 4),
-                                                    const Icon(
-                                                      Icons.copy,
-                                                      size: 10,
-                                                      color: _kAccentBlue,
+                                                  ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Text(
+                                            teacherName,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.people_alt_outlined,
+                                                size: 14,
+                                                color: _kSubtextColor,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '$studentCount',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: _StatusBadge(
+                                            isActive: status == 'active',
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 60,
+                                          child: PopupMenuButton<String>(
+                                            icon: const Icon(
+                                              Icons.more_vert,
+                                              color: _kSubtextColor,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            itemBuilder: (ctx) => [
+                                              PopupMenuItem(
+                                                value: status == 'active'
+                                                    ? 'archive'
+                                                    : 'activate',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      status == 'active'
+                                                          ? Icons.archive
+                                                          : Icons.unarchive,
+                                                      size: 18,
+                                                      color: Colors.orange,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      status == 'active'
+                                                          ? 'Archive'
+                                                          : 'Activate',
                                                     ),
                                                   ],
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    teacherName,
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.people_alt_outlined,
-                                        size: 14,
-                                        color: _kSubtextColor,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '$studentCount',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
+                                              const PopupMenuItem(
+                                                value: 'delete',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.delete_outline,
+                                                      size: 18,
+                                                      color: Colors.red,
+                                                    ),
+                                                    SizedBox(width: 8),
+                                                    Text('Delete'),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                            onSelected: (value) =>
+                                                _handleClassAction(
+                                                  context,
+                                                  doc.id,
+                                                  name,
+                                                  value,
+                                                ),
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: _StatusBadge(
-                                    isActive: status == 'active',
-                                  ),
-                                ),
-                                SizedBox(
-                                  width: 60,
-                                  child: PopupMenuButton<String>(
-                                    icon: const Icon(
-                                      Icons.more_vert,
-                                      color: _kSubtextColor,
+                                      ],
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    itemBuilder: (ctx) => [
-                                      PopupMenuItem(
-                                        value: status == 'active'
-                                            ? 'archive'
-                                            : 'activate',
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              status == 'active'
-                                                  ? Icons.archive
-                                                  : Icons.unarchive,
-                                              size: 18,
-                                              color: Colors.orange,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              status == 'active'
-                                                  ? 'Archive'
-                                                  : 'Activate',
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(
-                                              Icons.delete_outline,
-                                              size: 18,
-                                              color: Colors.red,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text('Delete'),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    onSelected: (value) => _handleClassAction(
-                                      context,
-                                      doc.id,
-                                      name,
-                                      value,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ],
             );
@@ -2560,14 +2667,16 @@ class _PerformanceContentState extends State<_PerformanceContent> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Global Leaderboard',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    const Expanded(
+                      child: Text(
+                        'Global Leaderboard',
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
@@ -2819,11 +2928,16 @@ class _ReportsContentState extends State<_ReportsContent> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Platform Content Overview',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  const Expanded(
+                    child: Text(
+                      'Platform Content Overview',
+                      maxLines: 2,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ),
-                  const Spacer(),
                   TextButton.icon(
                     onPressed: () {
                       setState(() => _isLoading = true);
@@ -3117,6 +3231,124 @@ class _SettingsContentState extends State<_SettingsContent> {
   bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
+  bool _isLoadingAcademicYear = true;
+  bool _isSavingAcademicYear = false;
+  late String _selectedAcademicYear;
+
+  List<String> get _academicYearOptions {
+    final currentYear = DateTime.now().year;
+    return List.generate(7, (index) {
+      final start = currentYear - 3 + index;
+      return '$start-${start + 1}';
+    });
+  }
+
+  String _automaticAcademicYear() {
+    final now = DateTime.now();
+    final start = now.month >= 6 ? now.year : now.year - 1;
+    return '$start-${start + 1}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAcademicYear = _automaticAcademicYear();
+    _loadAcademicYear();
+  }
+
+  Future<void> _loadAcademicYear() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('system_settings')
+          .doc('academic_year')
+          .get();
+      final saved = snapshot.data()?['activeSchoolYear']?.toString();
+      if (mounted && saved != null && saved.isNotEmpty) {
+        setState(() => _selectedAcademicYear = saved);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingAcademicYear = false);
+    }
+  }
+
+  Future<void> _saveAcademicYear({required bool archivePrevious}) async {
+    setState(() => _isSavingAcademicYear = true);
+    try {
+      final db = FirebaseFirestore.instance;
+      final user = FirebaseAuth.instance.currentUser;
+      await db.collection('system_settings').doc('academic_year').set({
+        'activeSchoolYear': _selectedAcademicYear,
+        'updatedAt': FieldValue.serverTimestamp(),
+        'updatedBy': user?.uid,
+      }, SetOptions(merge: true));
+
+      var archivedCount = 0;
+      if (archivePrevious) {
+        final classes = await db.collection('classes').get();
+        WriteBatch batch = db.batch();
+        var pendingWrites = 0;
+        for (final classDoc in classes.docs) {
+          final data = classDoc.data();
+          final year = data['schoolYear']?.toString();
+          final status = data['status']?.toString();
+          if (year != _selectedAcademicYear && status != 'archived') {
+            batch.update(classDoc.reference, {
+              'status': 'archived',
+              'archivedAt': FieldValue.serverTimestamp(),
+              'archiveReason':
+                  'Academic year changed to $_selectedAcademicYear',
+            });
+            archivedCount++;
+            pendingWrites++;
+            if (pendingWrites == 450) {
+              await batch.commit();
+              batch = db.batch();
+              pendingWrites = 0;
+            }
+          }
+        }
+        if (pendingWrites > 0) await batch.commit();
+      }
+
+      _showSnack(
+        archivePrevious
+            ? 'Academic year saved. $archivedCount previous class(es) archived.'
+            : 'Active academic year saved.',
+        Colors.green,
+      );
+    } catch (e) {
+      _showSnack('Unable to update academic year: $e', Colors.red);
+    } finally {
+      if (mounted) setState(() => _isSavingAcademicYear = false);
+    }
+  }
+
+  Future<void> _confirmAcademicYearRollover() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Start academic year rollover?'),
+        content: Text(
+          'This sets $_selectedAcademicYear as active and archives every class '
+          'from another school year. Archived classes remain available in the '
+          'Classes archive and their records are not deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save and archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _saveAcademicYear(archivePrevious: true);
+    }
+  }
 
   @override
   void dispose() {
@@ -3272,17 +3504,24 @@ class _SettingsContentState extends State<_SettingsContent> {
                                   color: _kSubtextColor,
                                 ),
                                 const SizedBox(width: 6),
-                                Text(
-                                  email,
-                                  style: const TextStyle(
-                                    color: _kSubtextColor,
-                                    fontSize: 13,
+                                Expanded(
+                                  child: Text(
+                                    email,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: _kSubtextColor,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 6),
-                            Row(
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(
@@ -3303,7 +3542,6 @@ class _SettingsContentState extends State<_SettingsContent> {
                                   ),
                                 ),
                                 if (createdAt != null) ...[
-                                  const SizedBox(width: 12),
                                   Text(
                                     'Joined ${DateFormat('MMM d, y').format(createdAt.toDate())}',
                                     style: const TextStyle(
@@ -3323,6 +3561,155 @@ class _SettingsContentState extends State<_SettingsContent> {
               ),
             );
           },
+        ),
+        const SizedBox(height: 18),
+
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _kCardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded, color: _kAccentBlue),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Academic Year and Archiving',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'New classes use the active academic year. A rollover archives '
+                'older classes without deleting lessons, submissions, or results.',
+                style: TextStyle(color: _kSubtextColor, height: 1.45),
+              ),
+              const SizedBox(height: 18),
+              if (_isLoadingAcademicYear)
+                const LinearProgressIndicator()
+              else
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 220,
+                      child: DropdownButtonFormField<String>(
+                        initialValue:
+                            _academicYearOptions.contains(_selectedAcademicYear)
+                            ? _selectedAcademicYear
+                            : null,
+                        decoration: const InputDecoration(
+                          labelText: 'Active school year',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: {..._academicYearOptions, _selectedAcademicYear}
+                            .map(
+                              (year) => DropdownMenuItem(
+                                value: year,
+                                child: Text(year),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: _isSavingAcademicYear
+                            ? null
+                            : (value) {
+                                if (value != null) {
+                                  setState(() => _selectedAcademicYear = value);
+                                }
+                              },
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _isSavingAcademicYear
+                          ? null
+                          : () => _saveAcademicYear(archivePrevious: false),
+                      icon: const Icon(Icons.save_rounded),
+                      label: const Text('Save active year'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _isSavingAcademicYear
+                          ? null
+                          : _confirmAcademicYearRollover,
+                      icon: const Icon(Icons.archive_rounded),
+                      label: const Text('Save and archive previous years'),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _kCardBorder),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.rate_review_rounded,
+                      color: Colors.purple,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Evaluation Reports',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Review teaching, course, system, and simulation feedback.',
+                          style: TextStyle(color: _kSubtextColor),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const EvaluationReportsPage(),
+                  ),
+                ),
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Open reports'),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 18),
 
@@ -3577,14 +3964,20 @@ class _SettingRow extends StatelessWidget {
       children: [
         Icon(icon, color: _kSubtextColor, size: 20),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
         ),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(color: _kSubtextColor, fontSize: 14),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _kSubtextColor, fontSize: 14),
+          ),
         ),
       ],
     );

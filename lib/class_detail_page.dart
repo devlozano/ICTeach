@@ -12,6 +12,9 @@ import '../screens/teacher/manage_quizzes_page.dart';
 import '../screens/teacher/manage_assignments_page.dart';
 import '../screens/teacher/manage_modules_page.dart';
 import '../screens/teacher/quiz_results_page.dart';
+import '../screens/teacher/manage_questionnaires_page.dart';
+import '../screens/teacher/progress_tracker_page.dart';
+import '../screens/student/student_questionnaires_page.dart';
 import '../services/navigation_service.dart';
 
 class ClassDetailPage extends StatefulWidget {
@@ -307,6 +310,24 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
                               color: const Color(0xFFE74C3C),
                               onTap: () => _navigateToResults(),
                             ),
+                            if (_userRole == 'teacher' ||
+                                _userRole == 'trainer')
+                              _buildActionChip(
+                                icon: Icons.insights_rounded,
+                                label: 'Class Insights',
+                                color: const Color(0xFF0B6B91),
+                                onTap: () => _navigateToInsights(),
+                              ),
+                            _buildActionChip(
+                              icon: Icons.rate_review_rounded,
+                              label:
+                                  _userRole == 'teacher' ||
+                                      _userRole == 'trainer'
+                                  ? 'Evaluations'
+                                  : 'Give Feedback',
+                              color: const Color(0xFF7C3AED),
+                              onTap: () => _navigateToQuestionnaires(),
+                            ),
                             _buildActionChip(
                               icon: Icons.people_rounded,
                               label: 'Classmates',
@@ -410,6 +431,29 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
             ? 'Quiz Results - ${widget.className}'
             : 'My Quiz Results',
       ),
+    );
+  }
+
+  void _navigateToInsights() {
+    NavigationService.navigateTo(
+      context,
+      ProgressTrackerPage(classId: widget.classId, className: widget.className),
+    );
+  }
+
+  void _navigateToQuestionnaires() {
+    final isStaff = _userRole == 'teacher' || _userRole == 'trainer';
+    NavigationService.navigateTo(
+      context,
+      isStaff
+          ? ManageQuestionnairesPage(
+              classId: widget.classId,
+              className: widget.className,
+            )
+          : StudentQuestionnairesPage(
+              classId: widget.classId,
+              className: widget.className,
+            ),
     );
   }
 

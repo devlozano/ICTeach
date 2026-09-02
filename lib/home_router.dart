@@ -126,7 +126,7 @@ class _WebAccessBlockedState extends State<_WebAccessBlocked> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Returning to the staff web portal...'),
+            Text('Returning to ICTeach sign-in...'),
           ],
         ),
       ),

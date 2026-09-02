@@ -10,6 +10,8 @@ class SimulationData {
     required String category,
     required int step,
     required String tooltip,
+    String specification = '',
+    bool isRequired = true,
   }) => DraggableItem(
     id: id,
     name: name,
@@ -19,6 +21,8 @@ class SimulationData {
     category: category,
     step: step,
     tooltip: tooltip,
+    specification: specification,
+    isRequired: isRequired,
   );
 
   static Simulation _simulation({
@@ -41,7 +45,7 @@ class SimulationData {
       competency: competency,
       learningOutcome: learningOutcome,
       items: items,
-      slots: items.map((item) => item.correctSlot).toList(),
+      slots: items.map((item) => item.correctSlot).toSet().toList(),
       timeLimit: timeLimit,
       passingScore: 80,
       isPublished: true,
@@ -67,7 +71,7 @@ class SimulationData {
         id: 'motherboard',
         name: 'Motherboard',
         description: 'Main circuit board - install first in the case',
-        imageUrl: 'assets/simulations/motherboard.jpg',
+        imageUrl: 'assets/simulations/assembly-motherboard-matched.png',
         correctSlot: 'motherboard_tray',
         category: 'motherboard',
         step: 1,
@@ -77,7 +81,7 @@ class SimulationData {
         id: 'cpu',
         name: 'CPU',
         description: 'Central Processing Unit - align the gold triangle',
-        imageUrl: 'assets/simulations/cpu.jpg',
+        imageUrl: 'assets/simulations/assembly-cpu-matched.png',
         correctSlot: 'cpu_socket',
         category: 'processor',
         step: 2,
@@ -87,7 +91,7 @@ class SimulationData {
         id: 'cpu_fan',
         name: 'CPU Cooler',
         description: 'Attach after CPU installation',
-        imageUrl: 'assets/simulations/cpu-cooler.png',
+        imageUrl: 'assets/simulations/assembly-cooler-matched.png',
         correctSlot: 'cpu_fan_mount',
         category: 'cooling',
         step: 3,
@@ -97,17 +101,32 @@ class SimulationData {
         id: 'ram',
         name: 'RAM',
         description: 'Random Access Memory - align the notch',
-        imageUrl: 'assets/simulations/ram.jpg',
+        imageUrl: 'assets/simulations/assembly-ram-ddr4-matched.png',
         correctSlot: 'ram_slot',
         category: 'memory',
         step: 4,
         tooltip: 'Press firmly until the clips click.',
+        specification: 'DDR4-3200 UDIMM • 288-pin • 1.2 V',
+      ),
+      _item(
+        id: 'ram_ddr5_distractor',
+        name: 'DDR5 Memory',
+        description: 'Newer-generation DIMM with a different notch and voltage',
+        imageUrl: 'assets/simulations/ram.jpg',
+        correctSlot: 'ddr5_memory_slot',
+        category: 'memory',
+        step: 0,
+        tooltip:
+            'DDR5 cannot fit a DDR4 socket. The key notch and electrical design are different.',
+        specification:
+            'DDR5-5600 UDIMM • 288-pin • 1.1 V • incompatible with DDR4',
+        isRequired: false,
       ),
       _item(
         id: 'gpu',
         name: 'GPU',
         description: 'Graphics card - install in the PCIe x16 slot',
-        imageUrl: 'assets/simulations/gpu.jpg',
+        imageUrl: 'assets/simulations/assembly-gpu-matched.png',
         correctSlot: 'pcie_slot',
         category: 'graphics',
         step: 5,
@@ -117,7 +136,7 @@ class SimulationData {
         id: 'ssd',
         name: 'SSD Storage',
         description: 'Fast storage for the operating system and apps',
-        imageUrl: 'assets/simulations/ssd.jpg',
+        imageUrl: 'assets/simulations/assembly-ssd-matched.png',
         correctSlot: 'storage_bay',
         category: 'storage',
         step: 6,
@@ -127,11 +146,24 @@ class SimulationData {
         id: 'psu',
         name: 'Power Supply',
         description: 'Install last and connect all cables',
-        imageUrl: 'assets/simulations/psu.jpg',
+        imageUrl: 'assets/simulations/assembly-psu-matched.png',
         correctSlot: 'psu_mount',
         category: 'power',
         step: 7,
         tooltip: 'Face the fan toward the case ventilation.',
+      ),
+      _item(
+        id: 'assembly_test',
+        name: 'POST and Inspection',
+        description: 'Inspect the assembly and verify safe initial operation',
+        imageUrl: 'assets/simulations/check.svg',
+        correctSlot: 'assembly_test_station',
+        category: 'diagnostic',
+        step: 8,
+        tooltip:
+            'Check clearances, fasteners, and connections before power-on. Confirm POST, fan operation, hardware detection, and document the result.',
+        specification:
+            'TESDA evidence: assembled hardware • safe operation • testing and documentation',
       ),
     ],
   );
@@ -156,6 +188,7 @@ class SimulationData {
         category: 'cable',
         step: 1,
         tooltip: 'The largest connector from the PSU.',
+        specification: 'ATX 24-pin • motherboard main power • keyed latch',
       ),
       _item(
         id: 'cpu_power',
@@ -166,6 +199,7 @@ class SimulationData {
         category: 'cable',
         step: 2,
         tooltip: 'Connect near the CPU socket.',
+        specification: 'EPS12V 4+4 pin • CPU power • rounded/square keying',
       ),
       _item(
         id: 'gpu_power',
@@ -176,6 +210,7 @@ class SimulationData {
         category: 'cable',
         step: 3,
         tooltip: 'High-end GPUs may require multiple cables.',
+        specification: 'PCIe 6+2 pin • GPU auxiliary power • not EPS12V',
       ),
       _item(
         id: 'sata_cable',
@@ -186,6 +221,7 @@ class SimulationData {
         category: 'cable',
         step: 4,
         tooltip: 'The L-shaped connector fits one way.',
+        specification: 'SATA 7-pin data • L-shaped key • not SATA power',
       ),
       _item(
         id: 'front_panel',
@@ -196,6 +232,34 @@ class SimulationData {
         category: 'cable',
         step: 5,
         tooltip: 'Use the motherboard manual for the pin layout.',
+        specification: 'F_PANEL header • polarity matters for LEDs',
+      ),
+      _item(
+        id: 'cable_inspection',
+        name: 'Cable Inspection and Test',
+        description: 'Verify routing, locking tabs, polarity, and operation',
+        imageUrl: 'assets/simulations/check.svg',
+        correctSlot: 'cable_test_station',
+        category: 'diagnostic',
+        step: 6,
+        tooltip:
+            'Inspect every keyed connector and latch, keep cables clear of fans, then perform a controlled power-on test and record the result.',
+        specification:
+            'TESDA evidence: manufacturer requirements • OHS • inspection and testing',
+      ),
+      _item(
+        id: 'sata_power_distractor',
+        name: 'SATA Power Cable',
+        description: '15-pin PSU power connector for SATA drives',
+        imageUrl: 'assets/simulations/cable-sata-data.png',
+        correctSlot: 'sata_power_device',
+        category: 'cable',
+        step: 0,
+        tooltip:
+            'This is a 15-pin power lead, not the 7-pin motherboard data cable.',
+        specification:
+            'SATA 15-pin power • PSU to drive • incompatible with SATA data port',
+        isRequired: false,
       ),
     ],
   );
@@ -219,7 +283,10 @@ class SimulationData {
         correctSlot: 'cpu_target',
         category: 'identification',
         step: 1,
-        tooltip: 'Processor with pins or contact pads.',
+        tooltip:
+            'Look for a compact square package, metal heat spreader, corner alignment triangle, and underside contact pads.',
+        specification:
+            'Recognition markers: socket-keyed package • no edge connector • requires heatsink',
       ),
       _item(
         id: 'ram_label',
@@ -229,7 +296,10 @@ class SimulationData {
         correctSlot: 'ram_target',
         category: 'identification',
         step: 2,
-        tooltip: 'A small stick with memory chips.',
+        tooltip:
+            'Look for a long narrow PCB, multiple memory ICs, one keyed notch, and gold edge contacts.',
+        specification:
+            'Recognition markers: DIMM form factor • edge connector • retaining-clip notches',
       ),
       _item(
         id: 'gpu_label',
@@ -239,7 +309,10 @@ class SimulationData {
         correctSlot: 'gpu_target',
         category: 'identification',
         step: 3,
-        tooltip: 'A card with fans and display ports.',
+        tooltip:
+            'Inspect the cooling fans, PCIe edge connector, rear display outputs, and auxiliary power socket.',
+        specification:
+            'Recognition markers: PCIe expansion card • video outputs • large cooler',
       ),
       _item(
         id: 'motherboard_label',
@@ -249,7 +322,10 @@ class SimulationData {
         correctSlot: 'motherboard_target',
         category: 'identification',
         step: 4,
-        tooltip: 'Large board with many connectors.',
+        tooltip:
+            'Identify the CPU socket, DIMM banks, PCIe slots, chipset heatsink, and rear I/O cluster on one board.',
+        specification:
+            'Recognition markers: main system PCB • multiple buses • power and I/O headers',
       ),
       _item(
         id: 'ssd_label',
@@ -259,7 +335,10 @@ class SimulationData {
         correctSlot: 'storage_target',
         category: 'identification',
         step: 5,
-        tooltip: 'Small flat rectangular drive.',
+        tooltip:
+            'Look for a compact drive enclosure with no cooling fan and SATA data/power connectors along one edge.',
+        specification:
+            'Recognition markers: non-volatile storage • 2.5-inch form factor • SATA interface',
       ),
       _item(
         id: 'psu_label',
@@ -269,7 +348,10 @@ class SimulationData {
         correctSlot: 'psu_target',
         category: 'identification',
         step: 6,
-        tooltip: 'A box with a fan and cables.',
+        tooltip:
+            'Inspect the metal enclosure, AC input, cooling fan, wattage label, and bundled DC power leads.',
+        specification:
+            'Recognition markers: AC-to-DC converter • ATX enclosure • multiple voltage rails',
       ),
     ],
   );
@@ -289,7 +371,7 @@ class SimulationData {
         id: 'router',
         name: 'Router',
         description: 'Routes data between networks',
-        imageUrl: 'assets/simulations/router.jpg',
+        imageUrl: 'assets/simulations/coc2-router-matched.png',
         correctSlot: 'router_position',
         category: 'network',
         step: 2,
@@ -299,7 +381,7 @@ class SimulationData {
         id: 'switch',
         name: 'Network Switch',
         description: 'Connects devices in one network',
-        imageUrl: 'assets/simulations/switch.jpg',
+        imageUrl: 'assets/simulations/coc2-switch-matched.png',
         correctSlot: 'switch_position',
         category: 'network',
         step: 3,
@@ -309,7 +391,7 @@ class SimulationData {
         id: 'pc',
         name: 'Computer',
         description: 'End-user device on the network',
-        imageUrl: 'assets/simulations/server.jpg',
+        imageUrl: 'assets/simulations/coc2-workstation-matched.png',
         correctSlot: 'pc_position',
         category: 'network',
         step: 4,
@@ -319,7 +401,7 @@ class SimulationData {
         id: 'server',
         name: 'Server',
         description: 'Provides services to network devices',
-        imageUrl: 'assets/simulations/server.jpg',
+        imageUrl: 'assets/simulations/coc2-server-matched.png',
         correctSlot: 'server_position',
         category: 'network',
         step: 5,
@@ -329,7 +411,7 @@ class SimulationData {
         id: 'printer',
         name: 'Network Printer',
         description: 'Shared printing device',
-        imageUrl: 'assets/simulations/printer.jpg',
+        imageUrl: 'assets/simulations/coc2-printer-matched.png',
         correctSlot: 'printer_position',
         category: 'network',
         step: 6,
@@ -339,7 +421,7 @@ class SimulationData {
         id: 'modem',
         name: 'Modem',
         description: 'Connects the network to the ISP',
-        imageUrl: 'assets/simulations/router.jpg',
+        imageUrl: 'assets/simulations/coc2-modem-matched.png',
         correctSlot: 'modem_position',
         category: 'network',
         step: 1,
@@ -374,7 +456,7 @@ class SimulationData {
         id: 'wire$pin',
         name: '${colors[index]} (Pin $pin)',
         description: 'T568B wire for pin $pin',
-        imageUrl: 'assets/simulations/switch.jpg',
+        imageUrl: 'assets/simulations/coc2-t568b-pin$pin-matched.png',
         correctSlot: 'pin$pin',
         category: 'cable',
         step: pin,
@@ -406,41 +488,61 @@ class SimulationData {
     id: 'sim_coc1_os_install',
     title: 'Operating System Installation - COC1',
     description:
-        'Prepare boot media, install the operating system, drivers, and security updates in the correct sequence.',
+        'Complete a professional clean installation from readiness checks and UEFI setup through drivers, updates, activation, and final validation.',
     competency: 'COC1',
     outcome: 'LO2 - Install operating system and device drivers',
     prerequisite: 'sim_coc1_cabling',
     visual: 'assets/simulations/laptop.svg',
     steps: const [
       (
-        'Bootable USB',
+        'Readiness and Backup',
+        'readiness_check',
+        'Confirm CPU, RAM, storage, TPM, and firmware requirements. Back up approved user data, record the license, and verify stable AC power before changing the disk.',
+      ),
+      (
+        'Verified Installation Media',
         'boot_media',
-        'Verify the installer image, create bootable media, and confirm its integrity before use.',
+        'Download the approved ISO from a trusted source, verify its checksum, create a UEFI-compatible bootable USB, and test that the media is readable.',
       ),
       (
-        'UEFI/BIOS Boot Order',
+        'UEFI Firmware Setup',
         'firmware_setup',
-        'Open firmware setup, confirm UEFI mode, and select the USB device as the temporary boot source.',
+        'Use UEFI mode with GPT support, confirm AHCI where required, enable TPM and Secure Boot when supported, then choose the USB from the one-time boot menu.',
       ),
       (
-        'Disk Partition',
+        'Installer and Edition',
+        'installer_setup',
+        'Choose the correct language and keyboard, start the clean installation, enter or defer the product key correctly, and select the licensed OS edition.',
+      ),
+      (
+        'GPT Disk Partitioning',
         'storage_setup',
-        'Select the correct client drive, remove only approved partitions, and create the required system layout.',
+        'Identify the destination drive by model and capacity. Delete only authorized partitions, preserve required data drives, and create the EFI, MSR, recovery, and primary layout.',
       ),
       (
-        'Operating System Files',
+        'Install System Files',
         'system_install',
-        'Install the approved OS edition and do not interrupt file copying or automated restarts.',
+        'Allow copying, expansion, feature installation, and automatic restarts to finish. Do not remove power; remove the USB or restore boot priority before the installer loops.',
       ),
       (
-        'Device Drivers',
+        'Out-of-Box Configuration',
+        'oobe_setup',
+        'Set the correct region, keyboard, network policy, device name, authorized account, password, privacy options, and time zone according to the deployment plan.',
+      ),
+      (
+        'Drivers and Device Check',
         'driver_install',
-        'Install chipset first, followed by network, graphics, audio, and peripheral drivers.',
+        'Install OEM chipset and storage drivers first, then network, graphics, audio, and peripherals. Check Device Manager for unknown devices or warning symbols.',
       ),
       (
-        'Security Updates',
+        'Updates and Activation',
         'update_system',
-        'Apply all security updates, restart as required, and confirm that no critical update remains.',
+        'Activate using the authorized license, install all cumulative and security updates, restart as requested, update protection definitions, and scan again for updates.',
+      ),
+      (
+        'Final Validation',
+        'validation_stage',
+        'Verify activation, boot behavior, storage, network, audio, display, ports, security status, and updates. Create a restore point and document the completed installation.',
       ),
     ],
   );
@@ -453,8 +555,21 @@ class SimulationData {
     competency: 'COC1',
     outcome: 'LO3 - Install and configure application software',
     prerequisite: 'sim_coc1_os_install',
-    visual: 'assets/simulations/laptop.svg',
+    visual: 'assets/simulations/software-config-requirements-matched.png',
+    stepVisuals: const [
+      'assets/simulations/software-config-requirements-matched.png',
+      'assets/simulations/software-config-accounts-matched.png',
+      'assets/simulations/software-config-security-matched.png',
+      'assets/simulations/software-config-applications-matched.png',
+      'assets/simulations/software-config-network-printer-matched.png',
+      'assets/simulations/software-config-recovery-matched.png',
+    ],
     steps: const [
+      (
+        'Review Client Requirements',
+        'software_requirements',
+        'Confirm the authorized software list, versions, licenses, system requirements, installation source, and required configuration before making changes.',
+      ),
       (
         'Standard User Account',
         'account_config',
@@ -476,9 +591,9 @@ class SimulationData {
         'Join the approved network, test connectivity, then add and print-test the assigned printer.',
       ),
       (
-        'Restore Point',
+        'Test, Restore, and Document',
         'recovery_config',
-        'Create a documented restore point after the workstation reaches a verified working state.',
+        'Launch and function-test each application and peripheral, confirm updates and licenses, create a restore point, and document the final configuration and variations.',
       ),
     ],
   );
@@ -572,7 +687,7 @@ class SimulationData {
     competency: 'COC2',
     outcome: 'LO4 - Test and troubleshoot network connectivity',
     prerequisite: 'sim_coc2_ipconfig',
-    visual: 'assets/simulations/device.svg',
+    visual: 'assets/simulations/coc2-diagnostic-laptop-matched.png',
     steps: const [
       (
         'Check Link and Cable',
@@ -615,12 +730,13 @@ class SimulationData {
     required String outcome,
     required String prerequisite,
     required String visual,
+    List<String>? stepVisuals,
     required List<(String, String, String)> steps,
   }) => _simulation(
     id: id,
     title: title,
     description: description,
-    type: 'assembly',
+    type: 'procedure',
     competency: competency,
     learningOutcome: outcome,
     timeLimit: 12,
@@ -631,7 +747,7 @@ class SimulationData {
           id: '${id}_$index',
           name: steps[index].$1,
           description: steps[index].$3,
-          imageUrl: visual,
+          imageUrl: stepVisuals?[index] ?? visual,
           correctSlot: steps[index].$2,
           category: id.contains('repair') || id.contains('diagnostics')
               ? 'diagnostic'
@@ -646,7 +762,11 @@ class SimulationData {
         id: id,
         name: name,
         description: 'Assign this address to the correct network device',
-        imageUrl: 'assets/simulations/router.jpg',
+        imageUrl: switch (id) {
+          'ip_server' => 'assets/simulations/coc2-server-matched.png',
+          'ip_router' => 'assets/simulations/coc2-router-matched.png',
+          _ => 'assets/simulations/coc2-workstation-matched.png',
+        },
         correctSlot: slot,
         category: 'network',
         step: step,

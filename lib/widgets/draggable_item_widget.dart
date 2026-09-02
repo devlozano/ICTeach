@@ -8,12 +8,18 @@ class DraggableItemWidget extends StatelessWidget {
   final DraggableItem item;
   final bool isComplete;
   final bool compact;
+  final VoidCallback? onInspect;
+  final bool isFocused;
+  final bool labelOnly;
 
   const DraggableItemWidget({
     super.key,
     required this.item,
     required this.isComplete,
     this.compact = false,
+    this.onInspect,
+    this.isFocused = false,
+    this.labelOnly = false,
   });
 
   @override
@@ -54,7 +60,11 @@ class DraggableItemWidget extends StatelessWidget {
       onDragStarted: () {
         HapticFeedback.mediumImpact();
       },
-      child: _buildItemCard(),
+      child: InkWell(
+        onTap: onInspect,
+        borderRadius: BorderRadius.circular(7),
+        child: _buildItemCard(),
+      ),
     );
   }
 
@@ -67,11 +77,31 @@ class DraggableItemWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: const Color(0xFFDCE3EA)),
+          border: Border.all(
+            color: isFocused
+                ? const Color(0xFF0EA5E9)
+                : const Color(0xFFDCE3EA),
+            width: isFocused ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            _buildVisual(size: 32),
+            if (!labelOnly) ...[
+              _buildVisual(size: 32),
+            ] else
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF172554),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.sell_outlined,
+                  color: Color(0xFF93C5FD),
+                  size: 16,
+                ),
+              ),
             const SizedBox(width: 7),
             Expanded(
               child: Column(
@@ -87,12 +117,13 @@ class DraggableItemWidget extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (item.step > 0)
-                    Text(
-                      'Step ${item.step}',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Color(0xFF627487),
+                  if (labelOnly)
+                    const Text(
+                      'IDENTIFICATION LABEL',
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Color(0xFF64748B),
+                        letterSpacing: .3,
                       ),
                     ),
                 ],

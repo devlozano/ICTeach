@@ -80,7 +80,19 @@ class _SimulationPageState extends State<SimulationPage> {
       if (doc.exists) simulation = sim_models.Simulation.fromFirestore(doc);
     } catch (_) {}
 
-    simulation ??= SimulationData.getSimulationById(widget.simulationId);
+    final bundledSimulation = SimulationData.getSimulationById(
+      widget.simulationId,
+    );
+    if (widget.simulationId == 'sim_coc1_assembly' ||
+        widget.simulationId == 'sim_coc1_cabling' ||
+        widget.simulationId == 'sim_coc1_identification' ||
+        widget.simulationId == 'sim_coc1_os_install') {
+      // These practical labs rely on local compatibility metadata and
+      // distractor parts that may not exist in older Firestore documents.
+      simulation = bundledSimulation ?? simulation;
+    } else {
+      simulation ??= bundledSimulation;
+    }
     var completed = false;
     var prerequisiteCompleted = true;
     final prerequisites = simulation == null
@@ -185,22 +197,56 @@ class _SimulationPageState extends State<SimulationPage> {
       Scaffold(appBar: _appBar(widget.title), body: body);
 
   AppBar _appBar(String title, {bool showHelp = false}) => AppBar(
-    title: Text(
-      widget.className == null ? title : '$title • ${widget.className}',
-    ),
+    toolbarHeight: 42,
+    leadingWidth: 48,
+    elevation: 1,
+    scrolledUnderElevation: 2,
+    titleSpacing: 2,
+    centerTitle: false,
+    automaticallyImplyLeading: false,
     backgroundColor: const Color(0xFF0B2B4A),
     foregroundColor: Colors.white,
-    automaticallyImplyLeading: !_isCompleted,
+    surfaceTintColor: Colors.transparent,
+    systemOverlayStyle: SystemUiOverlayStyle.light,
+    leading: Padding(
+      padding: const EdgeInsets.fromLTRB(7, 5, 3, 5),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: _leaveSimulation,
+          borderRadius: BorderRadius.circular(8),
+          child: const Icon(
+            Icons.arrow_back_rounded,
+            color: Color(0xFF0B2B4A),
+            size: 21,
+          ),
+        ),
+      ),
+    ),
+    title: Text(
+      widget.className == null ? title : '$title • ${widget.className}',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+    ),
     actions: showHelp
         ? [
             IconButton(
-              icon: const Icon(Icons.help_outline),
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.help_outline, color: Colors.white),
               onPressed: _showHelp,
               tooltip: 'Help',
             ),
+            const SizedBox(width: 3),
           ]
         : null,
   );
+
+  Future<void> _leaveSimulation() async {
+    await _setGameplayOrientation(false);
+    if (mounted) Navigator.maybePop(context);
+  }
 
   Widget _notice(IconData icon, String text, MaterialColor color) => Container(
     padding: const EdgeInsets.all(12),
@@ -596,8 +642,23 @@ class _SimulationPageState extends State<SimulationPage> {
     } catch (_) {}
   }
 
-  String _getInstructionText() =>
-      'Drag and drop each item to its correct position. You need ${_simulation!.passingScore}% to pass.';
+  String _getInstructionText() {
+    final action = switch (_simulation!.type) {
+      'procedure' =>
+        'Arrange the shuffled technician actions in the correct standards-based workflow.',
+      'assembly' =>
+        'Install the shuffled components in a safe manufacturer-approved sequence.',
+      'cabling' =>
+        'Inspect each shuffled connector, then match its keying and function to the correct port.',
+      'identification' =>
+        'Inspect each specimen and classify it from observable hardware evidence.',
+      'networking' =>
+        'Analyze the network requirements and place each shuffled item correctly.',
+      _ => 'Complete every task using the correct technical procedure.',
+    };
+    return '$action You need ${_simulation!.passingScore}% to pass.';
+  }
+
   bool _isLocked() => _simulation!.isLocked || !_prerequisiteCompleted;
   String _getPrerequisiteName() =>
       SimulationData.getSimulationById(

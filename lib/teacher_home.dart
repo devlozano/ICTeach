@@ -210,7 +210,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                 const SizedBox(height: 12),
                 Text(
                   _teacherName(profile, user),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -719,40 +719,60 @@ class _TeacherHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final desktop = MediaQuery.sizeOf(context).width >= 1000;
     return Container(
-      height: 170,
+      height: desktop ? 178 : 170,
       width: double.infinity,
+      margin: desktop ? const EdgeInsets.fromLTRB(22, 22, 22, 0) : null,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [const Color(0xFF2F80ED), const Color(0xFF1A5FA8)],
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF3D8EF7), Color(0xFF245A9E)],
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
+        borderRadius: desktop
+            ? BorderRadius.circular(20)
+            : const BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
+        boxShadow: desktop
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF245A9E).withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : null,
       ),
-      padding: const EdgeInsets.fromLTRB(23, 48, 23, 24),
+      padding: EdgeInsets.fromLTRB(
+        desktop ? 44 : 23,
+        desktop ? 28 : 48,
+        desktop ? 34 : 23,
+        desktop ? 28 : 24,
+      ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: const CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.white,
-              child: Icon(
-                Icons.co_present_rounded,
-                color: Color(0xFF2F80ED),
-                size: 32,
+          if (!desktop) ...[
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
+              child: const CircleAvatar(
+                radius: 30,
+                backgroundColor: Colors.white,
+                child: Icon(
+                  Icons.co_present_rounded,
+                  color: Color(0xFF2F80ED),
+                  size: 32,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 13),
+            const SizedBox(width: 13),
+          ],
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -762,29 +782,29 @@ class _TeacherHeader extends StatelessWidget {
                   'Good Morning, Teacher',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.84),
-                    fontSize: 12,
+                    fontSize: desktop ? 17 : 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 3),
+                SizedBox(height: desktop ? 5 : 3),
                 Text(
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: desktop ? 29 : 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: desktop ? 5 : 4),
                 const Text(
                   'CSS NC II - Computer Systems Servicing',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -809,15 +829,16 @@ class _TeacherHeader extends StatelessWidget {
               tooltip: 'Notifications',
             ),
           ),
-          IconButton(
-            onPressed: onLogout,
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: Colors.white,
-              size: 26,
+          if (!desktop)
+            IconButton(
+              onPressed: onLogout,
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+              tooltip: 'Logout',
             ),
-            tooltip: 'Logout',
-          ),
         ],
       ),
     );
@@ -844,14 +865,16 @@ class _TeacherSummary extends StatelessWidget {
         final classCount = snapshot.data?.docs.length ?? 0;
 
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE8EDF4)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 8,
+                blurRadius: 16,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -860,9 +883,13 @@ class _TeacherSummary extends StatelessWidget {
             children: [
               const Text(
                 'Overview',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2F80ED),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 22),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -906,20 +933,20 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        margin: const EdgeInsets.symmetric(horizontal: 5),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
+            Icon(icon, size: 25, color: color),
+            const SizedBox(height: 7),
             Text(
               value,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 21,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -927,7 +954,7 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
@@ -953,7 +980,7 @@ class _TeacherToolGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 900
-            ? 6
+            ? 3
             : constraints.maxWidth >= 600
             ? 3
             : 2;
@@ -961,9 +988,9 @@ class _TeacherToolGrid extends StatelessWidget {
           crossAxisCount: columns,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: columns == 6 ? 10 : 12,
-          mainAxisSpacing: 10,
-          childAspectRatio: columns == 6 ? 1.02 : 1.1,
+          crossAxisSpacing: 18,
+          mainAxisSpacing: 18,
+          childAspectRatio: columns == 3 ? 1.75 : 1.1,
           children: [
             _ToolCard(
               icon: Icons.class_,
@@ -1063,19 +1090,22 @@ class _ToolCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE8EDF4)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 4,
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -1083,19 +1113,19 @@ class _ToolCard extends StatelessWidget {
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 28, color: color),
+              child: Icon(icon, size: 26, color: color),
             ),
             const SizedBox(height: 8),
             Text(
               title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              textAlign: TextAlign.left,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              textAlign: TextAlign.left,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],
         ),
@@ -1128,22 +1158,35 @@ class _TeacherDesktopNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 248,
+      width: 268,
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
+      padding: const EdgeInsets.fromLTRB(14, 25, 14, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Image.asset('assets/ict_logo.png', width: 42, height: 42),
+              Container(
+                width: 58,
+                height: 58,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF172033)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Image.asset('assets/ict_logo.png'),
+              ),
               const SizedBox(width: 12),
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'ICTeach',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF2F80ED),
+                    ),
                   ),
                   Text(
                     'TEACHER WORKSPACE',
@@ -1158,20 +1201,38 @@ class _TeacherDesktopNav extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 22),
+          const Padding(
+            padding: EdgeInsets.only(left: 8, bottom: 10),
+            child: Text(
+              'DASHBOARD',
+              style: TextStyle(
+                fontSize: 10,
+                letterSpacing: 1.6,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF8793A2),
+              ),
+            ),
+          ),
           for (var index = 0; index < _items.length; index++)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: ListTile(
                 selected: currentIndex == index,
-                selectedTileColor: const Color(0xFFEAF1FD),
+                selectedTileColor: const Color(0xFF2F80ED),
+                selectedColor: Colors.white,
+                iconColor: const Color(0xFF2F80ED),
+                textColor: const Color(0xFF2F80ED),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
                 leading: Icon(
                   currentIndex == index ? _items[index].$2 : _items[index].$1,
                 ),
-                title: Text(_items[index].$3),
+                title: Text(
+                  _items[index].$3,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 onTap: () => onChanged(index),
               ),
             ),
@@ -1180,7 +1241,12 @@ class _TeacherDesktopNav extends StatelessWidget {
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 10),
             leading: const CircleAvatar(
-              child: Icon(Icons.person_outline, size: 19),
+              backgroundColor: Color(0xFFE8F2FF),
+              child: Icon(
+                Icons.person_outline,
+                size: 19,
+                color: Color(0xFF2F80ED),
+              ),
             ),
             title: Text(
               teacherName,
@@ -1191,8 +1257,11 @@ class _TeacherDesktopNav extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            leading: const Icon(Icons.logout_rounded),
-            title: const Text('Sign out'),
+            leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            title: const Text(
+              'Sign out',
+              style: TextStyle(color: Color(0xFFEF4444)),
+            ),
             onTap: onLogout,
           ),
         ],

@@ -89,7 +89,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
         _showError(
           role == 'student'
               ? 'Student accounts are available in the ICTeach mobile app only.'
-              : 'This account does not have access to the staff web portal.',
+              : 'This account does not have access to an ICTeach web dashboard.',
         );
         return;
       }
@@ -324,7 +324,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        'Staff portal for administrators, teachers, and trainers',
+                        'Secure access to your ICTeach dashboard',
                         style: TextStyle(
                           color: Colors.blueGrey.shade500,
                           fontSize: 12,
@@ -710,7 +710,7 @@ class _CompactBrand extends StatelessWidget {
                 ),
               ),
               Text(
-                'STAFF LEARNING PORTAL',
+                'LEARNING MANAGEMENT SYSTEM',
                 style: TextStyle(
                   color: Color(0xFF9AC7EE),
                   fontSize: 9,

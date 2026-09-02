@@ -165,9 +165,11 @@ class _CreateStaffPageState extends State<CreateStaffPage> {
               children: [
                 Icon(Icons.check_circle, color: Colors.green.shade600),
                 const SizedBox(width: 8),
-                const Text(
-                  'Staff Created',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                const Flexible(
+                  child: Text(
+                    'Staff Created',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
             ),

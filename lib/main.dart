@@ -19,7 +19,7 @@ void main() async {
   try {
     await _initializeFirebase();
   } catch (e) {
-    print('Firebase initialization error: $e');
+    debugPrint('Firebase initialization error: $e');
   }
 
   runApp(const MyApp());
@@ -38,16 +38,14 @@ Future<void> _initializeFirebase() async {
         measurementId: "G-S77WYVMF0N",
       ),
     );
-    await FirebaseFirestore.instance.enablePersistence(
-      const PersistenceSettings(synchronizeTabs: true),
-    );
   } else {
     await Firebase.initializeApp();
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-    );
   }
+
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+  );
 }
 
 class MyApp extends StatelessWidget {

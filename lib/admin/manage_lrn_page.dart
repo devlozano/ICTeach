@@ -7,10 +7,7 @@ import 'dart:io';
 class ManageLRNPage extends StatefulWidget {
   final bool useStandaloneScaffold;
 
-  const ManageLRNPage({
-    super.key,
-    this.useStandaloneScaffold = true,
-  });
+  const ManageLRNPage({super.key, this.useStandaloneScaffold = true});
 
   @override
   State<ManageLRNPage> createState() => _ManageLRNPageState();
@@ -98,10 +95,7 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                   SizedBox(height: 16),
                   Text(
                     'No LRN records found',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
                   Text(
@@ -139,6 +133,8 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                   ),
                   title: Text(
                     lrn,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontFamily: 'monospace',
@@ -146,6 +142,8 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                   ),
                   subtitle: Text(
                     '${data['firstName']} ${data['lastName']}${data['middleName'] != null ? ' ${data['middleName']}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(
@@ -185,18 +183,26 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Row(
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 10,
                   children: [
-                    const Icon(Icons.upload_file, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Upload CSV File',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.upload_file, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text(
+                          'Upload CSV File',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
                     _isUploading
                         ? const SizedBox(
                             height: 20,
@@ -228,10 +234,7 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
     );
 
     if (!widget.useStandaloneScaffold) {
-      return SizedBox(
-        width: double.infinity,
-        child: pageContent,
-      );
+      return SizedBox(width: double.infinity, child: pageContent);
     }
 
     return Scaffold(
@@ -308,11 +311,11 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                     .collection('lrn_master_list')
                     .doc(lrn)
                     .set({
-                  'firstName': firstName,
-                  'lastName': lastName,
-                  'isRegistered': false,
-                  'uploadedAt': FieldValue.serverTimestamp(),
-                });
+                      'firstName': firstName,
+                      'lastName': lastName,
+                      'isRegistered': false,
+                      'uploadedAt': FieldValue.serverTimestamp(),
+                    });
 
                 _showSnackBar('✅ LRN added successfully!', Colors.green);
                 Navigator.pop(context);

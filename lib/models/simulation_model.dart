@@ -9,6 +9,8 @@ class DraggableItem {
   final String category;
   final int step;
   final String tooltip;
+  final String specification;
+  final bool isRequired;
 
   DraggableItem({
     required this.id,
@@ -19,6 +21,8 @@ class DraggableItem {
     required this.category,
     this.step = 0,
     this.tooltip = '',
+    this.specification = '',
+    this.isRequired = true,
   });
 
   Map<String, dynamic> toJson() => {
@@ -30,6 +34,8 @@ class DraggableItem {
     'category': category,
     'step': step,
     'tooltip': tooltip,
+    'specification': specification,
+    'isRequired': isRequired,
   };
 
   factory DraggableItem.fromJson(Map<String, dynamic> json) => DraggableItem(
@@ -41,6 +47,8 @@ class DraggableItem {
     category: json['category']?.toString() ?? '',
     step: json['step'] is int ? json['step'] as int : 0,
     tooltip: json['tooltip']?.toString() ?? '',
+    specification: json['specification']?.toString() ?? '',
+    isRequired: json['isRequired'] is bool ? json['isRequired'] as bool : true,
   );
 }
 

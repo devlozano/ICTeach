@@ -143,7 +143,17 @@ class _CreateClassPageState extends State<CreateClassPage> {
       final classRef = FirebaseFirestore.instance.collection('classes').doc();
 
       // Get current school year
-      final schoolYear = _getCurrentSchoolYear();
+      final settingsSnapshot = await FirebaseFirestore.instance
+          .collection('system_settings')
+          .doc('academic_year')
+          .get();
+      final configuredYear = settingsSnapshot
+          .data()?['activeSchoolYear']
+          ?.toString()
+          .trim();
+      final schoolYear = configuredYear != null && configuredYear.isNotEmpty
+          ? configuredYear
+          : _getCurrentSchoolYear();
 
       // Use the proper teacher name
       String teacherEmail = teacher.email ?? "No email provided";

@@ -120,7 +120,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFF102A43);
+    const primaryColor = Color(0xFF5B2182);
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
@@ -257,7 +257,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     String trainerName,
     String userId,
   ) {
+    final desktop = MediaQuery.sizeOf(context).width >= 1000;
     return SingleChildScrollView(
+      padding: desktop ? const EdgeInsets.all(22) : EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -265,31 +267,44 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: primaryColor,
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
+              gradient: const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xFF72279A), Color(0xFF47146D)],
               ),
+              borderRadius: desktop
+                  ? BorderRadius.circular(20)
+                  : const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+              boxShadow: desktop
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF47146D).withValues(alpha: 0.2),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
+                      ),
+                    ]
+                  : null,
             ),
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              bottom: MediaQuery.sizeOf(context).width >= 1000 ? 18 : 30,
-              top: MediaQuery.sizeOf(context).width >= 1000 ? 8 : 10,
+            padding: EdgeInsets.symmetric(
+              horizontal: desktop ? 44 : 20,
+              vertical: desktop ? 29 : 28,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   "Welcome back,",
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                  style: TextStyle(color: Colors.white70, fontSize: 17),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   trainerName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 26,
+                    fontSize: desktop ? 30 : 26,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -302,7 +317,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.amber.shade700,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: const Row(
@@ -310,14 +325,14 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                         children: [
                           Icon(
                             Icons.verified_rounded,
-                            color: Colors.white,
+                            color: Color(0xFF5B2182),
                             size: 14,
                           ),
                           SizedBox(width: 4),
                           Text(
                             "OFFICIAL TRAINER",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF5B2182),
                               fontSize: 11,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.5,
@@ -352,8 +367,11 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           ),
 
           Padding(
-            padding: EdgeInsets.all(
-              MediaQuery.sizeOf(context).width >= 1000 ? 16 : 20,
+            padding: EdgeInsets.fromLTRB(
+              desktop ? 6 : 20,
+              desktop ? 30 : 20,
+              desktop ? 6 : 20,
+              20,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +383,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 const Text(
                   'Trainer Tools',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.black87,
                   ),
@@ -426,15 +444,16 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
 
   Widget _buildStatCard(String label, String value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 21),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFECE7F1)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 16,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
@@ -444,7 +463,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 15,
               color: Colors.grey.shade600,
               fontWeight: FontWeight.w500,
             ),
@@ -453,7 +472,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 31,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -525,7 +544,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 900
-            ? 6
+            ? 3
             : constraints.maxWidth >= 600
             ? 3
             : 2;
@@ -535,9 +554,9 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
-            childAspectRatio: columns == 6 ? 1.05 : 1.15,
-            crossAxisSpacing: columns == 6 ? 10 : 14,
-            mainAxisSpacing: 10,
+            childAspectRatio: columns == 3 ? 1.75 : 1.15,
+            crossAxisSpacing: 18,
+            mainAxisSpacing: 18,
           ),
           itemBuilder: (context, index) => items[index],
         );
@@ -1312,15 +1331,16 @@ class _TrainerToolItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFECE7F1)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -1340,7 +1360,7 @@ class _TrainerToolItem extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: Colors.black,
               ),
@@ -1351,7 +1371,7 @@ class _TrainerToolItem extends StatelessWidget {
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 color: Colors.grey.shade600,
                 fontWeight: FontWeight.w500,
               ),
@@ -1389,22 +1409,35 @@ class _TrainerDesktopNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 248,
+      width: 268,
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
+      padding: const EdgeInsets.fromLTRB(14, 25, 14, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Image.asset('assets/ict_logo.png', width: 42, height: 42),
+              Container(
+                width: 58,
+                height: 58,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF24122F)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Image.asset('assets/ict_logo.png'),
+              ),
               const SizedBox(width: 12),
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'ICTeach',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF5B2182),
+                    ),
                   ),
                   Text(
                     'TRAINER WORKSPACE',
@@ -1419,20 +1452,38 @@ class _TrainerDesktopNav extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 22),
+          const Padding(
+            padding: EdgeInsets.only(left: 8, bottom: 10),
+            child: Text(
+              'DASHBOARD',
+              style: TextStyle(
+                fontSize: 10,
+                letterSpacing: 1.6,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF93869A),
+              ),
+            ),
+          ),
           for (var index = 0; index < _items.length; index++)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: ListTile(
                 selected: currentIndex == index,
-                selectedTileColor: const Color(0xFFEAF1FD),
+                selectedTileColor: const Color(0xFF5B2182),
+                selectedColor: Colors.white,
+                iconColor: const Color(0xFF5B2182),
+                textColor: const Color(0xFF5B2182),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
                 leading: Icon(
                   currentIndex == index ? _items[index].$2 : _items[index].$1,
                 ),
-                title: Text(_items[index].$3),
+                title: Text(
+                  _items[index].$3,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
                 onTap: () => onChanged(index),
               ),
             ),
@@ -1441,8 +1492,13 @@ class _TrainerDesktopNav extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
+            iconColor: const Color(0xFF5B2182),
+            textColor: const Color(0xFF5B2182),
             leading: const Icon(Icons.notifications_none_rounded),
-            title: const Text('Notifications'),
+            title: const Text(
+              'Notifications',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
             onTap: onNotifications,
           ),
           const Spacer(),
@@ -1450,7 +1506,12 @@ class _TrainerDesktopNav extends StatelessWidget {
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 10),
             leading: const CircleAvatar(
-              child: Icon(Icons.badge_outlined, size: 19),
+              backgroundColor: Color(0xFFF2E8F8),
+              child: Icon(
+                Icons.badge_outlined,
+                size: 19,
+                color: Color(0xFF5B2182),
+              ),
             ),
             title: Text(
               trainerName,
@@ -1461,8 +1522,11 @@ class _TrainerDesktopNav extends StatelessWidget {
           ),
           ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            leading: const Icon(Icons.logout_rounded),
-            title: const Text('Sign out'),
+            leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+            title: const Text(
+              'Sign out',
+              style: TextStyle(color: Color(0xFFEF4444)),
+            ),
             onTap: onLogout,
           ),
         ],
