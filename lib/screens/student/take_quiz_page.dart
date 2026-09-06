@@ -4,19 +4,47 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/quiz_model.dart';
 import '../../services/quiz_service.dart';
+import '../../widgets/content_access_gate.dart';
+import '../../widgets/activity_preparation_gate.dart';
+import '../../services/learning_path_service.dart';
 import 'quiz_results_page.dart'; // ✅ ADD THIS IMPORT
 
-class TakeQuizPage extends StatefulWidget {
+class TakeQuizPage extends StatelessWidget {
+  final String classId;
+  final QuizModel quiz;
+  const TakeQuizPage({super.key, required this.classId, required this.quiz});
+  @override
+  Widget build(BuildContext context) => ContentAccessGate(
+    classId: classId,
+    contentType: 'quiz',
+    contentId: quiz.id,
+    builder: (_) => ActivityPreparationGate(
+      classId: classId,
+      type: 'quiz',
+      contentId: quiz.id,
+      title: quiz.title,
+      sessionBuilder: (practice) =>
+          _QuizSession(classId: classId, quiz: quiz, practice: practice),
+    ),
+  );
+}
+
+class _QuizSession extends StatefulWidget {
+  final bool practice;
   final String classId;
   final QuizModel quiz;
 
-  const TakeQuizPage({super.key, required this.classId, required this.quiz});
+  const _QuizSession({
+    required this.classId,
+    required this.quiz,
+    required this.practice,
+  });
 
   @override
-  State<TakeQuizPage> createState() => _TakeQuizPageState();
+  State<_QuizSession> createState() => _TakeQuizPageState();
 }
 
-class _TakeQuizPageState extends State<TakeQuizPage> {
+class _TakeQuizPageState extends State<_QuizSession> {
   final QuizService _quizService = QuizService();
   List<int?> _selectedAnswers = [];
   int _currentQuestionIndex = 0;
@@ -29,7 +57,7 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
   void initState() {
     super.initState();
     _selectedAnswers = List.filled(widget.quiz.questions.length, null);
-    if (widget.quiz.timeLimit > 0) {
+    if (!widget.practice && widget.quiz.timeLimit > 0) {
       _timeRemaining = widget.quiz.timeLimit * 60;
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
         setState(() {
@@ -56,6 +84,7 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
   }
 
   void _submitQuiz() async {
+    if (_isSubmitting) return;
     _timer?.cancel();
     setState(() => _isSubmitting = true);
 
@@ -68,67 +97,108 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
       return;
     }
 
-    // Calculate results
-    int correctCount = 0;
-    final userAnswers = <UserAnswer>[];
+    try {
+      // Calculate results
+      int correctCount = 0;
+      final userAnswers = <UserAnswer>[];
 
-    for (int i = 0; i < widget.quiz.questions.length; i++) {
-      final question = widget.quiz.questions[i];
-      final selected = _selectedAnswers[i];
-      final isCorrect = selected == question.correctAnswer;
+      for (int i = 0; i < widget.quiz.questions.length; i++) {
+        final question = widget.quiz.questions[i];
+        final selected = _selectedAnswers[i];
+        final isCorrect = selected == question.correctAnswer;
 
-      if (isCorrect) correctCount++;
+        if (isCorrect) correctCount += question.points;
 
-      userAnswers.add(
-        UserAnswer(
-          questionId: question.id,
-          selectedAnswer: selected ?? -1,
-          isCorrect: isCorrect,
-          correctAnswerText: question.options[question.correctAnswer],
-          explanation: question.explanation,
+        userAnswers.add(
+          UserAnswer(
+            questionId: question.id,
+            selectedAnswer: selected ?? -1,
+            isCorrect: isCorrect,
+            correctAnswerText: question.options[question.correctAnswer],
+            explanation: question.explanation,
+          ),
+        );
+      }
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final studentName =
+          userDoc.data()?['name'] ?? user.displayName ?? 'Student';
+
+      final result = QuizResult(
+        quizId: widget.quiz.id,
+        classId: widget.classId, // ✅ ADDED
+        studentId: user.uid,
+        studentName: studentName,
+        score: correctCount,
+        totalPoints: widget.quiz.questions.fold<int>(
+          0,
+          (total, q) => total + q.points,
+        ),
+        userAnswers: userAnswers,
+        completedAt: DateTime.now(),
+        timeSpent: _timeSpent,
+      );
+
+      await LearningPathService.requirePrepared(
+        widget.classId,
+        'quiz',
+        widget.quiz.id,
+        practice: widget.practice,
+      );
+      if (widget.practice) {
+        await LearningPathService.savePractice(
+          widget.classId,
+          'quiz',
+          widget.quiz.id,
+          widget.quiz.title,
+          correctCount,
+          result.totalPoints,
+        );
+      } else {
+        await _quizService.saveQuizResult(result);
+      }
+
+      if (!mounted) return;
+
+      // ✅ Navigate to QuizResultsPage
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => QuizResultsPage(
+            result: result,
+            questions: widget.quiz.questions,
+            quizTitle: widget.practice
+                ? 'PRACTICE (ungraded): ${widget.quiz.title}'
+                : widget.quiz.title,
+          ),
         ),
       );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Result not saved: $error. Your answers are retained; retry submitting.',
+            ),
+          ),
+        );
+      }
     }
-
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    final studentName =
-        userDoc.data()?['name'] ?? user.displayName ?? 'Student';
-
-    final result = QuizResult(
-      quizId: widget.quiz.id,
-      classId: widget.classId, // ✅ ADDED
-      studentId: user.uid,
-      studentName: studentName,
-      score: correctCount,
-      totalPoints: widget.quiz.totalPoints,
-      userAnswers: userAnswers,
-      completedAt: DateTime.now(),
-      timeSpent: _timeSpent,
-    );
-
-    await _quizService.saveQuizResult(result);
-
-    if (!mounted) return;
-
-    // ✅ Navigate to QuizResultsPage
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => QuizResultsPage(
-          result: result,
-          questions: widget.quiz.questions,
-          quizTitle: widget.quiz.title,
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.quiz.questions.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.quiz.title)),
+        body: const Center(child: Text('This quiz has no questions yet.')),
+      );
+    }
     final question = widget.quiz.questions[_currentQuestionIndex];
     final progress =
         ((_currentQuestionIndex + 1) / widget.quiz.questions.length * 100);
@@ -136,12 +206,16 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
     return Scaffold(
       backgroundColor: const Color(0xffF8FAFC),
       appBar: AppBar(
-        title: Text(widget.quiz.title),
+        title: Text(
+          widget.practice
+              ? 'Practice (ungraded): ${widget.quiz.title}'
+              : widget.quiz.title,
+        ),
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (widget.quiz.timeLimit > 0)
+          if (!widget.practice && widget.quiz.timeLimit > 0)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Center(
@@ -207,11 +281,17 @@ class _TakeQuizPageState extends State<TakeQuizPage> {
                         _selectedAnswers[_currentQuestionIndex] == index;
 
                     return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedAnswers[_currentQuestionIndex] = index;
-                        });
-                      },
+                      onTap:
+                          _isSubmitting ||
+                              (!widget.practice &&
+                                  widget.quiz.timeLimit > 0 &&
+                                  _timeRemaining <= 0)
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedAnswers[_currentQuestionIndex] = index;
+                              });
+                            },
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(16),

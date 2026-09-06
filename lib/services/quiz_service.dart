@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'learning_path_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:icteach/services/notification_service.dart';
 import '../models/quiz_model.dart';
@@ -13,13 +14,15 @@ class QuizService {
         .doc(classId)
         .collection('quizzes')
         .snapshots(
-            includeMetadataChanges: true) // ✅ Include metadata for offline
+          includeMetadataChanges: true,
+        ) // ✅ Include metadata for offline
         .map((snapshot) {
-      final quizzes =
-          snapshot.docs.map((doc) => QuizModel.fromFirestore(doc)).toList();
-      quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return quizzes;
-    });
+          final quizzes = snapshot.docs
+              .map((doc) => QuizModel.fromFirestore(doc))
+              .toList();
+          quizzes.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return quizzes;
+        });
   }
 
   // ✅ Get published quizzes with offline support
@@ -30,30 +33,35 @@ class QuizService {
         .collection('quizzes')
         .where('isPublished', isEqualTo: true)
         .snapshots(
-            includeMetadataChanges: true) // ✅ Include metadata for offline
+          includeMetadataChanges: true,
+        ) // ✅ Include metadata for offline
         .map((snapshot) {
-      final quizzes =
-          snapshot.docs.map((doc) => QuizModel.fromFirestore(doc)).toList();
-      quizzes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      return quizzes;
-    });
+          final quizzes = snapshot.docs
+              .map((doc) => QuizModel.fromFirestore(doc))
+              .toList();
+          quizzes.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          return quizzes;
+        });
   }
 
   // Create a new quiz
   Future<void> createQuiz(QuizModel quiz) async {
+    await LearningPathService.requireActive(quiz.classId);
+    if (quiz.isPublished && quiz.questions.isEmpty)
+      throw StateError('Add questions before publishing a quiz.');
     final docRef = _firestore
         .collection('classes')
         .doc(quiz.classId)
         .collection('quizzes')
         .doc();
 
-    await docRef.set({
-      ...quiz.toFirestore(),
-      'id': docRef.id,
-    });
+    await docRef.set({...quiz.toFirestore(), 'id': docRef.id});
   }
 
   Future<void> updateQuiz(String classId, String quizId, QuizModel quiz) async {
+    await LearningPathService.requireActive(classId);
+    if (quiz.isPublished && quiz.questions.isEmpty)
+      throw StateError('Add questions before publishing a quiz.');
     try {
       await FirebaseFirestore.instance
           .collection('classes')
@@ -70,6 +78,7 @@ class QuizService {
 
   // Delete a quiz
   Future<void> deleteQuiz(String classId, String quizId) async {
+    await LearningPathService.requireActive(classId);
     await _firestore
         .collection('classes')
         .doc(classId)
@@ -88,24 +97,26 @@ class QuizService {
         .get();
 
     if (doc.exists) {
-      return QuizModel.fromFirestore(
-          doc);
+      return QuizModel.fromFirestore(doc);
     }
     return null;
   }
 
   // Toggle publish status
   Future<void> togglePublish(
-      String classId, String quizId, bool isPublished) async {
+    String classId,
+    String quizId,
+    bool isPublished,
+  ) async {
     await _firestore
         .collection('classes')
         .doc(classId)
         .collection('quizzes')
         .doc(quizId)
         .update({
-      'isPublished': isPublished,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+          'isPublished': isPublished,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   // Check if student has already taken a quiz
@@ -124,26 +135,52 @@ class QuizService {
       return doc.exists;
     } catch (e) {
       print('Error checking quiz status: $e');
-      return false;
+      rethrow;
     }
   }
 
   // Save quiz result
   Future<void> saveQuizResult(QuizResult result) async {
+    await LearningPathService.requirePrepared(
+      result.classId,
+      'quiz',
+      result.quizId,
+      practice: false,
+    );
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    await _firestore
+    if (user == null || result.studentId != user.uid) {
+      throw StateError('Please sign in to save this result.');
+    }
+    final studentRef = _firestore
         .collection('users')
         .doc(user.uid)
         .collection('quiz_results')
-        .doc(result.quizId)
-        .set(result.toFirestore());
-
-    await _firestore
+        .doc(result.quizId);
+    final classRef = _firestore
         .collection('quiz_results')
-        .doc('${result.quizId}_${user.uid}')
-        .set(result.toFirestore());
+        .doc('${result.quizId}_${user.uid}');
+    await _firestore.runTransaction((transaction) async {
+      final previous = await transaction.get(studentRef);
+      final shared = await transaction.get(classRef);
+      if (previous.exists || shared.exists) {
+        throw StateError(
+          'This quiz already has a saved result. Retakes are not allowed.',
+        );
+      }
+      transaction.set(studentRef, result.toFirestore());
+      transaction.set(classRef, result.toFirestore());
+      transaction.set(_firestore.collection('activity_events').doc(), {
+        'classId': result.classId,
+        'studentId': result.studentId,
+        'studentName': result.studentName,
+        'contentId': result.quizId,
+        'event': 'quiz_completed',
+        'mode': 'assessment',
+        'score': result.score,
+        'total': result.totalPoints,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
   }
 
   // Get quiz results for a student globally
@@ -159,7 +196,10 @@ class QuizService {
   }
 
   // Get quiz results for a student in a specific class
-  Future<List<QuizResult>> getStudentQuizResultsForClass(String studentId, String classId) async {
+  Future<List<QuizResult>> getStudentQuizResultsForClass(
+    String studentId,
+    String classId,
+  ) async {
     // 1. Get all quizzes for this class
     final quizzesSnapshot = await _firestore
         .collection('classes')
@@ -179,9 +219,13 @@ class QuizService {
         .orderBy('completedAt', descending: true)
         .get();
 
-    final allResults = snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
-    
-    return allResults.where((r) => quizIds.contains(r.quizId) || r.classId == classId).toList();
+    final allResults = snapshot.docs
+        .map((doc) => QuizResult.fromFirestore(doc))
+        .toList();
+
+    return allResults
+        .where((r) => quizIds.contains(r.quizId) || r.classId == classId)
+        .toList();
   }
 
   // ✅ FIXED: Get quiz results without orderBy
@@ -191,8 +235,9 @@ class QuizService {
         .where('quizId', isEqualTo: quizId)
         .get();
 
-    final results =
-        snapshot.docs.map((doc) => QuizResult.fromFirestore(doc)).toList();
+    final results = snapshot.docs
+        .map((doc) => QuizResult.fromFirestore(doc))
+        .toList();
 
     // Sort in memory by score (descending)
     results.sort((a, b) => b.score.compareTo(a.score));
@@ -255,9 +300,10 @@ class QuizService {
           .collection('quiz_results')
           .where('classId', isEqualTo: classId)
           .get();
-      
+
       // Merge unique documents
-      final uniqueDocs = <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
+      final uniqueDocs =
+          <String, QueryDocumentSnapshot<Map<String, dynamic>>>{};
       for (final doc in allResultDocs) {
         uniqueDocs[doc.id] = doc;
       }
@@ -278,7 +324,8 @@ class QuizService {
   }
 
   List<Map<String, dynamic>> _aggregateLeaderboardResults(
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
     final studentAggregates = <String, Map<String, dynamic>>{};
 
     for (final doc in docs) {
@@ -292,7 +339,7 @@ class QuizService {
           'quizCount': 0,
         };
       }
-      
+
       final data = studentAggregates[result.studentId]!;
       data['totalScore'] = (data['totalScore'] as int) + result.score;
       data['totalPoints'] = (data['totalPoints'] as int) + result.totalPoints;
@@ -302,12 +349,11 @@ class QuizService {
     final leaderboard = studentAggregates.values.map((data) {
       final totalScore = data['totalScore'] as int;
       final totalPoints = data['totalPoints'] as int;
-      final percentage = totalPoints > 0 ? (totalScore / totalPoints) * 100 : 0.0;
-      
-      return {
-        ...data,
-        'percentage': percentage.round(),
-      };
+      final percentage = totalPoints > 0
+          ? (totalScore / totalPoints) * 100
+          : 0.0;
+
+      return {...data, 'percentage': percentage.round()};
     }).toList();
 
     // Sort by percentage descending, then by total score

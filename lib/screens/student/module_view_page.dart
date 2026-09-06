@@ -5,6 +5,13 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
 import 'instructional_videos_page.dart';
+import 'pre_assessment_page.dart';
+import 'course_feedback_page.dart';
+import '../../services/learning_path_service.dart';
+import '../../widgets/content_access_gate.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 
 class ModuleViewPage extends StatefulWidget {
   final String classId;
@@ -24,6 +31,142 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
   final ModuleService _moduleService = ModuleService();
   String _selectedFilter = 'All';
   int? _selectedModuleIndex;
+  final Map<String, bool> _progress = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
+  _progressSubscription;
+  bool _savingProgress = false;
+  String? _progressError;
+
+  @override
+  void initState() {
+    super.initState();
+    _listenProgress();
+  }
+
+  @override
+  void didUpdateWidget(covariant ModuleViewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _progressSubscription?.cancel();
+      _progress.clear();
+      _selectedModuleIndex = null;
+      _progressError = null;
+      _listenProgress();
+    }
+  }
+
+  void _listenProgress() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      _progressSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .collection('module_progress')
+          .where('classId', isEqualTo: widget.classId)
+          .snapshots()
+          .listen(
+            (snapshot) {
+              if (!mounted) return;
+              setState(() {
+                _progressError = null;
+                _progress.clear();
+                for (final doc in snapshot.docs) {
+                  _progress[doc.data()['moduleId'].toString()] =
+                      doc.data()['completed'] == true;
+                }
+              });
+            },
+            onError: (Object error) {
+              if (mounted) {
+                setState(
+                  () =>
+                      _progressError = 'Unable to load saved module progress.',
+                );
+              }
+            },
+          );
+    }
+  }
+
+  @override
+  void dispose() {
+    _progressSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<bool> _saveProgress(ModuleModel module, bool completed) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || _savingProgress) return false;
+    setState(() => _savingProgress = true);
+    try {
+      final db = FirebaseFirestore.instance;
+      await LearningPathService.requireActive(widget.classId);
+      final ref = db
+          .collection('users')
+          .doc(uid)
+          .collection('module_progress')
+          .doc('${widget.classId}_${module.id}');
+      final savedCompleted = await db.runTransaction<bool>((transaction) async {
+        final previous = await transaction.get(ref);
+        final done = completed || previous.data()?['completed'] == true;
+        transaction.set(ref, {
+          'classId': widget.classId,
+          'moduleId': module.id,
+          'studentId': uid,
+          'completed': done,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        transaction.set(db.collection('activity_events').doc(), {
+          'classId': widget.classId,
+          'studentId': uid,
+          'studentName':
+              FirebaseAuth.instance.currentUser?.displayName ??
+              FirebaseAuth.instance.currentUser?.email ??
+              'Student',
+          'contentId': module.id,
+          'title': module.title,
+          'event': completed ? 'lesson_completed' : 'lesson_opened',
+          'mode': 'learning',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        return done;
+      });
+      if (mounted) {
+        setState(() => _progress[module.id] = savedCompleted);
+        if (completed)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Lesson complete. Finished all lessons? Share your system evaluation.',
+              ),
+              action: SnackBarAction(
+                label: 'Evaluate',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CourseFeedbackPage(classId: widget.classId),
+                  ),
+                ),
+              ),
+            ),
+          );
+      }
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not save module progress. Please reconnect and retry.',
+            ),
+          ),
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) setState(() => _savingProgress = false);
+    }
+  }
 
   final List<String> _filters = [
     'All',
@@ -47,6 +190,18 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
 
   @override
   Widget build(BuildContext context) {
+    return PreAssessmentPage(
+      classId: widget.classId,
+      className: widget.className,
+      builder: (_) => ContentAccessGate(
+        classId: widget.classId,
+        contentType: 'module',
+        builder: _buildPage,
+      ),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: _selectedModuleIndex == null
@@ -180,14 +335,30 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
           }
 
           if (_selectedModuleIndex != null) {
+            if (_selectedModuleIndex! >= modules.length) {
+              _selectedModuleIndex = null;
+            }
+          }
+          if (_selectedModuleIndex != null) {
             final module = modules[_selectedModuleIndex!];
-            return _buildModuleDetailView(module, modules.length);
+            return ContentAccessGate(
+              key: ValueKey(module.id),
+              classId: widget.classId,
+              contentType: 'module',
+              contentId: module.id,
+              builder: (_) => _buildModuleDetailView(module, modules.length),
+            );
           }
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Filter Chips
+              if (_progressError != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(_progressError!),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: SizedBox(
@@ -256,10 +427,20 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                   itemCount: modules.length,
                   itemBuilder: (context, index) {
                     final module = modules[index];
+                    final status = _progress[module.id] == true
+                        ? 'Completed'
+                        : _progress.containsKey(module.id)
+                        ? 'In Progress'
+                        : 'Not Started';
+                    if (_selectedFilter != 'All' && _selectedFilter != status) {
+                      return const SizedBox.shrink();
+                    }
                     return _ModuleCard(
                       module: module,
                       index: index,
+                      status: status,
                       onTap: () {
+                        _saveProgress(module, false);
                         setState(() {
                           _selectedModuleIndex = index;
                         });
@@ -277,10 +458,7 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
 
   Widget _buildModuleDetailView(ModuleModel module, int totalModules) {
     final hasVideo = module.videoUrl != null && module.videoUrl!.isNotEmpty;
-    // Mock progress calculation for UI effect based on index
-    final progress = _selectedModuleIndex == 0
-        ? 1.0
-        : (_selectedModuleIndex == 1 ? 0.45 : 0.0);
+    final progress = _progress[module.id] == true ? 1.0 : 0.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -649,31 +827,37 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle_rounded,
-                                  color: Colors.white,
+                      onPressed: _savingProgress
+                          ? null
+                          : () async {
+                              if (!await _saveProgress(module, true) ||
+                                  !mounted) {
+                                return;
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_rounded,
+                                        color: Colors.white,
+                                      ),
+                                      SizedBox(width: 12),
+                                      Text('Module marked as completed!'),
+                                    ],
+                                  ),
+                                  backgroundColor: Colors.green.shade600,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  margin: const EdgeInsets.all(16),
                                 ),
-                                SizedBox(width: 12),
-                                Text('Module marked as completed!'),
-                              ],
-                            ),
-                            backgroundColor: Colors.green.shade600,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            margin: const EdgeInsets.all(16),
-                          ),
-                        );
-                        setState(() {
-                          _selectedModuleIndex = null;
-                        });
-                      },
+                              );
+                              setState(() {
+                                _selectedModuleIndex = null;
+                              });
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
@@ -709,25 +893,18 @@ class _ModuleCard extends StatelessWidget {
   final ModuleModel module;
   final int index;
   final VoidCallback onTap;
+  final String status;
 
   const _ModuleCard({
     required this.module,
     required this.index,
     required this.onTap,
+    required this.status,
   });
 
   @override
   Widget build(BuildContext context) {
-    final status = index == 0
-        ? 'Completed'
-        : index == 1
-        ? 'In Progress'
-        : 'Not Started';
-    final progress = index == 0
-        ? 1.0
-        : index == 1
-        ? 0.45
-        : 0.0;
+    final progress = status == 'Completed' ? 1.0 : 0.0;
 
     final statusColor = status == 'Completed'
         ? Colors.green.shade600

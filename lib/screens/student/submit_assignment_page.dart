@@ -1,7 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
+import '../../services/learning_path_service.dart';
+import '../../services/cloudinary_service.dart';
 
 class SubmitAssignmentPage extends StatefulWidget {
   final String classId;
@@ -22,11 +25,25 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
   final TextEditingController _contentController = TextEditingController();
 
   bool _isSubmitting = false;
+  PlatformFile? _selectedFile;
 
   @override
   void dispose() {
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectSubmissionFile() async {
+    try {
+      final file = await CloudinaryService.selectFile();
+      if (file == null || !mounted) return;
+      setState(() => _selectedFile = file);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 
   Future<void> _submitAssignment() async {
@@ -47,7 +64,8 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Please provide a more detailed answer (at least 10 characters)'),
+            'Please provide a more detailed answer (at least 10 characters)',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
@@ -60,18 +78,29 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
     setState(() => _isSubmitting = true);
 
     try {
+      CloudinaryUploadResult? uploadedFile;
+      if (_selectedFile != null) {
+        uploadedFile = await CloudinaryService.uploadFile(
+          file: _selectedFile!,
+          folder: CloudinaryService.submissionsFolder,
+        );
+      }
+
       final submission = AssignmentSubmission(
         id: '',
         assignmentId: widget.assignment.id,
         studentId: user.uid,
         studentName: user.displayName ?? 'Student',
         content: content,
-        attachmentUrl: null, // No file upload
+        attachmentUrl: uploadedFile?.url,
+        attachmentName: uploadedFile?.originalFilename,
+        cloudinaryPublicId: uploadedFile?.publicId,
         score: 0,
         submittedAt: DateTime.now(),
         isGraded: false,
       );
 
+      await LearningPathService.requireActive(widget.classId);
       await _assignmentService.submitAssignment(submission);
 
       if (!mounted) return;
@@ -152,18 +181,12 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
                   const SizedBox(height: 4),
                   Text(
                     'Due: ${widget.assignment.dueDate.day}/${widget.assignment.dueDate.month}/${widget.assignment.dueDate.year}',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     widget.assignment.description,
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -193,10 +216,7 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
                   Expanded(
                     child: Text(
                       'Write your answer in the box below. Minimum 10 characters required.',
-                      style: TextStyle(
-                        color: Colors.blue[800],
-                        fontSize: 13,
-                      ),
+                      style: TextStyle(color: Colors.blue[800], fontSize: 13),
                     ),
                   ),
                 ],
@@ -258,6 +278,36 @@ class _SubmitAssignmentPageState extends State<SubmitAssignmentPage> {
               ),
             ),
             const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isSubmitting ? null : _selectSubmissionFile,
+                icon: const Icon(Icons.attach_file),
+                label: Text(
+                  _selectedFile?.name ?? 'Attach supporting file (optional)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 15,
+                  ),
+                  alignment: Alignment.centerLeft,
+                ),
+              ),
+            ),
+            if (_selectedFile != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _selectedFile = null),
+                  icon: const Icon(Icons.close, size: 17),
+                  label: const Text('Remove selected file'),
+                ),
+              ),
+            const SizedBox(height: 16),
 
             // Submit Button
             SizedBox(

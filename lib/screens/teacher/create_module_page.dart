@@ -1,7 +1,10 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
 import '../../models/module_model.dart';
+import '../../services/cloudinary_service.dart';
 import '../../services/module_service.dart';
 import '../../services/notification_service.dart';
 
@@ -33,6 +36,9 @@ class _CreateModulePageState extends State<CreateModulePage> {
   final _fileLinkController = TextEditingController();
 
   bool _isLoading = false;
+  PlatformFile? _selectedFile;
+  bool _isUploading = false;
+  double _uploadProgress = 0;
   bool _isPublished = false;
   bool _isEditing = false;
   int _order = 0;
@@ -97,7 +103,8 @@ class _CreateModulePageState extends State<CreateModulePage> {
 
   void _validateYoutubeLink() {
     final url = _youtubeLinkController.text.trim();
-    final isValid = url.isNotEmpty &&
+    final isValid =
+        url.isNotEmpty &&
         (url.contains('youtube.com/watch') ||
             url.contains('youtu.be/') ||
             url.contains('youtube.com/embed') ||
@@ -109,7 +116,8 @@ class _CreateModulePageState extends State<CreateModulePage> {
 
   void _validateFileLink() {
     final url = _fileLinkController.text.trim();
-    final isValid = url.isNotEmpty &&
+    final isValid =
+        url.isNotEmpty &&
         (url.contains('drive.google.com') ||
             url.contains('docs.google.com') ||
             url.startsWith('https://'));
@@ -189,10 +197,49 @@ class _CreateModulePageState extends State<CreateModulePage> {
     );
   }
 
+  Future<void> _selectModuleFile() async {
+    try {
+      final file = await CloudinaryService.selectFile();
+
+      if (file == null || !mounted) return;
+
+      setState(() {
+        _selectedFile = file;
+        _uploadProgress = 0;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   Future<void> _saveModule() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('You must be signed in.')));
+      return;
+    }
+
+    final existingAttachment = widget.moduleToEdit?.attachmentUrl;
+    final pastedAttachment = _fileLinkController.text.trim();
+    if (!_isEditing && _selectedFile == null && pastedAttachment.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select a module file.')));
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _isUploading = _selectedFile != null;
+      _uploadProgress = _selectedFile == null ? 0 : 0.1;
+    });
 
     try {
       final videoUrl = _youtubeLinkController.text.trim().isEmpty
@@ -213,9 +260,20 @@ class _CreateModulePageState extends State<CreateModulePage> {
         }
       }
 
-      final attachmentUrl = _fileLinkController.text.trim().isEmpty
-          ? null
-          : _fileLinkController.text.trim();
+      CloudinaryUploadResult? uploadedFile;
+      if (_selectedFile != null) {
+        uploadedFile = await CloudinaryService.uploadFile(
+          file: _selectedFile!,
+          folder: CloudinaryService.modulesFolder,
+        );
+        if (!mounted) return;
+        setState(() => _uploadProgress = 0.9);
+      }
+
+      final attachmentUrl =
+          uploadedFile?.url ??
+          (pastedAttachment.isNotEmpty ? pastedAttachment : existingAttachment);
+      final existingModule = widget.moduleToEdit;
 
       final module = ModuleModel(
         id: _moduleId ?? '',
@@ -227,6 +285,17 @@ class _CreateModulePageState extends State<CreateModulePage> {
         order: _order,
         competencies: _competencies,
         attachmentUrl: attachmentUrl,
+        fileName: uploadedFile?.originalFilename ?? existingModule?.fileName,
+        cloudinaryPublicId:
+            uploadedFile?.publicId ?? existingModule?.cloudinaryPublicId,
+        cloudinaryResourceType:
+            uploadedFile?.resourceType ??
+            existingModule?.cloudinaryResourceType,
+        fileFormat: uploadedFile?.format ?? existingModule?.fileFormat,
+        fileSize: uploadedFile?.bytes ?? existingModule?.fileSize,
+        uploadedBy: uploadedFile != null
+            ? currentUser.uid
+            : existingModule?.uploadedBy,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         isPublished: _isPublished,
@@ -254,6 +323,11 @@ class _CreateModulePageState extends State<CreateModulePage> {
 
       if (!mounted) return;
 
+      setState(() {
+        _uploadProgress = 1;
+        _selectedFile = null;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -270,12 +344,19 @@ class _CreateModulePageState extends State<CreateModulePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              '❌ Error ${_isEditing ? 'updating' : 'creating'} module: $e'),
+            '❌ Error ${_isEditing ? 'updating' : 'creating'} module: $e',
+          ),
           backgroundColor: Colors.red,
         ),
       );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isUploading = false;
+          _uploadProgress = 0;
+        });
+      }
     }
   }
 
@@ -559,7 +640,7 @@ class _CreateModulePageState extends State<CreateModulePage> {
                         const Icon(Icons.attach_file, color: Color(0xFF0B2B4A)),
                         const SizedBox(width: 8),
                         const Text(
-                          'File Attachment (Optional)',
+                          'Module File',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -598,7 +679,70 @@ class _CreateModulePageState extends State<CreateModulePage> {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isUploading ? null : _selectModuleFile,
+                        icon: const Icon(Icons.attach_file),
+                        label: Text(
+                          _selectedFile == null
+                              ? (widget.moduleToEdit?.fileName ??
+                                    'Select module file')
+                              : _selectedFile!.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 15,
+                          ),
+                          alignment: Alignment.centerLeft,
+                        ),
+                      ),
+                    ),
+                    if (_selectedFile != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${_selectedFile!.name} • ${(_selectedFile!.size / (1024 * 1024)).toStringAsFixed(2)} MB',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.green.shade800,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: _isUploading
+                                ? null
+                                : () => setState(() => _selectedFile = null),
+                            icon: const Icon(Icons.close, size: 19),
+                            tooltip: 'Remove selected file',
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (_isUploading) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(value: _uploadProgress),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Uploading securely to Cloudinary...',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -876,8 +1020,10 @@ class _CreateModulePageState extends State<CreateModulePage> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.notifications_active,
-                          color: Colors.green.shade700),
+                      Icon(
+                        Icons.notifications_active,
+                        color: Colors.green.shade700,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -898,8 +1044,8 @@ class _CreateModulePageState extends State<CreateModulePage> {
               SizedBox(
                 width: double.infinity,
                 height: 55,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveModule,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading || _isUploading ? null : _saveModule,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B2B4A),
                     foregroundColor: Colors.white,
@@ -907,28 +1053,29 @@ class _CreateModulePageState extends State<CreateModulePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isLoading
+                  icon: _isLoading
                       ? const SizedBox(
-                          height: 24,
-                          width: 24,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(
                             color: Colors.white,
-                            strokeWidth: 2.5,
+                            strokeWidth: 2,
                           ),
                         )
-                      : Text(
-                          _isEditing
-                              ? (_isPublished
-                                  ? 'Update & Publish'
-                                  : 'Update Draft')
-                              : (_isPublished
-                                  ? 'Publish Module'
-                                  : 'Save as Draft'),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      : const Icon(Icons.cloud_upload),
+                  label: Text(
+                    _isLoading
+                        ? 'Uploading...'
+                        : _isEditing
+                        ? (_isPublished ? 'Update & Publish' : 'Update Draft')
+                        : (_isPublished
+                              ? 'Upload & Publish Module'
+                              : 'Upload Module as Draft'),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],

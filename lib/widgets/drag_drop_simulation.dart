@@ -13,11 +13,15 @@ import 'drop_target_widget.dart';
 class DragDropSimulation extends StatefulWidget {
   final sim_models.Simulation simulation;
   final Function(int score, int total, bool passed) onComplete;
+  final ValueChanged<List<String>>? onFeedback;
+  final bool practice;
 
   const DragDropSimulation({
     super.key,
     required this.simulation,
     required this.onComplete,
+    this.onFeedback,
+    this.practice = false,
   });
 
   @override
@@ -31,6 +35,7 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
 
   bool _isComplete = false;
   int _mistakes = 0;
+  final List<String> _errorLog = [];
   int _streak = 0;
   int _xp = 0;
   bool _voiceEnabled = true;
@@ -87,6 +92,7 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
     _availableSlots = widget.simulation.slots.toList();
     _isComplete = false;
     _mistakes = 0;
+    _errorLog.clear();
     _streak = 0;
     _xp = 0;
     _elapsedSeconds = 0;
@@ -143,6 +149,9 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
     final profile = _resourceProfile(item);
 
     if (_selectedResource != profile.$1) {
+      _errorLog.add(
+        'Resource selection: ${item.name} requires ${profile.$1}; use ${profile.$2}.',
+      );
       setState(() {
         _mistakes++;
         _streak = 0;
@@ -167,6 +176,10 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
         widget.simulation.type != 'networking' &&
         item.step > 0 &&
         item.step != _nextAssemblyStep) {
+      _errorLog.add(
+        'Sequence error: attempted ${item.name} before step $_nextAssemblyStep. Complete ${_itemForStep(_nextAssemblyStep)?.name ?? 'the preceding safety step'} first.',
+      );
+      setState(() => _mistakes++);
       HapticFeedback.heavyImpact();
       SystemSound.play(SystemSoundType.alert);
       _speak('Complete step $_nextAssemblyStep first.');
@@ -184,6 +197,9 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
 
     if (item.correctSlot != slotId) {
       final feedback = _compatibilityFeedback(item, slotId);
+      _errorLog.add(
+        'Placement/compatibility: ${item.name} → ${_slotName(slotId)}. $feedback',
+      );
       setState(() {
         _mistakes++;
         _streak = 0;
@@ -453,7 +469,10 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
       }
     }
 
-    final scoredCorrect = (correct - _mistakes).clamp(0, total);
+    final scoredCorrect = (correct - (widget.practice ? 0 : _mistakes)).clamp(
+      0,
+      total,
+    );
     final percentage = total == 0 ? 0 : (scoredCorrect / total * 100).round();
     final passed = percentage >= widget.simulation.passingScore;
 
@@ -473,6 +492,7 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
     }
     _showResultDialog(percentage, passed, scoredCorrect, total);
 
+    widget.onFeedback?.call(List.unmodifiable(_errorLog));
     widget.onComplete(scoredCorrect, total, passed);
   }
 
@@ -495,58 +515,74 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
               Text(passed ? 'Excellent!' : 'Keep Practicing!'),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                passed
-                    ? 'Mission cleared with $_xp XP and $_mistakes mistakes.'
-                    : 'Mission score: $correct of $total. Mistakes: $_mistakes.',
-                style: const TextStyle(fontSize: 15),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: passed ? Colors.green.shade50 : Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: passed
-                        ? Colors.green.shade200
-                        : Colors.orange.shade200,
-                  ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  passed
+                      ? 'Mission cleared with $_xp XP and $_mistakes mistakes.'
+                      : 'Mission score: $correct of $total. Mistakes: $_mistakes.',
+                  style: const TextStyle(fontSize: 15),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      passed ? Icons.thumb_up : Icons.emoji_events,
-                      color: passed ? Colors.green : Colors.orange,
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: passed
+                        ? Colors.green.shade50
+                        : Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: passed
+                          ? Colors.green.shade200
+                          : Colors.orange.shade200,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Score: $percentage% '
-                        '(${widget.simulation.passingScore}% needed to pass)',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: passed
-                              ? Colors.green.shade800
-                              : Colors.orange.shade800,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        passed ? Icons.thumb_up : Icons.emoji_events,
+                        color: passed ? Colors.green : Colors.orange,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Score: $percentage% '
+                          '(${widget.simulation.passingScore}% needed to pass)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: passed
+                                ? Colors.green.shade800
+                                : Colors.orange.shade800,
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                ),
+                if (_errorLog.isNotEmpty || !passed) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _incorrectFeedback,
+                    style: const TextStyle(color: Colors.black87, fontSize: 13),
+                  ),
+                ],
+                if (widget.simulation.id.contains('crimp'))
+                  const Padding(
+                    padding: EdgeInsets.only(top: 12),
+                    child: Text(
+                      'Real-world RJ45 fault guide (possible causes, not a physical diagnosis):\n'
+                      '• Open circuit: conductor not fully seated or cut short; reterminate and test continuity.\n'
+                      '• Short: conductors touch or a damaged plug; inspect and replace the termination.\n'
+                      '• Reversed/miswired pair: incorrect pin order; verify both ends against the selected T568B standard.\n'
+                      '• Split pair: continuity can pass but signal quality fails; preserve twisted-pair assignments and test with a capable tester.\n'
+                      '• Link light on but no connectivity: also check IP address, subnet, gateway and VLAN; crimping alone does not prove network configuration.',
                     ),
-                  ],
-                ),
-              ),
-              if (!passed) ...[
-                const SizedBox(height: 8),
-                Text(
-                  _incorrectFeedback,
-                  style: const TextStyle(color: Colors.black87, fontSize: 13),
-                ),
+                  ),
               ],
-            ],
+            ),
           ),
           actions: [
             if (passed)
@@ -575,6 +611,7 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
     );
     return [
       'Review these errors before retrying:',
+      ..._errorLog,
       for (final item in incorrect)
         '- ${item.name}: ${item.tooltip.isEmpty ? 'Check the correct target and sequence.' : item.tooltip}',
     ].join('\n');
@@ -1961,17 +1998,18 @@ class _DragDropSimulationState extends State<DragDropSimulation> {
       case 'sim_coc1_identification':
         return 'assets/simulations/lab-kit.svg';
       case 'sim_coc1_os_install':
-        return 'assets/simulations/laptop.svg';
+        return 'assets/simulations/os-install-workbench-matched.png';
       case 'sim_coc1_software_config':
         return 'assets/simulations/software-config-workbench-matched.png';
       case 'sim_coc1_maintenance':
-        return 'assets/simulations/steps.svg';
+        return 'assets/simulations/maintenance-workbench-matched.png';
       case 'sim_coc1_repair':
-        return 'assets/simulations/support.svg';
+        return 'assets/simulations/troubleshooting-workbench-matched.png';
       case 'sim_coc2_topology':
-      case 'sim_coc2_ipconfig':
       case 'sim_coc2_diagnostics':
         return 'assets/simulations/coc2-network-lab-matched.png';
+      case 'sim_coc2_ipconfig':
+        return 'assets/simulations/ip-configuration-workbench-matched.png';
       case 'sim_coc2_crimping':
         return 'assets/simulations/coc2-rj45-workbench-matched.png';
       default:

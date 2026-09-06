@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'admin/content_overview_page.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'admin/create_staff_page.dart';
@@ -168,6 +169,8 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Widget _buildActivePanelContent() {
     switch (_currentSelectedLabel) {
+      case 'Content Overview':
+        return const ContentOverviewPage();
       case 'Dashboard':
         return const _DashboardContent();
       case 'Manage Users':
@@ -794,6 +797,12 @@ class _SideNav extends StatelessWidget {
                   label: 'Manage Classes',
                   selected: currentSelection == 'Manage Classes',
                   onTap: () => onSelected('Manage Classes'),
+                ),
+                _NavTile(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Content Overview',
+                  selected: currentSelection == 'Content Overview',
+                  onTap: () => onSelected('Content Overview'),
                 ),
                 _NavTile(
                   icon: Icons.bar_chart_rounded,

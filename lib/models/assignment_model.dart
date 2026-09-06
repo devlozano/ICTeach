@@ -5,6 +5,9 @@ class AssignmentModel {
   final String classId;
   final String title;
   final String description;
+  final String? attachmentUrl;
+  final String? attachmentName;
+  final String? cloudinaryPublicId;
   final DateTime dueDate;
   final int maxScore;
   final bool isPublished;
@@ -16,6 +19,9 @@ class AssignmentModel {
     required this.classId,
     required this.title,
     required this.description,
+    this.attachmentUrl,
+    this.attachmentName,
+    this.cloudinaryPublicId,
     required this.dueDate,
     required this.maxScore,
     required this.isPublished,
@@ -32,6 +38,9 @@ class AssignmentModel {
       classId: data['classId'] ?? '',
       title: data['title'] ?? 'Untitled Assignment',
       description: data['description'] ?? '',
+      attachmentUrl: data['attachmentUrl']?.toString(),
+      attachmentName: data['attachmentName']?.toString(),
+      cloudinaryPublicId: data['cloudinaryPublicId']?.toString(),
       dueDate: (data['dueDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       maxScore: data['maxScore'] ?? 100,
       isPublished: data['isPublished'] ?? false,
@@ -45,6 +54,9 @@ class AssignmentModel {
       'classId': classId,
       'title': title,
       'description': description,
+      'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
+      'cloudinaryPublicId': cloudinaryPublicId,
       'dueDate': Timestamp.fromDate(dueDate),
       'maxScore': maxScore,
       'isPublished': isPublished,
@@ -58,6 +70,9 @@ class AssignmentModel {
     String? classId,
     String? title,
     String? description,
+    String? attachmentUrl,
+    String? attachmentName,
+    String? cloudinaryPublicId,
     DateTime? dueDate,
     int? maxScore,
     bool? isPublished,
@@ -69,6 +84,9 @@ class AssignmentModel {
       classId: classId ?? this.classId,
       title: title ?? this.title,
       description: description ?? this.description,
+      attachmentUrl: attachmentUrl ?? this.attachmentUrl,
+      attachmentName: attachmentName ?? this.attachmentName,
+      cloudinaryPublicId: cloudinaryPublicId ?? this.cloudinaryPublicId,
       dueDate: dueDate ?? this.dueDate,
       maxScore: maxScore ?? this.maxScore,
       isPublished: isPublished ?? this.isPublished,
@@ -87,6 +105,8 @@ class AssignmentSubmission {
   final String content; // Plain text for preview/search
   final dynamic richContent; // Rich text JSON from quill editor
   final String? attachmentUrl;
+  final String? attachmentName;
+  final String? cloudinaryPublicId;
   final int score;
   final String? feedback;
   final DateTime submittedAt;
@@ -100,6 +120,8 @@ class AssignmentSubmission {
     required this.content,
     this.richContent,
     this.attachmentUrl,
+    this.attachmentName,
+    this.cloudinaryPublicId,
     required this.score,
     this.feedback,
     required this.submittedAt,
@@ -118,6 +140,8 @@ class AssignmentSubmission {
       content: data['content'] ?? '',
       richContent: data['richContent'], // Store rich text JSON
       attachmentUrl: data['attachmentUrl'],
+      attachmentName: data['attachmentName']?.toString(),
+      cloudinaryPublicId: data['cloudinaryPublicId']?.toString(),
       score: data['score'] ?? 0,
       feedback: data['feedback'],
       submittedAt:
@@ -134,6 +158,8 @@ class AssignmentSubmission {
       'content': content,
       'richContent': richContent, // Save rich text data
       'attachmentUrl': attachmentUrl,
+      'attachmentName': attachmentName,
+      'cloudinaryPublicId': cloudinaryPublicId,
       'score': score,
       'feedback': feedback,
       'submittedAt': FieldValue.serverTimestamp(),
@@ -149,6 +175,8 @@ class AssignmentSubmission {
     String? content,
     dynamic richContent,
     String? attachmentUrl,
+    String? attachmentName,
+    String? cloudinaryPublicId,
     int? score,
     String? feedback,
     DateTime? submittedAt,
@@ -162,6 +190,8 @@ class AssignmentSubmission {
       content: content ?? this.content,
       richContent: richContent ?? this.richContent,
       attachmentUrl: attachmentUrl ?? this.attachmentUrl,
+      attachmentName: attachmentName ?? this.attachmentName,
+      cloudinaryPublicId: cloudinaryPublicId ?? this.cloudinaryPublicId,
       score: score ?? this.score,
       feedback: feedback ?? this.feedback,
       submittedAt: submittedAt ?? this.submittedAt,

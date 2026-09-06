@@ -41,6 +41,7 @@ class _StudentQuizzesPageState extends State<StudentQuizzesPage> {
     // Check if student has already taken the quiz
     try {
       final hasTaken = await _quizService.hasTakenQuiz(user.uid, quiz.id);
+      if (!mounted) return;
       if (hasTaken) {
         final action = await showDialog<String>(
           context: context,
@@ -84,8 +85,19 @@ class _StudentQuizzesPageState extends State<StudentQuizzesPage> {
       }
     } catch (e) {
       print('Error checking quiz status: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to verify your quiz attempt. Reconnect and try again.',
+            ),
+          ),
+        );
+      }
+      return;
     }
 
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(

@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_router.dart';
 import 'register.dart';
 import 'services/network_service.dart';
+import 'services/session_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -21,6 +22,15 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _isResettingPassword = false;
+  bool _rememberMe = true;
+
+  @override
+  void initState() {
+    super.initState();
+    SessionService.remembersUser().then((value) {
+      if (mounted) setState(() => _rememberMe = value);
+    });
+  }
 
   @override
   void dispose() {
@@ -35,14 +45,17 @@ class _LoginPageState extends State<LoginPage> {
 
     final isConnected = await NetworkService().isConnected();
     if (!isConnected) {
-      _showErrorDialog('Offline',
-          'You appear to be offline. Please connect to the internet to log in.');
+      _showErrorDialog(
+        'Offline',
+        'You appear to be offline. Please connect to the internet to log in.',
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      await SessionService.configure(_rememberMe);
       final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -165,8 +178,11 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.email,
-                            size: 20, color: Colors.blue.shade700),
+                        Icon(
+                          Icons.email,
+                          size: 20,
+                          color: Colors.blue.shade700,
+                        ),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -458,26 +474,38 @@ class _LoginPageState extends State<LoginPage> {
                 }
                 return null;
               },
-              decoration: _fieldDecoration(
-                borderColor: inputBorder,
-                hintText: 'Password',
-                icon: Icons.lock_outline_rounded,
-              ).copyWith(
-                suffixIcon: IconButton(
-                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
-                  icon: Icon(
-                    _obscurePassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: Colors.black.withValues(alpha: 0.7),
+              decoration:
+                  _fieldDecoration(
+                    borderColor: inputBorder,
+                    hintText: 'Password',
+                    icon: Icons.lock_outline_rounded,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      tooltip: _obscurePassword
+                          ? 'Show password'
+                          : 'Hide password',
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.black.withValues(alpha: 0.7),
+                      ),
+                    ),
                   ),
-                ),
-              ),
             ),
           ),
           const SizedBox(height: 8),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: const Text('Remember me'),
+            value: _rememberMe,
+            onChanged: _isLoading
+                ? null
+                : (value) => setState(() => _rememberMe = value ?? false),
+          ),
           Center(
             child: _isResettingPassword
                 ? const Padding(
@@ -602,9 +630,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _openAdminPortal() async {
-    final uri = Uri.parse(
-      'https://admin.icteach.com',
-    );
+    final uri = Uri.parse('https://admin.icteach.com');
 
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       throw Exception('Could not launch admin portal');

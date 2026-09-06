@@ -7,13 +7,15 @@ import 'package:flutter/services.dart';
 import '../../data/simulation_data.dart';
 import '../../models/simulation_model.dart' as sim_models;
 import '../../widgets/drag_drop_simulation.dart';
+import '../../widgets/content_access_gate.dart';
+import '../../widgets/activity_preparation_gate.dart';
+import '../../services/learning_path_service.dart';
 
-class SimulationPage extends StatefulWidget {
+class SimulationPage extends StatelessWidget {
   final String classId;
   final String simulationId;
   final String title;
   final String? className;
-
   const SimulationPage({
     super.key,
     required this.classId,
@@ -21,12 +23,47 @@ class SimulationPage extends StatefulWidget {
     required this.title,
     this.className,
   });
-
   @override
-  State<SimulationPage> createState() => _SimulationPageState();
+  Widget build(BuildContext context) => ContentAccessGate(
+    classId: classId,
+    contentType: 'simulation',
+    contentId: simulationId,
+    builder: (_) => ActivityPreparationGate(
+      classId: classId,
+      type: 'simulation',
+      contentId: simulationId,
+      title: title,
+      sessionBuilder: (practice) => _SimulationSession(
+        practice: practice,
+        classId: classId,
+        simulationId: simulationId,
+        title: title,
+        className: className,
+      ),
+    ),
+  );
 }
 
-class _SimulationPageState extends State<SimulationPage> {
+class _SimulationSession extends StatefulWidget {
+  final bool practice;
+  final String classId;
+  final String simulationId;
+  final String title;
+  final String? className;
+
+  const _SimulationSession({
+    required this.practice,
+    required this.classId,
+    required this.simulationId,
+    required this.title,
+    this.className,
+  });
+
+  @override
+  State<_SimulationSession> createState() => _SimulationPageState();
+}
+
+class _SimulationPageState extends State<_SimulationSession> {
   sim_models.Simulation? _simulation;
   List<sim_models.Simulation> _prerequisites = [];
   bool _isLoading = true;
@@ -34,6 +71,8 @@ class _SimulationPageState extends State<SimulationPage> {
   bool _isCompleted = false;
   bool _prerequisiteCompleted = true;
   bool _feedbackSubmitted = false;
+  bool _savingProgress = false;
+  List<String> _attemptErrors = [];
 
   @override
   void initState() {
@@ -132,7 +171,7 @@ class _SimulationPageState extends State<SimulationPage> {
     setState(() {
       _simulation = simulation;
       _prerequisites = prerequisites;
-      _isCompleted = completed;
+      _isCompleted = widget.practice ? false : completed;
       _prerequisiteCompleted = prerequisiteCompleted;
       _isLoading = false;
     });
@@ -184,6 +223,8 @@ class _SimulationPageState extends State<SimulationPage> {
             ],
             const SizedBox(height: 16),
             DragDropSimulation(
+              practice: widget.practice,
+              onFeedback: (errors) => _attemptErrors = errors,
               simulation: _simulation!,
               onComplete: _onComplete,
             ),
@@ -366,7 +407,11 @@ class _SimulationPageState extends State<SimulationPage> {
                     ),
                   ),
                   child: Text(
-                    locked ? 'Locked' : 'Start Simulation',
+                    locked
+                        ? 'Locked'
+                        : widget.practice
+                        ? 'Start ungraded practice'
+                        : 'Start simulation assessment',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -405,9 +450,11 @@ class _SimulationPageState extends State<SimulationPage> {
           children: [
             const Icon(Icons.check_circle, size: 80, color: Colors.green),
             const SizedBox(height: 16),
-            const Text(
-              'Simulation Completed!',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            Text(
+              widget.practice
+                  ? 'Practice completed (ungraded)'
+                  : 'Simulation assessment completed!',
+              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -592,45 +639,114 @@ class _SimulationPageState extends State<SimulationPage> {
   );
 
   Future<void> _onComplete(int score, int total, bool passed) async {
+    if (_savingProgress) return;
+    _savingProgress = true;
+    final saved = await _saveProgress(score, total, passed);
+    _savingProgress = false;
+    if (!mounted) return;
+    if (!saved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 30),
+          content: const Text(
+            'Simulation progress was not saved. Reconnect and retry saving.',
+          ),
+          action: SnackBarAction(
+            label: 'Retry save',
+            onPressed: () => _onComplete(score, total, passed),
+          ),
+        ),
+      );
+      return;
+    }
     if (passed) {
       await _setGameplayOrientation(false);
       if (mounted) setState(() => _isCompleted = true);
     }
-    _saveProgress(score, total, passed);
   }
 
-  Future<void> _saveProgress(int score, int total, bool passed) async {
+  Future<bool> _saveProgress(int score, int total, bool passed) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) return false;
     try {
-      await FirebaseFirestore.instance
+      final db = FirebaseFirestore.instance;
+      await LearningPathService.requirePrepared(
+        widget.classId,
+        'simulation',
+        widget.simulationId,
+        practice: widget.practice,
+      );
+      if (widget.practice) {
+        await LearningPathService.savePractice(
+          widget.classId,
+          'simulation',
+          widget.simulationId,
+          widget.title,
+          score,
+          total,
+        );
+        return true;
+      }
+      final ref = db
           .collection('users')
           .doc(user.uid)
           .collection('simulation_progress')
-          .doc('${widget.classId}_${widget.simulationId}')
-          .set({
-            'classId': widget.classId,
-            'simulationId': widget.simulationId,
-            'score': score,
-            'total': total,
-            'percentage': total == 0 ? 0 : (score / total * 100).round(),
-            'passed': passed,
-            'completed': passed,
-            'completedAt': passed ? FieldValue.serverTimestamp() : null,
-            'attempts': FieldValue.increment(1),
-          }, SetOptions(merge: true));
-      if (passed) {
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .collection('completed_content')
-            .doc(widget.simulationId)
-            .set({
+          .doc('${widget.classId}_${widget.simulationId}');
+      await db.runTransaction((transaction) async {
+        final previous = (await transaction.get(ref)).data();
+        final previouslyPassed = previous?['passed'] == true;
+        final percentage = total == 0 ? 0 : (score / total * 100).round();
+        final keepBest =
+            previouslyPassed &&
+            (!passed || ((previous?['percentage'] as num?) ?? 0) > percentage);
+        transaction.set(ref, {
+          'classId': widget.classId,
+          'simulationId': widget.simulationId,
+          'studentId': user.uid,
+          'simulationTitle': _simulation!.title,
+          'score': keepBest ? previous!['score'] : score,
+          'total': keepBest ? previous!['total'] : total,
+          'percentage': keepBest ? previous!['percentage'] : percentage,
+          'passed': passed || previouslyPassed,
+          'completed': passed || previouslyPassed,
+          'completedAt': previouslyPassed
+              ? previous!['completedAt']
+              : passed
+              ? FieldValue.serverTimestamp()
+              : null,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'attempts': FieldValue.increment(1),
+          'lastErrors': _attemptErrors,
+        }, SetOptions(merge: true));
+        transaction.set(db.collection('activity_events').doc(), {
+          'classId': widget.classId,
+          'studentId': user.uid,
+          'studentName': user.displayName ?? user.email ?? 'Student',
+          'title': widget.title,
+          'contentId': widget.simulationId,
+          'event': 'simulation_completed',
+          'mode': 'assessment',
+          'score': score,
+          'total': total,
+          'passed': passed,
+          'errors': _attemptErrors,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        if (passed) {
+          transaction.set(
+            db
+                .collection('users')
+                .doc(user.uid)
+                .collection('completed_content')
+                .doc('${widget.classId}_${widget.simulationId}'),
+            {
               'classId': widget.classId,
               'contentId': widget.simulationId,
               'completedAt': FieldValue.serverTimestamp(),
-            });
-      }
+            },
+          );
+        }
+      });
       if (mounted && passed) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -639,7 +755,10 @@ class _SimulationPageState extends State<SimulationPage> {
           ),
         );
       }
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   String _getInstructionText() {

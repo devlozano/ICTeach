@@ -12,12 +12,14 @@ import 'login.dart';
 import 'widgets/offline_indicator.dart';
 import 'services/navigation_service.dart';
 import 'utils/app_theme.dart';
+import 'services/session_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     await _initializeFirebase();
+    await SessionService.initialize();
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
   }

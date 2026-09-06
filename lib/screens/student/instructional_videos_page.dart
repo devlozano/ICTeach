@@ -3,25 +3,77 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
+import '../../services/content_access_service.dart';
+import '../../widgets/content_access_gate.dart';
+import 'pre_assessment_page.dart';
+import 'dart:async';
 
-class InstructionalVideosPage extends StatefulWidget {
+class InstructionalVideosPage extends StatelessWidget {
+  final String? classId;
+  final String? className;
+  const InstructionalVideosPage({super.key, this.classId, this.className});
+  @override
+  Widget build(BuildContext context) {
+    if (classId == null || classId!.isEmpty) {
+      return const Scaffold(
+        body: Center(child: Text('Join a class to view instructional videos.')),
+      );
+    }
+    return PreAssessmentPage(
+      classId: classId!,
+      className: className ?? 'My Class',
+      builder: (_) => ContentAccessGate(
+        classId: classId!,
+        contentType: 'module',
+        builder: (_) => _VideoSession(classId: classId, className: className),
+      ),
+    );
+  }
+}
+
+class _VideoSession extends StatefulWidget {
   final String? classId;
   final String? className;
 
-  const InstructionalVideosPage({super.key, this.classId, this.className});
+  const _VideoSession({this.classId, this.className});
 
   @override
-  State<InstructionalVideosPage> createState() =>
-      _InstructionalVideosPageState();
+  State<_VideoSession> createState() => _InstructionalVideosPageState();
 }
 
-class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
+class _InstructionalVideosPageState extends State<_VideoSession> {
   final ModuleService _moduleService = ModuleService();
   List<ModuleModel> _videos = [];
   bool _isLoading = true;
   String? _selectedVideoUrl;
   String? _selectedVideoTitle;
   YoutubePlayerController? _youtubeController;
+  StreamSubscription<List<ModuleModel>>? _moduleSubscription;
+  StreamSubscription<dynamic>? _lockSubscription;
+  List<ModuleModel> _allVideos = [];
+  List<Map<String, dynamic>>? _locks;
+  bool _staff = false;
+  String? _loadError;
+
+  void _applyLocks() {
+    if (!mounted || _locks == null) return;
+    final visible = _allVideos
+        .where(
+          (m) =>
+              _staff || !ContentAccessService.isLocked(_locks!, 'module', m.id),
+        )
+        .toList();
+    if (!visible.any((m) => m.videoUrl == _selectedVideoUrl)) {
+      _youtubeController?.close();
+      _youtubeController = null;
+      _selectedVideoUrl = null;
+      _selectedVideoTitle = null;
+    }
+    setState(() {
+      _videos = visible;
+      _isLoading = false;
+    });
+  }
 
   @override
   void initState() {
@@ -31,6 +83,11 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
 
   // ✅ FIXED: Properly load videos using Stream subscription
   Future<void> _loadVideos() async {
+    await _moduleSubscription?.cancel();
+    await _lockSubscription?.cancel();
+    if (!mounted) return;
+    _locks = null;
+    _loadError = null;
     if (widget.classId == null || widget.classId!.isEmpty) {
       setState(() {
         _isLoading = false;
@@ -42,26 +99,41 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
     setState(() => _isLoading = true);
 
     try {
+      _staff = await ContentAccessService.isClassStaff(widget.classId!);
+      if (!mounted) return;
+      _lockSubscription = ContentAccessService.locks(widget.classId!).listen(
+        (snapshot) {
+          _locks = snapshot.docs.map((d) => d.data()).toList();
+          _applyLocks();
+        },
+        onError: (Object error) {
+          _youtubeController?.close();
+          _youtubeController = null;
+          if (mounted) {
+            setState(() {
+              _videos = [];
+              _isLoading = false;
+              _loadError =
+                  'Unable to check video access. Reopen this page to retry.';
+            });
+          }
+        },
+      );
       // ✅ Use listen instead of first
-      _moduleService
+      _moduleSubscription = _moduleService
           .getPublishedModulesForClass(widget.classId!)
           .listen(
             (modules) {
+              if (!mounted) return;
               final videos = modules
                   .where((m) => m.videoUrl != null && m.videoUrl!.isNotEmpty)
                   .toList();
 
-              setState(() {
-                _videos = videos;
-                _isLoading = false;
-
-                // Auto-play first video if available and no video selected
-                if (_videos.isNotEmpty && _selectedVideoUrl == null) {
-                  _playVideo(_videos.first);
-                }
-              });
+              _allVideos = videos;
+              _applyLocks();
             },
             onError: (error) {
+              if (!mounted) return;
               print('Error loading videos: $error');
               setState(() {
                 _isLoading = false;
@@ -70,6 +142,7 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
             },
           );
     } catch (e) {
+      if (!mounted) return;
       print('Error loading videos: $e');
       setState(() {
         _isLoading = false;
@@ -79,6 +152,11 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
   }
 
   void _playVideo(ModuleModel module) {
+    if (_locks == null ||
+        (!_staff &&
+            ContentAccessService.isLocked(_locks!, 'module', module.id))) {
+      return;
+    }
     final videoUrl = module.videoUrl!;
     final videoId = _extractYouTubeId(videoUrl);
 
@@ -107,6 +185,8 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
 
   @override
   void dispose() {
+    _moduleSubscription?.cancel();
+    _lockSubscription?.cancel();
     _youtubeController?.close();
     super.dispose();
   }
@@ -154,6 +234,8 @@ class _InstructionalVideosPageState extends State<InstructionalVideosPage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _loadError != null
+          ? Center(child: Text(_loadError!))
           : _videos.isEmpty
           ? _buildEmptyState()
           : Column(

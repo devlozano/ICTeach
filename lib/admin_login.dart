@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home_router.dart';
 import 'services/network_service.dart';
+import 'services/session_service.dart';
 
 class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
@@ -20,6 +21,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscure = true;
+  bool _rememberMe = true;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -27,6 +29,9 @@ class _AdminLoginPageState extends State<AdminLoginPage>
   @override
   void initState() {
     super.initState();
+    SessionService.remembersUser().then((value) {
+      if (mounted) setState(() => _rememberMe = value);
+    });
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -64,6 +69,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
 
     setState(() => _isLoading = true);
     try {
+      await SessionService.configure(_rememberMe);
       final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -314,6 +320,15 @@ class _AdminLoginPageState extends State<AdminLoginPage>
                   ),
                 ),
                 const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text('Remember me'),
+                  value: _rememberMe,
+                  onChanged: _isLoading
+                      ? null
+                      : (value) => setState(() => _rememberMe = value ?? false),
+                ),
                 Row(
                   children: [
                     Icon(
@@ -360,11 +375,15 @@ class _AdminLoginPageState extends State<AdminLoginPage>
                         : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                'Sign in to ICTeach',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
+                              Flexible(
+                                child: Text(
+                                  'Sign in to ICTeach',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                               SizedBox(width: 10),
@@ -377,14 +396,18 @@ class _AdminLoginPageState extends State<AdminLoginPage>
                 Row(
                   children: [
                     Expanded(child: Divider(color: Colors.blueGrey.shade100)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'ICTeach Learning Management System',
-                        style: TextStyle(
-                          color: Colors.blueGrey.shade400,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                    Flexible(
+                      flex: 6,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'ICTeach Learning Management System',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.blueGrey.shade400,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
@@ -698,27 +721,29 @@ class _CompactBrand extends StatelessWidget {
         children: [
           _BrandLogo(size: 54),
           SizedBox(width: 13),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ICTeach',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ICTeach',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-              Text(
-                'LEARNING MANAGEMENT SYSTEM',
-                style: TextStyle(
-                  color: Color(0xFF9AC7EE),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.3,
+                Text(
+                  'LEARNING MANAGEMENT SYSTEM',
+                  style: TextStyle(
+                    color: Color(0xFF9AC7EE),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.3,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),

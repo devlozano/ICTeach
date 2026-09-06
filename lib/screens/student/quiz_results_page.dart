@@ -28,6 +28,16 @@ class QuizResultsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                quizTitle,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
             // Score Card
             Container(
               width: double.infinity,

@@ -82,6 +82,25 @@ class ManageQuestionnairesPage extends StatelessWidget {
                     onChanged: (value) {
                       if (value != null) {
                         setDialogState(() => questionnaireType = value);
+                        if (value == 'system_evaluation') {
+                          title.text = 'ICTeach system evaluation';
+                          promptOne.text =
+                              'How easy is ICTeach to use? (1 very difficult, 5 very easy)';
+                          promptTwo.text =
+                              'How useful is ICTeach for learning? (1 not useful, 5 very useful)';
+                          promptThree.text =
+                              'What problems did you experience and what should we improve?';
+                        } else {
+                          title.text = value == 'course_evaluation'
+                              ? 'End-of-course evaluation'
+                              : 'Teaching and Learning Check-in';
+                          promptOne.text =
+                              'How clearly does your teacher explain lessons? (1 unclear, 5 very clear)';
+                          promptTwo.text =
+                              'How difficult are the lessons? (1 easy, 5 very difficult)';
+                          promptThree.text =
+                              'Which topics need more explanation, and how could your teacher help?';
+                        }
                       }
                     },
                   ),
@@ -195,27 +214,16 @@ class ManageQuestionnairesPage extends StatelessWidget {
                   final ratings = Map<String, dynamic>.from(
                     (data['ratings'] as Map?) ?? const {},
                   );
-                  final average = ratings.isEmpty
-                      ? 0.0
-                      : ratings.values.whereType<num>().fold<double>(
-                              0,
-                              (total, value) => total + value,
-                            ) /
-                            ratings.values.whereType<num>().length;
                   return ListTile(
-                    leading: CircleAvatar(
-                      child: Text(
-                        average == 0 ? '-' : average.toStringAsFixed(1),
-                      ),
-                    ),
+                    leading: const Icon(Icons.rate_review),
                     title: Text(
                       data['studentName']?.toString() ?? 'Anonymous student',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
-                      data['summary']?.toString().trim().isNotEmpty == true
-                          ? data['summary'].toString()
-                          : 'No written response',
+                      '${data['summary'] ?? 'No written response'}\n'
+                      '${ratings.entries.map((e) => '${e.key}: ${e.value}/5').join(' • ')}\n'
+                      'Interpret clarity and difficulty separately; high difficulty is not high teaching quality.',
                     ),
                   );
                 },

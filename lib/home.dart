@@ -17,6 +17,11 @@ import '../../models/quiz_model.dart';
 import '../../services/module_service.dart';
 import 'package:icteach/utils/progress_calculator.dart';
 import 'package:intl/intl.dart';
+import 'widgets/leaderboard_chart.dart';
+import 'data/simulation_data.dart';
+import 'data/pre_assessment_data.dart';
+import 'services/school_year_service.dart';
+import 'widgets/user_roles_button.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -80,15 +85,13 @@ class _HomePageState extends State<HomePage> {
             profile?['course'] as String? ??
             'CSS NC II - Computer System Servicing';
 
-        return FutureBuilder<QuerySnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .collection('classes')
-              .get(),
+        return FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          future: SchoolYearService.activeMemberships(user.uid),
           builder: (context, classSnapshot) {
-            if (classSnapshot.hasData && classSnapshot.data!.docs.isNotEmpty) {
-              final doc = classSnapshot.data!.docs.first;
+            _classId = null;
+            _className = null;
+            if (classSnapshot.hasData && classSnapshot.data!.isNotEmpty) {
+              final doc = classSnapshot.data!.first;
               final data = doc.data() as Map<String, dynamic>?;
               if (data != null) {
                 _classId = data['classId']?.toString() ?? '';
@@ -153,6 +156,7 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.fromLTRB(24, 40, 24, 20),
       child: Row(
         children: [
+          const UserRolesButton(),
           CircleAvatar(
             radius: 30,
             backgroundColor: Colors.white,
@@ -274,13 +278,9 @@ class _HomePageState extends State<HomePage> {
   Widget _buildModulesContent() {
     final user = FirebaseAuth.instance.currentUser;
 
-    return FutureBuilder<QuerySnapshot>(
+    return FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       future: user != null
-          ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('classes')
-                .get()
+          ? SchoolYearService.activeMemberships(user.uid)
           : null,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -300,7 +300,7 @@ class _HomePageState extends State<HomePage> {
           );
         }
 
-        final classDocs = snapshot.data?.docs ?? [];
+        final classDocs = snapshot.data ?? [];
 
         if (classDocs.isEmpty) {
           return Center(
@@ -420,23 +420,19 @@ class _HomePageState extends State<HomePage> {
   Widget _buildProgressCard() {
     final user = FirebaseAuth.instance.currentUser;
 
-    return FutureBuilder<QuerySnapshot>(
+    return FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       future: user != null
-          ? FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('classes')
-                .get()
+          ? SchoolYearService.activeMemberships(user.uid)
           : null,
       builder: (context, snapshot) {
-        final hasClass = snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+        final hasClass = snapshot.hasData && snapshot.data!.isNotEmpty;
 
         String className = 'No Class Joined';
         String schoolYear = '';
         String classId = '';
 
         if (hasClass) {
-          final doc = snapshot.data!.docs.first;
+          final doc = snapshot.data!.first;
           final data = doc.data() as Map<String, dynamic>?;
           if (data != null) {
             className =
@@ -843,30 +839,101 @@ class _HomePageState extends State<HomePage> {
                   ? _quizService
                         .getPublishedQuizzesForClass(_classId!)
                         .first
-                        .then((q) => q.length)
-                  : Future.value(0),
+                        .then((q) => q.map((item) => item.id).toSet())
+                  : Future.value(<String>{}),
               (_classId != null && _classId!.isNotEmpty)
-                  ? ModuleService().getModuleCount(_classId!)
-                  : Future.value(0),
-              Future.value(0),
-              Future.value(0),
+                  ? ModuleService()
+                        .getPublishedModulesForClass(_classId!)
+                        .first
+                        .then(
+                          (modules) => modules.map((item) => item.id).toSet(),
+                        )
+                  : Future.value(<String>{}),
+              Future.value(
+                _classId == null
+                    ? 0
+                    : SimulationData.getAllSimulations().length,
+              ),
+              Future.value(_classId == null ? 0 : 1),
+              _classId == null
+                  ? Future.value(<String>{})
+                  : FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .collection('module_progress')
+                        .where('classId', isEqualTo: _classId)
+                        .get()
+                        .then(
+                          (s) => s.docs
+                              .where((d) => d.data()['completed'] == true)
+                              .map((d) => d.data()['moduleId'].toString())
+                              .toSet(),
+                        ),
+              _classId == null
+                  ? Future.value(<String>{})
+                  : FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(userId)
+                        .collection('simulation_progress')
+                        .where('classId', isEqualTo: _classId)
+                        .get()
+                        .then(
+                          (s) => s.docs
+                              .where(
+                                (d) =>
+                                    d.data()['completed'] == true &&
+                                    d.data()['passed'] == true,
+                              )
+                              .map((d) => d.data()['simulationId'].toString())
+                              .toSet(),
+                        ),
+              _classId == null
+                  ? Future.value(0)
+                  : FirebaseFirestore.instance
+                        .collection('pre_assessments')
+                        .doc('${userId}_$_classId')
+                        .get()
+                        .then(
+                          (d) => PreAssessmentData.isComplete(d.data()) ? 1 : 0,
+                        ),
             ]),
             builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Text(
+                  'Progress could not be loaded. Reconnect and reopen this tab.',
+                );
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
               final quizResults =
                   (snapshot.data?[0] as List<QuizResult>?) ?? [];
-              final totalQuizzes = (snapshot.data?[1] as int?) ?? 0;
-              final totalModules = (snapshot.data?[2] as int?) ?? 0;
+              final quizIds = (snapshot.data?[1] as Set<String>?) ?? <String>{};
+              final moduleIds =
+                  (snapshot.data?[2] as Set<String>?) ?? <String>{};
+              final totalQuizzes = quizIds.length;
+              final totalModules = moduleIds.length;
               final simulationTotal = (snapshot.data?[3] as int?) ?? 0;
               final assessmentTotal = (snapshot.data?[4] as int?) ?? 0;
 
-              final quizCompleted = quizResults.length;
-              final moduleCompleted = totalModules > 0 ? totalModules : 0;
-              final simulationCompleted = simulationTotal > 0
-                  ? simulationTotal
-                  : 0;
-              final assessmentCompleted = assessmentTotal > 0
-                  ? assessmentTotal
-                  : 0;
+              final quizCompleted = quizResults
+                  .map((r) => r.quizId)
+                  .toSet()
+                  .intersection(quizIds)
+                  .length;
+              final moduleCompleted =
+                  ((snapshot.data?[5] as Set<String>?) ?? <String>{})
+                      .intersection(moduleIds)
+                      .length;
+              final simulationCompleted =
+                  ((snapshot.data?[6] as Set<String>?) ?? <String>{})
+                      .intersection(
+                        SimulationData.getAllSimulations()
+                            .map((s) => s.id)
+                            .toSet(),
+                      )
+                      .length;
+              final assessmentCompleted = (snapshot.data?[7] as int?) ?? 0;
 
               final stats = ProgressCalculator.calculate(
                 quizCompleted: quizCompleted,
@@ -1098,25 +1165,7 @@ class _HomePageState extends State<HomePage> {
                       );
                     }
 
-                    final top3 = leaderboard.take(3).toList();
-                    return Column(
-                      children: top3.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final data = entry.value;
-                        final color = index == 0
-                            ? Colors.amber
-                            : index == 1
-                            ? Colors.grey.shade600
-                            : Colors.brown.shade400;
-
-                        return _buildLeaderboardItem(
-                          '${index + 1}',
-                          data['studentName'] as String,
-                          data['percentage'] as int,
-                          color,
-                        );
-                      }).toList(),
-                    );
+                    return LeaderboardChart(entries: leaderboard);
                   },
                 ),
               ],
@@ -1285,57 +1334,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildLeaderboardItem(
-    String rank,
-    String name,
-    int score,
-    Color color,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          Text(
-            rank,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              '$score%',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAchievementBadge(String emoji, String title, String subtitle) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1452,12 +1450,8 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 16),
 
           // Class Info Card
-          FutureBuilder<QuerySnapshot>(
-            future: FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .collection('classes')
-                .get(),
+          FutureBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+            future: SchoolYearService.activeMemberships(user.uid),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const SizedBox(
@@ -1466,8 +1460,7 @@ class _HomePageState extends State<HomePage> {
                 );
               }
 
-              final hasClass =
-                  snapshot.hasData && snapshot.data!.docs.isNotEmpty;
+              final hasClass = snapshot.hasData && snapshot.data!.isNotEmpty;
 
               String className = '';
               String teacherName = '';
@@ -1475,7 +1468,7 @@ class _HomePageState extends State<HomePage> {
               String classId = '';
 
               if (hasClass) {
-                final doc = snapshot.data!.docs.first;
+                final doc = snapshot.data!.first;
                 final data = doc.data() as Map<String, dynamic>?;
                 if (data != null) {
                   className =

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'course_feedback_page.dart';
 
 class StudentQuestionnairesPage extends StatelessWidget {
   const StudentQuestionnairesPage({
@@ -165,6 +166,31 @@ class StudentQuestionnairesPage extends StatelessWidget {
         title: const Text('Questionnaires & Evaluations'),
         backgroundColor: const Color(0xFF0B2B4A),
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Teaching difficulty check-in',
+            icon: const Icon(Icons.school),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CourseFeedbackPage(
+                  classId: classId,
+                  systemEvaluation: false,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'End-of-lessons system evaluation',
+            icon: const Icon(Icons.rate_review),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CourseFeedbackPage(classId: classId),
+              ),
+            ),
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -179,8 +205,41 @@ class StudentQuestionnairesPage extends StatelessWidget {
           }
           final questionnaires = snapshot.data!.docs;
           if (questionnaires.isEmpty) {
-            return const Center(
-              child: Text('No questionnaire is open right now.'),
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Share your learning difficulties or evaluate ICTeach after completing your lessons.',
+                    ),
+                    FilledButton.icon(
+                      icon: const Icon(Icons.school),
+                      label: const Text('Teaching & learning check-in'),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CourseFeedbackPage(
+                            classId: classId,
+                            systemEvaluation: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.rate_review),
+                      label: const Text('End-of-lessons evaluation'),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CourseFeedbackPage(classId: classId),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }
           return ListView.builder(

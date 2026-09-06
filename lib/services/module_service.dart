@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'learning_path_service.dart';
 import '../models/module_model.dart';
 
 class ModuleService {
@@ -12,12 +13,13 @@ class ModuleService {
         .collection('modules')
         .snapshots()
         .map((snapshot) {
-      final modules =
-          snapshot.docs.map((doc) => ModuleModel.fromFirestore(doc)).toList();
-      // Sort in memory by 'order' field
-      modules.sort((a, b) => a.order.compareTo(b.order));
-      return modules;
-    });
+          final modules = snapshot.docs
+              .map((doc) => ModuleModel.fromFirestore(doc))
+              .toList();
+          // Sort in memory by 'order' field
+          modules.sort((a, b) => a.order.compareTo(b.order));
+          return modules;
+        });
   }
 
   // Get published modules for students (with ordering in memory)
@@ -29,16 +31,18 @@ class ModuleService {
         .where('isPublished', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
-      final modules =
-          snapshot.docs.map((doc) => ModuleModel.fromFirestore(doc)).toList();
-      // Sort in memory by 'order' field
-      modules.sort((a, b) => a.order.compareTo(b.order));
-      return modules;
-    });
+          final modules = snapshot.docs
+              .map((doc) => ModuleModel.fromFirestore(doc))
+              .toList();
+          // Sort in memory by 'order' field
+          modules.sort((a, b) => a.order.compareTo(b.order));
+          return modules;
+        });
   }
 
   // Create a new module
   Future<void> createModule(ModuleModel module) async {
+    await LearningPathService.requireActive(module.classId);
     try {
       final docRef = _firestore
           .collection('classes')
@@ -61,7 +65,11 @@ class ModuleService {
 
   // ✅ FIXED: Update an existing module
   Future<void> updateModule(
-      String classId, String moduleId, ModuleModel module) async {
+    String classId,
+    String moduleId,
+    ModuleModel module,
+  ) async {
+    await LearningPathService.requireActive(classId);
     try {
       final data = module.toFirestore();
       data['updatedAt'] = FieldValue.serverTimestamp();
@@ -81,6 +89,7 @@ class ModuleService {
 
   // Delete a module
   Future<void> deleteModule(String classId, String moduleId) async {
+    await LearningPathService.requireActive(classId);
     try {
       await _firestore
           .collection('classes')
@@ -121,6 +130,7 @@ class ModuleService {
     String moduleId,
     bool isPublished,
   ) async {
+    await LearningPathService.requireActive(classId);
     try {
       await _firestore
           .collection('classes')
@@ -128,9 +138,9 @@ class ModuleService {
           .collection('modules')
           .doc(moduleId)
           .update({
-        'isPublished': isPublished,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'isPublished': isPublished,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       print('✅ Module publish toggled: $moduleId -> $isPublished');
     } catch (e) {
       print('❌ Error toggling publish: $e');
@@ -181,7 +191,9 @@ class ModuleService {
 
   // Get modules by competency
   Stream<List<ModuleModel>> getModulesByCompetency(
-      String classId, String competency) {
+    String classId,
+    String competency,
+  ) {
     return _firestore
         .collection('classes')
         .doc(classId)
@@ -190,11 +202,12 @@ class ModuleService {
         .where('isPublished', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
-      final modules =
-          snapshot.docs.map((doc) => ModuleModel.fromFirestore(doc)).toList();
-      modules.sort((a, b) => a.order.compareTo(b.order));
-      return modules;
-    });
+          final modules = snapshot.docs
+              .map((doc) => ModuleModel.fromFirestore(doc))
+              .toList();
+          modules.sort((a, b) => a.order.compareTo(b.order));
+          return modules;
+        });
   }
 
   // Get module with video only
@@ -208,10 +221,11 @@ class ModuleService {
         .where('videoUrl', isNotEqualTo: '')
         .snapshots()
         .map((snapshot) {
-      final modules =
-          snapshot.docs.map((doc) => ModuleModel.fromFirestore(doc)).toList();
-      modules.sort((a, b) => a.order.compareTo(b.order));
-      return modules;
-    });
+          final modules = snapshot.docs
+              .map((doc) => ModuleModel.fromFirestore(doc))
+              .toList();
+          modules.sort((a, b) => a.order.compareTo(b.order));
+          return modules;
+        });
   }
 }

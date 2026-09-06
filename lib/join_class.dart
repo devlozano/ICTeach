@@ -252,7 +252,12 @@ class _JoinClassPageState extends State<JoinClassPage> {
             .collection('classes')
             .get();
 
-        if (existingClasses.docs.isNotEmpty) {
+        var hasActiveClass = false;
+        for (final membership in existingClasses.docs) {
+          final previous = await FirebaseFirestore.instance.collection('classes').doc(membership.id).get();
+          if (previous.exists && previous.data()?['status'] != 'archived') hasActiveClass = true;
+        }
+        if (hasActiveClass) {
           _showMessage(
             "You are already enrolled in a class. You can only join one class.",
           );
@@ -261,6 +266,10 @@ class _JoinClassPageState extends State<JoinClassPage> {
       }
 
       // ✅ Get teacher name from class data
+      if (classData['status'] == 'archived') {
+        _showMessage('This class is archived. Ask for your current school-year class code.');
+        return;
+      }
       final teacherName =
           classData['teacherName']?.toString() ?? 'Unknown Teacher';
       final className = classData['name']?.toString() ?? 'Unnamed Class';

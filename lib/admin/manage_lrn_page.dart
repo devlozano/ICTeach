@@ -21,7 +21,7 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
 
   Future<void> _uploadCSV() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
       );

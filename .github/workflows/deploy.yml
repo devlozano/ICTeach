@@ -6,6 +6,13 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -17,41 +24,44 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.41.9'
           channel: stable
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Build Flutter Web
-        run: flutter build web --release
+        run: flutter build web --release --no-wasm-dry-run
 
       - name: Add .htaccess
-        run: |
-          cat > build/web/.htaccess <<'EOF'
-          <IfModule mod_rewrite.c>
-            RewriteEngine On
-            RewriteBase /
-            RewriteRule ^index\.html$ - [L]
-            RewriteCond %{REQUEST_FILENAME} !-f
-            RewriteCond %{REQUEST_FILENAME} !-d
-            RewriteRule . /index.html [L]
-          </IfModule>
-          EOF
+        run: cp web/.htaccess build/web/.htaccess
+
+      - name: Test
+        run: flutter test
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Save tested web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: icteach-web
+          path: build/web/
+          include-hidden-files: true
 
       - name: Deploy to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          # Hostinger FTP endpoint is an IP-based server; the certificate is issued for a host under hstgr.io,
-          # so loose validation is required when using the raw IP from the hosting account.
+          # FTP_HOST must be the Hostinger hostname matching its TLS certificate, not a raw IP.
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
+          protocol: ftps
           port: 21
           server-dir: /public_html/
           local-dir: ./build/web/
-          log-level: verbose
-          security: loose
+          log-level: standard
+          security: strict
           timeout: 60000
           exclude: |
             **/.git*

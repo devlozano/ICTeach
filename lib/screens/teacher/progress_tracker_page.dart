@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'activity_timeline_page.dart';
+import 'assessment_review_page.dart';
+import '../../widgets/leaderboard_chart.dart';
+import '../../services/report_export_service.dart';
 
 class ProgressTrackerPage extends StatefulWidget {
   final String classId;
@@ -35,17 +39,20 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
         .doc(widget.classId)
         .get();
     final classData = classSnapshot.data() ?? <String, dynamic>{};
-    final studentIds = List<String>.from(
+    final memberIds = List<String>.from(
       (classData['enrolledStudentIds'] as List?) ?? const [],
     );
 
     final userSnapshots = await Future.wait(
-      studentIds.map((id) => db.collection('users').doc(id).get()),
+      memberIds.map((id) => db.collection('users').doc(id).get()),
     );
+    final studentIds = <String>[];
     final studentNames = <String, String>{};
-    for (var index = 0; index < studentIds.length; index++) {
+    for (var index = 0; index < memberIds.length; index++) {
       final data = userSnapshots[index].data() ?? <String, dynamic>{};
-      studentNames[studentIds[index]] =
+      if (data['role'] != 'student') continue;
+      studentIds.add(memberIds[index]);
+      studentNames[memberIds[index]] =
           data['name']?.toString() ?? data['email']?.toString() ?? 'Student';
     }
 
@@ -134,7 +141,8 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
     final percentage = data['percentage'];
     if (percentage is num) return percentage.toDouble();
     final score = data['score'];
-    final total = data['total'] ?? data['totalQuestions'];
+    final total =
+        data['total'] ?? data['totalPoints'] ?? data['totalQuestions'];
     if (score is num && total is num && total > 0) {
       return score / total * 100;
     }
@@ -186,6 +194,66 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
             ],
           ),
           actions: [
+            IconButton(
+              tooltip: 'Student activity timeline',
+              icon: const Icon(Icons.history),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ActivityTimelinePage(classId: widget.classId),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Pre-assessments and practical validation',
+              icon: const Icon(Icons.fact_check_outlined),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AssessmentReviewPage(
+                    classId: widget.classId,
+                    className: widget.className,
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Export grades (CSV)',
+              icon: const Icon(Icons.download_outlined),
+              onPressed: () async {
+                try {
+                  final insights = await _insightsFuture;
+                  await ReportExportService.shareCsv('icteach-grades.csv', [
+                    [
+                      'Student',
+                      'Quizzes taken',
+                      'Quiz average (%)',
+                      'Simulations attempted',
+                      'Simulation average (%)',
+                      'Simulations passed',
+                    ],
+                    ...insights.students.map(
+                      (s) => [
+                        s.name,
+                        s.quizCount,
+                        s.quizAverage.toStringAsFixed(1),
+                        s.simulationCount,
+                        s.simulationAverage.toStringAsFixed(1),
+                        s.passedSimulations,
+                      ],
+                    ),
+                  ]);
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Unable to export grades. Please retry.'),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
             IconButton(
               tooltip: 'Refresh data',
               onPressed: () => setState(_refresh),
@@ -285,6 +353,19 @@ class _OverviewTab extends StatelessWidget {
               color: const Color(0xFFEA7C16),
             ),
           ],
+        ),
+        const SizedBox(height: 22),
+        LeaderboardChart(
+          title: 'Class performance',
+          entries: insights.students
+              .where((s) => s.hasActivity)
+              .map(
+                (s) => <String, dynamic>{
+                  'studentName': s.name,
+                  'percentage': s.overallAverage,
+                },
+              )
+              .toList(),
         ),
         const SizedBox(height: 22),
         const Text(
@@ -499,9 +580,9 @@ class _FeedbackTab extends StatelessWidget {
                   response['questionnaireTitle']?.toString() ?? 'Questionnaire',
                 ),
                 subtitle: Text(
-                  response['summary']?.toString() ?? 'Response submitted',
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  '${response['studentName'] ?? 'Student'}\n'
+                  '${response['summary'] ?? 'Response submitted'}\n'
+                  '${(Map<String, dynamic>.from(response['ratings'] as Map? ?? {}).entries.map((e) => '${(response['ratingPrompts'] as Map?)?[e.key] ?? e.key}: ${e.value}/5')).join('\n')}',
                 ),
               ),
             ),

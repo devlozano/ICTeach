@@ -5,6 +5,18 @@ import '../models/assignment_model.dart';
 class AssignmentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  Future<void> _ensureSubmissionReviewer() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final profile = await _firestore.collection('users').doc(user.uid).get();
+    final role = profile.data()?['role']?.toString().toLowerCase();
+    const reviewerRoles = {'teacher', 'trainer', 'admin', 'administrator'};
+    if (!reviewerRoles.contains(role)) {
+      throw Exception('You are not allowed to review student submissions.');
+    }
+  }
+
   // Get all assignments for a class (sorted in memory)
   Stream<List<AssignmentModel>> getAssignmentsForClass(String classId) {
     return _firestore
@@ -13,17 +25,18 @@ class AssignmentService {
         .collection('assignments')
         .snapshots()
         .map((snapshot) {
-      final assignments = snapshot.docs
-          .map((doc) => AssignmentModel.fromFirestore(doc))
-          .toList();
-      assignments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return assignments;
-    });
+          final assignments = snapshot.docs
+              .map((doc) => AssignmentModel.fromFirestore(doc))
+              .toList();
+          assignments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return assignments;
+        });
   }
 
   // Get published assignments for students
   Stream<List<AssignmentModel>> getPublishedAssignmentsForClass(
-      String classId) {
+    String classId,
+  ) {
     return _firestore
         .collection('classes')
         .doc(classId)
@@ -31,12 +44,12 @@ class AssignmentService {
         .where('isPublished', isEqualTo: true)
         .snapshots()
         .map((snapshot) {
-      final assignments = snapshot.docs
-          .map((doc) => AssignmentModel.fromFirestore(doc))
-          .toList();
-      assignments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
-      return assignments;
-    });
+          final assignments = snapshot.docs
+              .map((doc) => AssignmentModel.fromFirestore(doc))
+              .toList();
+          assignments.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+          return assignments;
+        });
   }
 
   // Create a new assignment
@@ -63,7 +76,9 @@ class AssignmentService {
 
   // ✅ FIXED: Update an existing assignment
   Future<void> updateAssignment(
-      String classId, AssignmentModel assignment) async {
+    String classId,
+    AssignmentModel assignment,
+  ) async {
     try {
       final data = assignment.toFirestore();
       data['updatedAt'] = FieldValue.serverTimestamp();
@@ -99,7 +114,10 @@ class AssignmentService {
 
   // Toggle publish status
   Future<void> togglePublish(
-      String classId, String assignmentId, bool isPublished) async {
+    String classId,
+    String assignmentId,
+    bool isPublished,
+  ) async {
     try {
       await _firestore
           .collection('classes')
@@ -107,9 +125,9 @@ class AssignmentService {
           .collection('assignments')
           .doc(assignmentId)
           .update({
-        'isPublished': isPublished,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'isPublished': isPublished,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       print('✅ Assignment publish toggled: $assignmentId -> $isPublished');
     } catch (e) {
       print('❌ Error toggling publish: $e');
@@ -123,6 +141,9 @@ class AssignmentService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         throw Exception('User not logged in');
+      }
+      if (submission.studentId != user.uid) {
+        throw Exception('Submission owner does not match the signed-in user.');
       }
 
       final docId = '${submission.assignmentId}_${user.uid}';
@@ -139,7 +160,8 @@ class AssignmentService {
 
   // Get student's submission for an assignment
   Future<AssignmentSubmission?> getStudentSubmission(
-      String assignmentId) async {
+    String assignmentId,
+  ) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
@@ -150,8 +172,7 @@ class AssignmentService {
           .get();
 
       if (doc.exists) {
-        return AssignmentSubmission.fromFirestore(
-            doc);
+        return AssignmentSubmission.fromFirestore(doc);
       }
       return null;
     } catch (e) {
@@ -162,8 +183,10 @@ class AssignmentService {
 
   // Get all submissions for an assignment (teacher view)
   Future<List<AssignmentSubmission>> getSubmissionsForAssignment(
-      String assignmentId) async {
+    String assignmentId,
+  ) async {
     try {
+      await _ensureSubmissionReviewer();
       final snapshot = await _firestore
           .collection('submissions')
           .where('assignmentId', isEqualTo: assignmentId)
@@ -185,8 +208,12 @@ class AssignmentService {
 
   // Grade a submission
   Future<void> gradeSubmission(
-      String submissionId, int score, String feedback) async {
+    String submissionId,
+    int score,
+    String feedback,
+  ) async {
     try {
+      await _ensureSubmissionReviewer();
       await _firestore.collection('submissions').doc(submissionId).update({
         'score': score,
         'feedback': feedback,
@@ -221,6 +248,7 @@ class AssignmentService {
   // Get submission count for an assignment
   Future<int> getSubmissionCount(String assignmentId) async {
     try {
+      await _ensureSubmissionReviewer();
       final snapshot = await _firestore
           .collection('submissions')
           .where('assignmentId', isEqualTo: assignmentId)
@@ -235,6 +263,7 @@ class AssignmentService {
   // Get graded count for an assignment
   Future<int> getGradedCount(String assignmentId) async {
     try {
+      await _ensureSubmissionReviewer();
       final snapshot = await _firestore
           .collection('submissions')
           .where('assignmentId', isEqualTo: assignmentId)

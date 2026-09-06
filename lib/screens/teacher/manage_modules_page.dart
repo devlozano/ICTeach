@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/module_model.dart';
 import '../../services/module_service.dart';
 import '../../services/notification_service.dart';
 import 'content_lock_manager.dart';
 import 'create_module_page.dart';
+import 'learning_path_manager.dart';
 
 class ManageModulesPage extends StatefulWidget {
   final String classId;
@@ -33,13 +35,21 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.account_tree),
+            tooltip: 'Lesson & assessment links',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LearningPathManager(classId: widget.classId),
+              ),
+            ),
+          ),
+          IconButton(
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => ContentLockManager(
-                    classId: widget.classId,
-                  ),
+                  builder: (_) => ContentLockManager(classId: widget.classId),
                 ),
               );
             },
@@ -151,6 +161,9 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
                 onEdit: () => _editModule(module),
                 onDelete: () => _deleteModule(module),
                 onTogglePublish: () => _togglePublish(module),
+                onOpen: module.hasAttachment
+                    ? () => _openModule(module.attachmentUrl!)
+                    : null,
               );
             },
           );
@@ -281,6 +294,17 @@ class _ManageModulesPageState extends State<ManageModulesPage> {
       );
     }
   }
+
+  Future<void> _openModule(String fileUrl) async {
+    final uri = Uri.parse(fileUrl);
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to open the file.')));
+    }
+  }
 }
 
 // ✅ FIXED: Module Card with overflow fixes
@@ -289,12 +313,14 @@ class _ModuleCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onTogglePublish;
+  final VoidCallback? onOpen;
 
   const _ModuleCard({
     required this.module,
     required this.onEdit,
     required this.onDelete,
     required this.onTogglePublish,
+    this.onOpen,
   });
 
   @override
@@ -387,6 +413,43 @@ class _ModuleCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                    if (module.hasAttachment) ...[
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: onOpen,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 3),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.description_outlined,
+                                size: 16,
+                                color: Color(0xFF2F80ED),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  module.fileName ?? 'Open module attachment',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF2F80ED),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const Icon(
+                                Icons.open_in_new,
+                                size: 14,
+                                color: Color(0xFF2F80ED),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -457,10 +520,7 @@ class _ModuleCard extends StatelessWidget {
                 ),
                 tooltip: module.isPublished ? 'Unpublish' : 'Publish',
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 28,
-                  minHeight: 28,
-                ),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 visualDensity: VisualDensity.compact,
               ),
               IconButton(
@@ -468,10 +528,7 @@ class _ModuleCard extends StatelessWidget {
                 icon: const Icon(Icons.edit_outlined, size: 18),
                 tooltip: 'Edit',
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 28,
-                  minHeight: 28,
-                ),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 visualDensity: VisualDensity.compact,
               ),
               IconButton(
@@ -480,10 +537,7 @@ class _ModuleCard extends StatelessWidget {
                 tooltip: 'Delete',
                 color: Colors.red,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 28,
-                  minHeight: 28,
-                ),
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 visualDensity: VisualDensity.compact,
               ),
             ],

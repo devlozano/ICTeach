@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'widgets/user_roles_button.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -76,6 +77,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
             tooltip: 'Back',
           ),
           actions: [
+            const UserRolesButton(),
             IconButton(
               icon: const Icon(Icons.exit_to_app_rounded),
               onPressed: () => _showLeaveClassDialog(context),
@@ -99,6 +101,29 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
 
             final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
             final classCode = data['classCode']?.toString() ?? 'N/A';
+            if (data['status'] == 'archived')
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.archive_outlined, size: 48),
+                      Text('Archived class • ${data['schoolYear'] ?? ''}'),
+                      const Text(
+                        'Previous records are preserved. Join your current school-year class to continue learning.',
+                      ),
+                      if (_userRole == 'teacher' ||
+                          _userRole == 'trainer' ||
+                          _userRole == 'admin')
+                        TextButton(
+                          onPressed: _navigateToInsights,
+                          child: const Text('View archived class reports'),
+                        ),
+                    ],
+                  ),
+                ),
+              );
             final teacherName =
                 data['teacherName']?.toString() ?? 'Unknown Teacher';
             final description =

@@ -30,7 +30,8 @@ class ProgressCalculator {
     final simulationPercent = _percentage(simulationCompleted, simulationTotal);
     final assessmentPercent = _percentage(assessmentCompleted, assessmentTotal);
 
-    final average = [
+    final average =
+        [
           quizPercent,
           modulePercent,
           simulationPercent,
@@ -52,6 +53,6 @@ class ProgressCalculator {
       return 0.0;
     }
 
-    return (completed / total) * 100;
+    return ((completed / total) * 100).clamp(0.0, 100.0);
   }
 }

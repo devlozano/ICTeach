@@ -1,6 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../models/assignment_model.dart';
 import '../../services/assignment_service.dart';
+import '../../services/cloudinary_service.dart';
 import '../../services/notification_service.dart';
 
 class CreateAssignmentPage extends StatefulWidget {
@@ -31,6 +33,7 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
   DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
   bool _isPublished = false;
   bool _isLoading = false;
+  PlatformFile? _selectedFile;
   bool _isEditing = false; // ✅ ADD THIS
 
   @override
@@ -69,17 +72,45 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
     }
   }
 
+  Future<void> _selectAssignmentFile() async {
+    try {
+      final file = await CloudinaryService.selectFile();
+      if (file == null || !mounted) return;
+      setState(() => _selectedFile = file);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   Future<void> _saveAssignment() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
+      CloudinaryUploadResult? uploadedFile;
+      if (_selectedFile != null) {
+        uploadedFile = await CloudinaryService.uploadFile(
+          file: _selectedFile!,
+          folder: CloudinaryService.assignmentsFolder,
+        );
+      }
+      final existingAssignment = widget.assignmentToEdit;
+
       final assignment = AssignmentModel(
         id: _isEditing ? widget.assignmentToEdit!.id : '',
         classId: widget.classId,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
+        attachmentUrl: uploadedFile?.url ?? existingAssignment?.attachmentUrl,
+        attachmentName:
+            uploadedFile?.originalFilename ??
+            existingAssignment?.attachmentName,
+        cloudinaryPublicId:
+            uploadedFile?.publicId ?? existingAssignment?.cloudinaryPublicId,
         dueDate: _dueDate,
         maxScore: int.tryParse(_maxScoreController.text) ?? 100,
         isPublished: _isPublished,
@@ -259,6 +290,38 @@ class _CreateAssignmentPageState extends State<CreateAssignmentPage> {
                   return null;
                 },
               ),
+              const SizedBox(height: 16),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _selectAssignmentFile,
+                  icon: const Icon(Icons.attach_file),
+                  label: Text(
+                    _selectedFile?.name ??
+                        widget.assignmentToEdit?.attachmentName ??
+                        'Attach assignment brief (optional)',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 15,
+                    ),
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+              ),
+              if (_selectedFile != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => setState(() => _selectedFile = null),
+                    icon: const Icon(Icons.close, size: 17),
+                    label: const Text('Remove selected file'),
+                  ),
+                ),
               const SizedBox(height: 16),
 
               // Max Score

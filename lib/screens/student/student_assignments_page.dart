@@ -397,6 +397,21 @@ class _StudentAssignmentCardState extends State<_StudentAssignmentCard> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          if (widget.assignment.attachmentUrl != null &&
+              widget.assignment.attachmentUrl!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () =>
+                    _openAttachment(widget.assignment.attachmentUrl!),
+                icon: const Icon(Icons.description_outlined, size: 17),
+                label: Text(
+                  widget.assignment.attachmentName ?? 'Open assignment brief',
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           // ✅ Row with smaller text and buttons
           Row(

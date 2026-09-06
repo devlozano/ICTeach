@@ -1,10 +1,9 @@
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/forum_model.dart';
+import '../../services/cloudinary_service.dart';
 import '../../services/forum_service.dart';
 
 class CreateForumPostPage extends StatefulWidget {
@@ -27,15 +26,42 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
   final _contentController = TextEditingController();
   bool _isLoading = false;
   final ForumService _forumService = ForumService();
-  final List<File> _selectedImages = [];
+  final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImages() async {
-    final List<XFile> images = await _picker.pickMultiImage();
-    if (images.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(images.map((x) => File(x.path)));
-      });
+    if (_isLoading) return;
+    try {
+      final images = await _picker.pickMultiImage(
+        imageQuality: 85,
+        maxWidth: 2048,
+      );
+      if (!mounted) return;
+      if (images.length + _selectedImages.length > 5) {
+        _showSnackBar('You can attach up to 5 images per post.', Colors.orange);
+        return;
+      }
+      for (final file in images) {
+        final extension = file.name.split('.').last.toLowerCase();
+        if (!{'jpg', 'jpeg', 'png', 'webp'}.contains(extension) ||
+            await file.length() > 10 * 1024 * 1024) {
+          if (mounted) {
+            _showSnackBar(
+              'Choose JPG, PNG or WebP images up to 10 MB each.',
+              Colors.orange,
+            );
+          }
+          return;
+        }
+      }
+      if (mounted) setState(() => _selectedImages.addAll(images));
+    } catch (_) {
+      if (mounted) {
+        _showSnackBar(
+          'Could not open your images. Check photo permissions and try again.',
+          Colors.red,
+        );
+      }
     }
   }
 
@@ -49,24 +75,24 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
   Future<List<String>> _uploadSelectedImages() async {
     if (_selectedImages.isEmpty) return const [];
 
-    final storage = FirebaseStorage.instance;
     final List<String> urls = [];
 
     for (int i = 0; i < _selectedImages.length; i++) {
       final file = _selectedImages[i];
-      final ref = storage.ref().child(
-            'classes/${widget.classId}/forum_posts/${DateTime.now().millisecondsSinceEpoch}_$i.jpg',
-          );
-
-      final uploadTask = await ref.putFile(file);
-      final url = await uploadTask.ref.getDownloadURL();
-      urls.add(url);
+      final bytes = await file.readAsBytes();
+      final uploadedFile = await CloudinaryService.uploadBytes(
+        bytes: bytes,
+        filename: file.name,
+        folder: CloudinaryService.forumPostsFolder,
+      );
+      urls.add(uploadedFile.url);
     }
 
     return urls;
   }
 
   Future<void> _createPost() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     final user = FirebaseAuth.instance.currentUser;
@@ -84,7 +110,8 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
           .get();
 
       final userData = userDoc.data() ?? {};
-      final authorName = userData['displayName']?.toString() ??
+      final authorName =
+          userData['displayName']?.toString() ??
           userData['name']?.toString() ??
           user.displayName ??
           'Student';
@@ -125,6 +152,7 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
   }
 
   void _showSnackBar(String message, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
@@ -232,7 +260,7 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
               Row(
                 children: [
                   IconButton(
-                    onPressed: _pickImages,
+                    onPressed: _isLoading ? null : _pickImages,
                     icon: const Icon(Icons.image, color: Color(0xFF0B2B4A)),
                     tooltip: 'Add Image',
                   ),
@@ -247,26 +275,57 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
                             return Container(
                               margin: const EdgeInsets.only(right: 8),
                               width: 80,
+                              clipBehavior: Clip.antiAlias,
                               decoration: BoxDecoration(
+                                color: Colors.grey.shade200,
                                 borderRadius: BorderRadius.circular(8),
-                                image: DecorationImage(
-                                  image: FileImage(_selectedImages[index]),
-                                  fit: BoxFit.cover,
-                                ),
                               ),
-                              child: Align(
-                                alignment: Alignment.topRight,
-                                child: IconButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedImages.removeAt(index);
-                                    });
-                                  },
-                                  icon: const Icon(Icons.close,
-                                      color: Colors.red, size: 16),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                ),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  FutureBuilder(
+                                    future: _selectedImages[index]
+                                        .readAsBytes(),
+                                    builder: (context, snapshot) {
+                                      if (!snapshot.hasData) {
+                                        return const Center(
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        );
+                                      }
+                                      return Image.memory(
+                                        snapshot.data!,
+                                        fit: BoxFit.cover,
+                                      );
+                                    },
+                                  ),
+                                  Align(
+                                    alignment: Alignment.topRight,
+                                    child: IconButton(
+                                      onPressed: _isLoading
+                                          ? null
+                                          : () {
+                                              setState(() {
+                                                _selectedImages.removeAt(index);
+                                              });
+                                            },
+                                      icon: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ),
+                                ],
                               ),
                             );
                           },
@@ -287,8 +346,10 @@ class _CreateForumPostPageState extends State<CreateForumPostPage> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.notifications_active,
-                        color: Colors.green.shade700),
+                    Icon(
+                      Icons.notifications_active,
+                      color: Colors.green.shade700,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
