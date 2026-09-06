@@ -14,6 +14,8 @@ import 'package:icteach/widgets/notification_badge.dart';
 import 'class_roster.dart';
 import 'login.dart';
 import 'admin_login.dart';
+import 'widgets/staff_sidebar.dart';
+import 'services/workspace_preferences.dart';
 
 class TeacherHomePage extends StatefulWidget {
   const TeacherHomePage({super.key});
@@ -23,7 +25,12 @@ class TeacherHomePage extends StatefulWidget {
 }
 
 class _TeacherHomePageState extends State<TeacherHomePage> {
-  int _currentTabIndex = 0;
+  int _currentTabIndex = WorkspacePreferences.tab('teacher', 5);
+  void _selectTab(int index) {
+    setState(() => _currentTabIndex = index);
+    WorkspacePreferences.saveTab('teacher', index);
+  }
+
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _classesStream;
 
   @override
@@ -372,7 +379,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
               canPop: _currentTabIndex == 0,
               onPopInvokedWithResult: (didPop, _) {
                 if (didPop) return;
-                setState(() => _currentTabIndex = 0);
+                _selectTab(0);
               },
               child: Scaffold(
                 backgroundColor: const Color(0xFFF4F7FA),
@@ -383,6 +390,39 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                       final desktop = constraints.maxWidth >= 1000;
                       final workspace = Column(
                         children: [
+                          Material(
+                            color: Colors.white,
+                            child: SizedBox(
+                              height: 52,
+                              child: Row(
+                                children: [
+                                  if (_currentTabIndex != 0)
+                                    TextButton.icon(
+                                      onPressed: () => _selectTab(0),
+                                      icon: const Icon(Icons.arrow_back),
+                                      label: const Text('Overview'),
+                                    ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(
+                                      const [
+                                        'Overview',
+                                        'Classes',
+                                        'Discussions',
+                                        'Analytics',
+                                        'Profile',
+                                      ][_currentTabIndex],
+                                      style: const TextStyle(
+                                        color: Color(0xFF102A43),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                           _TeacherHeader(
                             name: name,
                             onLogout: _logout,
@@ -413,8 +453,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                           _TeacherDesktopNav(
                             currentIndex: _currentTabIndex,
                             teacherName: name,
-                            onChanged: (index) =>
-                                setState(() => _currentTabIndex = index),
+                            onChanged: (index) => _selectTab(index),
                             onLogout: _logout,
                           ),
                           const VerticalDivider(width: 1),
@@ -429,7 +468,7 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
                     : _TeacherBottomNavBar(
                         currentIndex: _currentTabIndex,
                         onTabChanged: (index) {
-                          setState(() => _currentTabIndex = index);
+                          _selectTab(index);
                         },
                       ),
                 floatingActionButton:
@@ -491,14 +530,10 @@ class _TeacherHomePageState extends State<TeacherHomePage> {
           _TeacherToolGrid(
             classCount: classCount,
             onManageClasses: () {
-              setState(() {
-                _currentTabIndex = 1;
-              });
+              _selectTab(1);
             },
             onSwitchTab: () {
-              setState(() {
-                _currentTabIndex = 1;
-              });
+              _selectTab(1);
             },
           ),
         ],
@@ -1141,133 +1176,26 @@ class _TeacherDesktopNav extends StatelessWidget {
     required this.onChanged,
     required this.onLogout,
   });
-
   final int currentIndex;
   final String teacherName;
   final ValueChanged<int> onChanged;
   final VoidCallback onLogout;
 
-  static const _items = [
-    (Icons.home_outlined, Icons.home_rounded, 'Overview'),
-    (Icons.class_outlined, Icons.class_rounded, 'Classes'),
-    (Icons.forum_outlined, Icons.forum_rounded, 'Discussions'),
-    (Icons.analytics_outlined, Icons.analytics_rounded, 'Analytics'),
-    (Icons.person_outline, Icons.person_rounded, 'Profile'),
-  ];
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 268,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(14, 25, 14, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFF172033)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Image.asset('assets/ict_logo.png'),
-              ),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ICTeach',
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF2F80ED),
-                    ),
-                  ),
-                  Text(
-                    'TEACHER WORKSPACE',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: Color(0xFF627487),
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: .8,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          const Padding(
-            padding: EdgeInsets.only(left: 8, bottom: 10),
-            child: Text(
-              'DASHBOARD',
-              style: TextStyle(
-                fontSize: 10,
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF8793A2),
-              ),
-            ),
-          ),
-          for (var index = 0; index < _items.length; index++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                selected: currentIndex == index,
-                selectedTileColor: const Color(0xFF2F80ED),
-                selectedColor: Colors.white,
-                iconColor: const Color(0xFF2F80ED),
-                textColor: const Color(0xFF2F80ED),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                leading: Icon(
-                  currentIndex == index ? _items[index].$2 : _items[index].$1,
-                ),
-                title: Text(
-                  _items[index].$3,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                onTap: () => onChanged(index),
-              ),
-            ),
-          const Spacer(),
-          const Divider(),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            leading: const CircleAvatar(
-              backgroundColor: Color(0xFFE8F2FF),
-              child: Icon(
-                Icons.person_outline,
-                size: 19,
-                color: Color(0xFF2F80ED),
-              ),
-            ),
-            title: Text(
-              teacherName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: const Text('Teacher'),
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-            title: const Text(
-              'Sign out',
-              style: TextStyle(color: Color(0xFFEF4444)),
-            ),
-            onTap: onLogout,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StaffSidebar(
+    role: 'Teacher',
+    name: teacherName,
+    selectedIndex: currentIndex,
+    items: const [
+      (Icons.dashboard_outlined, 'Overview'),
+      (Icons.groups_outlined, 'Classes'),
+      (Icons.forum_outlined, 'Discussions'),
+      (Icons.insights_outlined, 'Analytics'),
+      (Icons.person_outline, 'Profile'),
+    ],
+    onSelected: onChanged,
+    onLogout: onLogout,
+  );
 }
 
 class _TeacherBottomNavBar extends StatelessWidget {

@@ -71,12 +71,6 @@ abstract final class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
-          color: navy,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-        ),
-        iconTheme: IconThemeData(color: navy, size: 22),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
@@ -89,6 +83,24 @@ abstract final class AppTheme {
         ),
       ),
       dividerTheme: const DividerThemeData(color: border, thickness: 1),
+      tabBarTheme: const TabBarThemeData(
+        labelColor: navy,
+        unselectedLabelColor: muted,
+        indicatorColor: blue,
+        labelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: blue,
+          minimumSize: const Size(48, 48),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
@@ -116,7 +128,7 @@ abstract final class AppTheme {
           backgroundColor: blue,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
@@ -127,7 +139,7 @@ abstract final class AppTheme {
           backgroundColor: blue,
           foregroundColor: Colors.white,
           elevation: 0,
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(48, 48),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
@@ -136,7 +148,7 @@ abstract final class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: navy,
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(48, 48),
           side: const BorderSide(color: border),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           textStyle: const TextStyle(fontWeight: FontWeight.w600),

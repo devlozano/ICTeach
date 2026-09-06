@@ -22,6 +22,7 @@ import 'data/simulation_data.dart';
 import 'data/pre_assessment_data.dart';
 import 'services/school_year_service.dart';
 import 'widgets/user_roles_button.dart';
+import 'services/workspace_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -31,7 +32,12 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentTabIndex = 0;
+  int _currentTabIndex = WorkspacePreferences.tab('student', 5);
+  void _selectTab(int index) {
+    setState(() => _currentTabIndex = index);
+    WorkspacePreferences.saveTab('student', index);
+  }
+
   String? _classId;
   String? _className;
   final QuizService _quizService = QuizService();
@@ -106,7 +112,7 @@ class _HomePageState extends State<HomePage> {
               onPopInvokedWithResult: (didPop, _) {
                 if (didPop) return;
                 // Not on home tab → go back to home tab
-                setState(() => _currentTabIndex = 0);
+                _selectTab(0);
               },
               child: Scaffold(
                 backgroundColor: const Color(0xFFF4F7FA),
@@ -668,9 +674,7 @@ class _HomePageState extends State<HomePage> {
             color: const Color(0xFF4F6DB8),
             bgColor: const Color(0xFFDCE6FF),
             onTap: () {
-              setState(() {
-                _currentTabIndex = 1;
-              });
+              _selectTab(1);
             },
           ),
           _QuickAccessItem(
@@ -1682,7 +1686,7 @@ class _HomePageState extends State<HomePage> {
           final index = item['index'] as int;
           final isSelected = _currentTabIndex == index;
           return InkWell(
-            onTap: () => setState(() => _currentTabIndex = index),
+            onTap: () => _selectTab(index),
             child: SizedBox(
               width: 60,
               child: Column(

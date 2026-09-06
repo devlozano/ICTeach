@@ -8,6 +8,7 @@ import 'instructional_videos_page.dart';
 import 'pre_assessment_page.dart';
 import 'course_feedback_page.dart';
 import '../../services/learning_path_service.dart';
+import '../../services/workspace_preferences.dart';
 import '../../widgets/content_access_gate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -31,6 +32,12 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
   final ModuleService _moduleService = ModuleService();
   String _selectedFilter = 'All';
   int? _selectedModuleIndex;
+  bool _selectionRestored = false;
+  void _backToModules() {
+    setState(() => _selectedModuleIndex = null);
+    WorkspacePreferences.saveSelection('module_${widget.classId}', '');
+  }
+
   final Map<String, bool> _progress = {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>?
   _progressSubscription;
@@ -50,6 +57,7 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
       _progressSubscription?.cancel();
       _progress.clear();
       _selectedModuleIndex = null;
+      _selectionRestored = false;
       _progressError = null;
       _listenProgress();
     }
@@ -190,13 +198,19 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
 
   @override
   Widget build(BuildContext context) {
-    return PreAssessmentPage(
-      classId: widget.classId,
-      className: widget.className,
-      builder: (_) => ContentAccessGate(
+    return PopScope(
+      canPop: _selectedModuleIndex == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _backToModules();
+      },
+      child: PreAssessmentPage(
         classId: widget.classId,
-        contentType: 'module',
-        builder: _buildPage,
+        className: widget.className,
+        builder: (_) => ContentAccessGate(
+          classId: widget.classId,
+          contentType: 'module',
+          builder: _buildPage,
+        ),
       ),
     );
   }
@@ -334,6 +348,19 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
             );
           }
 
+          if (!_selectionRestored) {
+            _selectionRestored = true;
+            final saved = WorkspacePreferences.selection(
+              'module_${widget.classId}',
+            );
+            final index = modules.indexWhere((m) => m.id == saved);
+            if (index >= 0) {
+              _selectedModuleIndex = index;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() {});
+              });
+            }
+          }
           if (_selectedModuleIndex != null) {
             if (_selectedModuleIndex! >= modules.length) {
               _selectedModuleIndex = null;
@@ -443,6 +470,10 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                         _saveProgress(module, false);
                         setState(() {
                           _selectedModuleIndex = index;
+                          WorkspacePreferences.saveSelection(
+                            'module_${widget.classId}',
+                            module.id,
+                          );
                         });
                       },
                     );
@@ -471,11 +502,7 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
             foregroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
-              onPressed: () {
-                setState(() {
-                  _selectedModuleIndex = null;
-                });
-              },
+              onPressed: _backToModules,
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.black.withOpacity(0.2),
@@ -854,9 +881,7 @@ class _ModuleViewPageState extends State<ModuleViewPage> {
                                   margin: const EdgeInsets.all(16),
                                 ),
                               );
-                              setState(() {
-                                _selectedModuleIndex = null;
-                              });
+                              _backToModules();
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),

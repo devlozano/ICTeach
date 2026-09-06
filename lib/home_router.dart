@@ -10,6 +10,8 @@ import 'admin_home.dart';
 import 'login.dart';
 import 'admin_login.dart';
 import 'services/navigation_service.dart';
+import 'services/workspace_navigation.dart';
+import 'services/workspace_preferences.dart';
 
 class HomeRouter extends StatefulWidget {
   const HomeRouter({super.key});
@@ -19,6 +21,13 @@ class HomeRouter extends StatefulWidget {
 }
 
 class _HomeRouterState extends State<HomeRouter> {
+  bool _restoreQueued = false;
+  late final _profile = FirebaseAuth.instance.currentUser == null
+      ? null
+      : FirebaseFirestore.instance
+            .collection('users')
+            .doc(FirebaseAuth.instance.currentUser!.uid)
+            .get();
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -28,10 +37,7 @@ class _HomeRouterState extends State<HomeRouter> {
     }
 
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get(),
+      future: _profile,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -67,7 +73,15 @@ class _HomeRouterState extends State<HomeRouter> {
           return const _WebAccessBlocked();
         }
 
-        // ✅ Use PopScope for back handling (handles exit dialog)
+        WorkspacePreferences.owner = user.uid;
+        if (!_restoreQueued) {
+          _restoreQueued = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted)
+              WorkspaceNavigation.instance.restore(context, user.uid, role);
+          });
+        }
+        // One root navigator; child pages pop before dashboard back handling.
         return PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, _) async {

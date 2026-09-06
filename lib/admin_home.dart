@@ -12,6 +12,7 @@ import 'package:icteach/screens/notification_page.dart';
 import 'package:icteach/widgets/notification_badge.dart';
 import 'package:icteach/services/quiz_service.dart';
 import 'admin_login.dart';
+import 'services/workspace_preferences.dart';
 
 // ─── Color constants ──────────────────────────────────────────────────────────
 const _kNavColor = Color(0xFF0F172A);
@@ -35,7 +36,12 @@ class AdminHomePage extends StatefulWidget {
 }
 
 class _AdminHomePageState extends State<AdminHomePage> {
-  String _currentSelectedLabel = 'Dashboard';
+  String _currentSelectedLabel =
+      WorkspacePreferences.selection('admin_panel') ?? 'Dashboard';
+  void _selectPanel(String label) {
+    setState(() => _currentSelectedLabel = label);
+    WorkspacePreferences.saveSelection('admin_panel', label);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +72,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         currentSelection: _currentSelectedLabel,
                         adminName: name,
                         onSelected: (label) {
-                          setState(() => _currentSelectedLabel = label);
+                          _selectPanel(label);
                           Navigator.of(context).pop();
                         },
                       ),
@@ -79,7 +85,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                         currentSelection: _currentSelectedLabel,
                         adminName: name,
                         onSelected: (label) {
-                          setState(() => _currentSelectedLabel = label);
+                          _selectPanel(label);
                         },
                       ),
                     Expanded(

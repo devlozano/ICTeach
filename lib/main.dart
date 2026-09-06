@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 // Official ICTeach Platform Screen Imports
 import 'splash.dart';
@@ -13,9 +12,13 @@ import 'widgets/offline_indicator.dart';
 import 'services/navigation_service.dart';
 import 'utils/app_theme.dart';
 import 'services/session_service.dart';
+import 'services/workspace_preferences.dart';
+import 'services/workspace_navigation.dart';
+import 'widgets/workspace_back_bar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await WorkspacePreferences.initialize();
 
   try {
     await _initializeFirebase();
@@ -59,7 +62,9 @@ class MyApp extends StatelessWidget {
       title: 'ICTeach Learning Portal',
       debugShowCheckedModeBanner: false,
       navigatorKey: NavigationService.navigatorKey,
-      builder: (context, child) => OfflineIndicator(child: child!),
+      navigatorObservers: [WorkspaceNavigation.instance],
+      builder: (context, child) =>
+          WorkspaceBackBar(child: OfflineIndicator(child: child!)),
       theme: AppTheme.light,
       home: const _AppEntry(),
       routes: {
@@ -80,46 +85,15 @@ class _AppEntry extends StatefulWidget {
 }
 
 class _AppEntryState extends State<_AppEntry> {
-  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
-
+  bool _finished = false;
   @override
   Widget build(BuildContext context) {
-    return Navigator(
-      key: _navKey,
-      onGenerateRoute: (_) {
-        return MaterialPageRoute<void>(
-          builder: (context) {
-            return SplashPage(
-              onFinished: () {
-                final user = FirebaseAuth.instance.currentUser;
-
-                if (user != null) {
-                  _navKey.currentState?.pushReplacement(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const HomeRouter(),
-                    ),
-                  );
-                  return;
-                }
-
-                if (kIsWeb) {
-                  _navKey.currentState?.pushReplacement(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const AdminLoginPage(),
-                    ),
-                  );
-                } else {
-                  _navKey.currentState?.pushReplacement(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const LoginPage(),
-                    ),
-                  );
-                }
-              },
-            );
-          },
-        );
-      },
-    );
+    if (!_finished)
+      return SplashPage(
+        onFinished: () {
+          if (mounted) setState(() => _finished = true);
+        },
+      );
+    return const HomeRouter();
   }
 }

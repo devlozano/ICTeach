@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'activity_timeline_page.dart';
+import '../../services/workspace_preferences.dart';
 import 'assessment_review_page.dart';
 import '../../widgets/leaderboard_chart.dart';
 import '../../services/report_export_service.dart';
@@ -172,6 +173,7 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
+      initialIndex: WorkspacePreferences.tab('insights_${widget.classId}', 4),
       child: Scaffold(
         backgroundColor: const Color(0xFFF4F7FB),
         appBar: AppBar(
@@ -260,12 +262,16 @@ class _ProgressTrackerPageState extends State<ProgressTrackerPage> {
               icon: const Icon(Icons.refresh_rounded),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
+            onTap: (index) => WorkspacePreferences.saveTab(
+              'insights_${widget.classId}',
+              index,
+            ),
             isScrollable: true,
             indicatorColor: Color(0xFF60E3DD),
             labelColor: Colors.white,
             unselectedLabelColor: Color(0xFFB8C7D6),
-            tabs: [
+            tabs: const [
               Tab(text: 'Overview'),
               Tab(text: 'Students'),
               Tab(text: 'Simulations'),

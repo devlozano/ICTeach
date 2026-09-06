@@ -1,20 +1,18 @@
 // services/navigation_service.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class NavigationService {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
   static Future<void> navigateTo(BuildContext context, Widget page) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-    );
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   static Future<T?> navigateToWithResult<T>(
-      BuildContext context, Widget page) async {
+    BuildContext context,
+    Widget page,
+  ) async {
     return await Navigator.push<T>(
       context,
       MaterialPageRoute(builder: (_) => page),
@@ -34,10 +32,7 @@ class NavigationService {
   }
 
   static void pushReplacement(BuildContext context, Widget page) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => page),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   static void pushAndRemoveUntil(BuildContext context, Widget page) {
@@ -55,30 +50,11 @@ class NavigationService {
       return false;
     }
 
-    // On home page, show exit dialog
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit ICTeach?'),
-        content: const Text('Are you sure you want to exit the app?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
+    // Reaching the dashboard must not close the Android app or browser.
+    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(content: Text('You are at your dashboard.')),
     );
-
-    if (shouldExit == true) {
-      SystemNavigator.pop();
-    }
     return false;
   }
 }

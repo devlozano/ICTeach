@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'login.dart';
 import 'admin_login.dart';
+import 'widgets/staff_sidebar.dart';
+import 'services/workspace_preferences.dart';
 import 'join_class.dart';
 import 'class_detail_page.dart';
 import '../screens/teacher/manage_modules_page.dart';
@@ -22,7 +24,11 @@ class TrainerHomePage extends StatefulWidget {
 }
 
 class _TrainerHomePageState extends State<TrainerHomePage> {
-  int _selectedIndex = 0;
+  int _selectedIndex = WorkspacePreferences.tab('trainer', 3);
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
+    WorkspacePreferences.saveTab('trainer', index);
+  }
 
   Future<void> _logout() async {
     final confirm = await showDialog<bool>(
@@ -148,7 +154,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
           canPop: _selectedIndex == 0,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            setState(() => _selectedIndex = 0);
+            _selectTab(0);
           },
           child: Scaffold(
             backgroundColor: const Color(0xFFF4F7FA),
@@ -196,12 +202,53 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                   ),
             body: LayoutBuilder(
               builder: (context, constraints) {
-                final workspace = IndexedStack(
-                  index: _selectedIndex,
+                final workspace = Column(
                   children: [
-                    _buildHomeContent(primaryColor, trainerName, user.uid),
-                    _buildDiscussionForums(primaryColor),
-                    _buildProfileContent(profile, user),
+                    Material(
+                      color: Colors.white,
+                      child: SizedBox(
+                        height: 52,
+                        child: Row(
+                          children: [
+                            if (_selectedIndex != 0)
+                              TextButton.icon(
+                                onPressed: () => _selectTab(0),
+                                icon: const Icon(Icons.arrow_back),
+                                label: const Text('Overview'),
+                              ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                const [
+                                  'Overview',
+                                  'Discussions',
+                                  'Profile',
+                                ][_selectedIndex],
+                                style: const TextStyle(
+                                  color: Color(0xFF102A43),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: IndexedStack(
+                        index: _selectedIndex,
+                        children: [
+                          _buildHomeContent(
+                            primaryColor,
+                            trainerName,
+                            user.uid,
+                          ),
+                          _buildDiscussionForums(primaryColor),
+                          _buildProfileContent(profile, user),
+                        ],
+                      ),
+                    ),
                   ],
                 );
                 if (constraints.maxWidth < 1000) return workspace;
@@ -210,8 +257,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                     _TrainerDesktopNav(
                       currentIndex: _selectedIndex,
                       trainerName: trainerName,
-                      onChanged: (index) =>
-                          setState(() => _selectedIndex = index),
+                      onChanged: (index) => _selectTab(index),
                       onNotifications: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -230,7 +276,7 @@ class _TrainerHomePageState extends State<TrainerHomePage> {
                 ? null
                 : BottomNavigationBar(
                     currentIndex: _selectedIndex,
-                    onTap: (index) => setState(() => _selectedIndex = index),
+                    onTap: (index) => _selectTab(index),
                     items: const [
                       BottomNavigationBarItem(
                         icon: Icon(Icons.home_rounded),
@@ -1390,147 +1436,26 @@ class _TrainerDesktopNav extends StatelessWidget {
     required this.currentIndex,
     required this.trainerName,
     required this.onChanged,
-    required this.onNotifications,
     required this.onLogout,
+    required this.onNotifications,
   });
-
   final int currentIndex;
   final String trainerName;
   final ValueChanged<int> onChanged;
-  final VoidCallback onNotifications;
   final VoidCallback onLogout;
-
-  static const _items = [
-    (Icons.home_outlined, Icons.home_rounded, 'Overview'),
-    (Icons.forum_outlined, Icons.forum_rounded, 'Discussions'),
-    (Icons.person_outline, Icons.person_rounded, 'Profile'),
-  ];
-
+  final VoidCallback onNotifications;
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 268,
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(14, 25, 14, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFF24122F)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Image.asset('assets/ict_logo.png'),
-              ),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'ICTeach',
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF5B2182),
-                    ),
-                  ),
-                  Text(
-                    'TRAINER WORKSPACE',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: Color(0xFF627487),
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: .8,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          const Padding(
-            padding: EdgeInsets.only(left: 8, bottom: 10),
-            child: Text(
-              'DASHBOARD',
-              style: TextStyle(
-                fontSize: 10,
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF93869A),
-              ),
-            ),
-          ),
-          for (var index = 0; index < _items.length; index++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: ListTile(
-                selected: currentIndex == index,
-                selectedTileColor: const Color(0xFF5B2182),
-                selectedColor: Colors.white,
-                iconColor: const Color(0xFF5B2182),
-                textColor: const Color(0xFF5B2182),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                leading: Icon(
-                  currentIndex == index ? _items[index].$2 : _items[index].$1,
-                ),
-                title: Text(
-                  _items[index].$3,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                onTap: () => onChanged(index),
-              ),
-            ),
-          const SizedBox(height: 14),
-          ListTile(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            iconColor: const Color(0xFF5B2182),
-            textColor: const Color(0xFF5B2182),
-            leading: const Icon(Icons.notifications_none_rounded),
-            title: const Text(
-              'Notifications',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-            onTap: onNotifications,
-          ),
-          const Spacer(),
-          const Divider(),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            leading: const CircleAvatar(
-              backgroundColor: Color(0xFFF2E8F8),
-              child: Icon(
-                Icons.badge_outlined,
-                size: 19,
-                color: Color(0xFF5B2182),
-              ),
-            ),
-            title: Text(
-              trainerName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: const Text('Trainer'),
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-            title: const Text(
-              'Sign out',
-              style: TextStyle(color: Color(0xFFEF4444)),
-            ),
-            onTap: onLogout,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StaffSidebar(
+    role: 'Trainer',
+    name: trainerName,
+    selectedIndex: currentIndex,
+    items: const [
+      (Icons.dashboard_outlined, 'Overview'),
+      (Icons.forum_outlined, 'Discussions'),
+      (Icons.person_outline, 'Profile'),
+    ],
+    onSelected: onChanged,
+    onLogout: onLogout,
+    onNotifications: onNotifications,
+  );
 }
