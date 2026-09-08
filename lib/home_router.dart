@@ -9,6 +9,7 @@ import 'trainer_home.dart';
 import 'admin_home.dart';
 import 'login.dart';
 import 'admin_login.dart';
+import 'register.dart';
 import 'services/navigation_service.dart';
 import 'services/workspace_navigation.dart';
 import 'services/workspace_preferences.dart';
@@ -68,7 +69,44 @@ class _HomeRouterState extends State<HomeRouter> {
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>?;
-        final role = data?['role']?.toString().toLowerCase() ?? 'student';
+        if (data == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Complete registration')),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Your sign-in exists, but student registration is incomplete. '
+                      'Use the same email and password, your LRN and a valid school code to finish.',
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const RegisterPage()),
+                      ),
+                      child: const Text('Complete LRN registration'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (!context.mounted) return;
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const LoginPage()),
+                          (_) => false,
+                        );
+                      },
+                      child: const Text('Sign out'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+        final role = data['role']?.toString().toLowerCase() ?? 'student';
         if (kIsWeb && !const {'admin', 'teacher', 'trainer'}.contains(role)) {
           return const _WebAccessBlocked();
         }

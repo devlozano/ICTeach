@@ -2,7 +2,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:io';
+import '../utils/lrn_csv_parser.dart';
+import '../services/lrn_csv_import_service.dart';
 
 class ManageLRNPage extends StatefulWidget {
   final bool useStandaloneScaffold;
@@ -19,53 +20,113 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
 
+  int _processed = 0;
+  int _total = 0;
+  String? _importMessage;
   Future<void> _uploadCSV() async {
+    if (_isUploading) return;
+    setState(() {
+      _isUploading = true;
+      _processed = 0;
+      _total = 0;
+      _importMessage = null;
+    });
     try {
-      FilePickerResult? result = await FilePicker.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv'],
+        withData: true,
+        allowMultiple: false,
       );
-
-      if (result != null) {
-        setState(() => _isUploading = true);
-        final file = File(result.files.single.path!);
-        final csvData = await file.readAsString();
-        final lines = csvData.split('\n').skip(1);
-
-        final batch = FirebaseFirestore.instance.batch();
-        int count = 0;
-
-        for (final line in lines) {
-          if (line.trim().isEmpty) continue;
-          final parts = line.split(',');
-          if (parts.length >= 3) {
-            final lrn = parts[0].trim();
-            final firstName = parts[1].trim();
-            final lastName = parts[2].trim();
-            final middleName = parts.length > 3 ? parts[3].trim() : '';
-
-            final docRef = FirebaseFirestore.instance
-                .collection('lrn_master_list')
-                .doc(lrn);
-            batch.set(docRef, {
-              'firstName': firstName,
-              'lastName': lastName,
-              'middleName': middleName,
-              'isRegistered': false,
-              'uploadedAt': FieldValue.serverTimestamp(),
-            });
-            count++;
-          }
-        }
-
-        await batch.commit();
-        _showSnackBar('✅ Uploaded $count LRN records!', Colors.green);
+      if (result == null || !mounted) return;
+      final file = result.files.single;
+      if (file.size > LrnCsvParser.maxBytes)
+        throw const FormatException('CSV files must be 5 MB or smaller.');
+      final bytes = file.bytes;
+      if (bytes == null)
+        throw const FormatException(
+          'Unable to read the selected file. Download it to your device and select it again.',
+        );
+      final records = LrnCsvParser.parseBytes(bytes);
+      if (!mounted) return;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Import LRN records?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${records.length} valid records in ${file.name}.'),
+                const SizedBox(height: 12),
+                const Text(
+                  'Existing LRNs will be skipped. Names and registration status already in the system will not be overwritten.',
+                ),
+                const SizedBox(height: 12),
+                ...records
+                    .take(5)
+                    .map(
+                      (r) => Text('${r.lrn} — ${r.firstName} ${r.lastName}'),
+                    ),
+                if (records.length > 5) const Text('…and more records'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Import'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      setState(() => _total = records.length);
+      final summary = await LrnCsvImportService().importRecords(
+        records,
+        onProgress: (processed, total) {
+          if (mounted) setState(() => _processed = processed);
+        },
+      );
+      if (!mounted) return;
+      final message =
+          'Import complete: ${summary.added} added, ${summary.skipped} existing records skipped.';
+      setState(() => _importMessage = message);
+      _showSnackBar(message, Colors.green);
+    } on FormatException catch (e) {
+      if (mounted) {
+        setState(() => _importMessage = e.message);
+        _showSnackBar(e.message, Colors.red);
+      }
+    } on LrnImportFailure catch (e) {
+      if (mounted) {
+        setState(() => _importMessage = e.toString());
+        _showSnackBar(e.toString(), Colors.red);
       }
     } catch (e) {
-      _showSnackBar('Error uploading: $e', Colors.red);
+      if (mounted) {
+        setState(
+          () => _importMessage =
+              'Unable to open or import the CSV. Please retry. $e',
+        );
+        _showSnackBar(_importMessage!, Colors.red);
+      }
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
+  }
+
+  @override
+  void dispose() {
+    _lrnController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -84,6 +145,13 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
         }
 
         final docs = snapshot.data?.docs ?? [];
+        if (snapshot.hasError)
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Unable to load LRN records. Check your connection and permissions.',
+            ),
+          );
         if (docs.isEmpty) {
           return const SizedBox(
             height: 240,
@@ -145,28 +213,30 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isRegistered
-                          ? Colors.green.shade100
-                          : Colors.amber.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      isRegistered ? 'Registered' : 'Pending',
-                      style: TextStyle(
-                        color: isRegistered
-                            ? Colors.green.shade800
-                            : Colors.amber.shade800,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                  trailing: isRegistered
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isRegistered
+                                ? Colors.green.shade100
+                                : Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            isRegistered ? 'Registered' : 'Pending',
+                            style: TextStyle(
+                              color: isRegistered
+                                  ? Colors.green.shade800
+                                  : Colors.amber.shade800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               );
             },
@@ -222,7 +292,7 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'CSV Format: LRN, First Name, Last Name, Middle Name (Optional)',
+                  'CSV UTF-8, maximum 5 MB / 10,000 rows. Columns: LRN, First Name, Last Name, Middle Name (optional). Headers are recommended. Keep LRNs as 12-digit text, not scientific notation.',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
@@ -230,6 +300,21 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
           ),
         ),
         listSection,
+        if (_isUploading && _total > 0)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                LinearProgressIndicator(value: _processed / _total),
+                Text('Imported $_processed of $_total records'),
+              ],
+            ),
+          ),
+        if (_importMessage != null)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SelectableText(_importMessage!),
+          ),
       ],
     );
 
@@ -251,7 +336,7 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
           ),
         ],
       ),
-      body: pageContent,
+      body: SingleChildScrollView(child: pageContent),
     );
   }
 
@@ -301,21 +386,30 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
               final firstName = _firstNameController.text.trim();
               final lastName = _lastNameController.text.trim();
 
-              if (lrn.isEmpty || firstName.isEmpty || lastName.isEmpty) {
-                _showSnackBar('Please fill all required fields', Colors.orange);
+              if (!RegExp(r'^[0-9]{12}$').hasMatch(lrn) ||
+                  firstName.isEmpty ||
+                  firstName.length > 150 ||
+                  lastName.isEmpty ||
+                  lastName.length > 150) {
+                _showSnackBar(
+                  'Enter a 12-digit LRN and names of 1–150 characters.',
+                  Colors.orange,
+                );
                 return;
               }
 
               try {
-                await FirebaseFirestore.instance
-                    .collection('lrn_master_list')
-                    .doc(lrn)
-                    .set({
-                      'firstName': firstName,
-                      'lastName': lastName,
-                      'isRegistered': false,
-                      'uploadedAt': FieldValue.serverTimestamp(),
-                    });
+                final result = await LrnCsvImportService().importRecords([
+                  LrnCsvRecord(lrn, firstName, lastName, ''),
+                ]);
+                if (!mounted || !context.mounted) return;
+                if (result.skipped > 0) {
+                  _showSnackBar(
+                    'This LRN already exists. Its registration and code were preserved.',
+                    Colors.orange,
+                  );
+                  return;
+                }
 
                 _showSnackBar('✅ LRN added successfully!', Colors.green);
                 Navigator.pop(context);
@@ -323,7 +417,7 @@ class _ManageLRNPageState extends State<ManageLRNPage> {
                 _firstNameController.clear();
                 _lastNameController.clear();
               } catch (e) {
-                _showSnackBar('Error: $e', Colors.red);
+                if (mounted) _showSnackBar('Error: $e', Colors.red);
               }
             },
             style: ElevatedButton.styleFrom(

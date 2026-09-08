@@ -1,0 +1,37 @@
+{
+  "score": 2,
+  "summary": "Enrollment-only prototype passes isolated attack tests; full production LMS integration remains blocked by permissive legacy rules and staff-profile access migration.",
+  "findings": [
+    {
+      "check": "Business Logic vs. Rules",
+      "severity": "major",
+      "issue": "The isolated default-deny rules intentionally do not authorize the remaining LMS collections or staff profile queries. The legacy catch-all would bypass enrollment protections if retained.",
+      "recommendation": "Migrate unrelated collection policies and staff PII queries, then review and test one combined ruleset before production deployment."
+    },
+    {
+      "check": "Authority Source",
+      "severity": "major",
+      "issue": "No live issuer UID has been approved or bootstrapped. Existing editable profile roles cannot establish trusted authority.",
+      "recommendation": "Obtain explicit approval of the initial issuer UID and provision it only after client writes to issuer records are denied."
+    },
+    {
+      "check": "Resource Exhaustion / DoS",
+      "severity": "minor",
+      "issue": "Unauthenticated capability lookups can consume Spark read quota even though the secret is high entropy and the returned data contains no PII.",
+      "recommendation": "Monitor quotas and abuse. A trusted rate-limited backend is required for stronger automated abuse protection."
+    }
+  ],
+  "attack_results": {
+    "public_list_and_mixed_content": "denied; only exact capability GET returns expiry",
+    "unauthorized_read_write_and_issuer_escalation": "denied",
+    "ownership_hijacking_and_role_update": "denied",
+    "invalid_type_oversize_extra_field_and_timestamp": "denied",
+    "partial_batch_and_replay": "denied",
+    "concurrent_redemption": "exactly one winner",
+    "valid_claim_and_issuer_replacement": "allowed",
+    "query_compatibility": "enrollment queries only; broader LMS rollout blocked",
+    "counter_and_array_attacks": "not applicable; no counters or array fields in enrollment schema",
+    "orphaned_subcollections": "default denied",
+    "syntax_validation": "passed in STANDARD Firestore emulator"
+  }
+}

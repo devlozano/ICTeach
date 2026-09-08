@@ -23,6 +23,7 @@ dependencies:
 
   # 🌐 HTTP & Networking
   http: ^1.6.0
+  crypto: ^3.0.6
 
   # 📁 File & Media Pickers
   file_picker: ^11.0.3

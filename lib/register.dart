@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'home_router.dart';
-import 'models/lrn_model.dart';
+import 'services/registration_invitation_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -27,8 +27,6 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLrnValid = false;
-  bool _isCheckingLrn = false;
-  LRNModel? _verifiedLrn;
 
   // List of values that should be treated as "no extension"
   static const List<String> _noExtensionValues = [
@@ -99,7 +97,7 @@ class _RegisterPageState extends State<RegisterPage> {
     return emojiRegex.hasMatch(text);
   }
 
-// ✅ Check if string contains special characters (for names)
+  // ✅ Check if string contains special characters (for names)
   bool _containsSpecialCharacters(String text) {
     // Allow letters, spaces, hyphens, apostrophes, and periods
     final regex = RegExp(r"^[a-zA-Z\s\-.']+$");
@@ -224,8 +222,9 @@ class _RegisterPageState extends State<RegisterPage> {
       return suffixes[lower]!;
     }
 
-    if (RegExp(r'^(Jr\.|Sr\.|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$')
-        .hasMatch(value)) {
+    if (RegExp(
+      r'^(Jr\.|Sr\.|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$',
+    ).hasMatch(value)) {
       return value;
     }
 
@@ -266,62 +265,18 @@ class _RegisterPageState extends State<RegisterPage> {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: backgroundColor,
-        ),
+        SnackBar(content: Text(message), backgroundColor: backgroundColor),
       );
   }
 
   Future<void> _validateLRN() async {
     final lrn = _lrnController.text.trim();
-    if (lrn.isEmpty) {
-      setState(() {
-        _isLrnValid = false;
-        _verifiedLrn = null;
-      });
+    if (!RegExp(r'^[0-9]{12}$').hasMatch(lrn)) {
+      _showError('Enter a valid 12-digit LRN.');
       return;
     }
-
-    setState(() => _isCheckingLrn = true);
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('lrn_master_list')
-          .doc(lrn)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        final isRegistered = data['isRegistered'] ?? false;
-
-        if (isRegistered) {
-          _showSnackBar('This LRN is already registered.', Colors.orange);
-          setState(() {
-            _isLrnValid = false;
-            _verifiedLrn = null;
-          });
-        } else {
-          setState(() {
-            _isLrnValid = true;
-            _verifiedLrn = LRNModel.fromFirestore(doc);
-          });
-          _showSnackBar('✅ LRN verified!', Colors.green);
-        }
-      } else {
-        setState(() {
-          _isLrnValid = false;
-          _verifiedLrn = null;
-        });
-        _showSnackBar('❌ Invalid LRN. Please check your number.', Colors.red);
-      }
-    } catch (e) {
-      _showSnackBar('Error validating LRN: $e', Colors.red);
-    } finally {
-      if (mounted) {
-        setState(() => _isCheckingLrn = false);
-      }
-    }
+    setState(() => _isLrnValid = true);
+    _showSnackBar('LRN format verified.', Colors.green);
   }
 
   Widget _buildLrnField() {
@@ -330,75 +285,69 @@ class _RegisterPageState extends State<RegisterPage> {
       children: [
         TextFormField(
           controller: _lrnController,
+          enabled: !_isLoading,
           keyboardType: TextInputType.number,
           maxLength: 12,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             labelText: 'Learning Reference Number (LRN)',
-            hintText: 'Enter your 12-digit LRN',
-            prefixIcon: const Icon(Icons.numbers),
-            suffixIcon: _isCheckingLrn
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : _isLrnValid
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : null,
-            border: const OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-            ),
+            prefixIcon: Icon(Icons.numbers),
+            border: OutlineInputBorder(),
           ),
           validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'LRN is required';
+            if (!RegExp(r'^[0-9]{12}$').hasMatch(value?.trim() ?? '')) {
+              return 'Enter your 12-digit LRN.';
             }
-            if (value.trim().length < 12) {
-              return 'LRN must be 12 digits';
-            }
-            if (!_isLrnValid) {
-              return 'Please verify your LRN first';
-            }
-            return null;
+            return _isLrnValid ? null : 'Verify your LRN first.';
           },
-          onChanged: (value) {
-            if (value.length == 12) {
-              _validateLRN();
-            } else {
-              setState(() {
-                _isLrnValid = false;
-                _verifiedLrn = null;
-              });
-            }
-          },
+          onChanged: (_) => setState(() => _isLrnValid = false),
         ),
-        if (_isLrnValid && _verifiedLrn != null)
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.shade200),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.verified, color: Colors.green),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Verified: ${_verifiedLrn!.firstName} ${_verifiedLrn!.lastName}',
-                    style: TextStyle(
-                      color: Colors.green.shade800,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: _isLoading ? null : _validateLRN,
+          icon: Icon(_isLrnValid ? Icons.verified : Icons.fact_check_outlined),
+          label: Text(_isLrnValid ? 'LRN verified' : 'Verify LRN'),
+        ),
       ],
     );
+  }
+
+  Future<UserCredential> _createVerifiedAccount() async {
+    final auth = FirebaseAuth.instance;
+    try {
+      final credential = await auth.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      try {
+        await RegistrationInvitationService().validateLrn(
+          _lrnController.text.trim(),
+        );
+      } catch (_) {
+        await credential.user?.delete();
+        rethrow;
+      }
+      return credential;
+    } on FirebaseAuthException catch (error) {
+      if (error.code != 'email-already-in-use') rethrow;
+      // Recover an Auth account left by an interrupted Firestore claim.
+      // Never overwrite an existing enrolled profile.
+      final credential = await auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      final profile = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .get(const GetOptions(source: Source.server));
+      if (profile.exists) {
+        await auth.signOut();
+        throw FirebaseAuthException(code: 'email-already-in-use');
+      }
+      await RegistrationInvitationService().validateLrn(
+        _lrnController.text.trim(),
+      );
+      return credential;
+    }
   }
 
   Future<void> _register() async {
@@ -412,10 +361,8 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+          // Verify again against the server BEFORE creating the Auth account.
+          await _createVerifiedAccount();
 
       final user = credential.user;
       if (user == null) {
@@ -440,7 +387,6 @@ class _RegisterPageState extends State<RegisterPage> {
         extension: extension,
       );
 
-      await user.updateDisplayName(displayName);
       await _saveUserProfile(
         uid: user.uid,
         lrn: lrn,
@@ -451,6 +397,10 @@ class _RegisterPageState extends State<RegisterPage> {
         displayName: displayName,
         email: email,
       );
+      // A display-name failure must not turn a committed enrollment into failure.
+      try {
+        await user.updateDisplayName(displayName);
+      } catch (_) {}
 
       if (!mounted) return;
 
@@ -461,6 +411,9 @@ class _RegisterPageState extends State<RegisterPage> {
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
       _showError(_authErrorMessage(error));
+    } on FormatException catch (error) {
+      if (!mounted) return;
+      _showError(error.message);
     } on FirebaseException catch (error) {
       if (!mounted) return;
       _showError(_firebaseErrorMessage(error));
@@ -498,7 +451,9 @@ class _RegisterPageState extends State<RegisterPage> {
   String _firebaseErrorMessage(FirebaseException error) {
     switch (error.code) {
       case 'permission-denied':
-        return 'Account created, but Firestore rules blocked saving the profile.';
+        return 'Enrollment was not completed. Your code may have expired or been used, '
+            'or school permissions need setup. Retry with the same email and password '
+            'and a valid school code; contact your school if this continues.';
       case 'unavailable':
         return 'Firebase is unavailable right now. Please try again.';
       default:
@@ -508,8 +463,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   bool _isValidEmail(String value) {
     // More strict email validation
-    return RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-        .hasMatch(value);
+    return RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    ).hasMatch(value);
   }
 
   String _displayName({
@@ -561,10 +517,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     alignment: Alignment.centerLeft,
                     child: IconButton(
                       tooltip: 'Back',
-                      onPressed:
-                          _isLoading ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back_rounded,
-                          color: Colors.white),
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        Icons.arrow_back_rounded,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -575,16 +534,24 @@ class _RegisterPageState extends State<RegisterPage> {
                     width: double.infinity,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(28)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
                     ),
                     child: Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 520),
                         child: SingleChildScrollView(
                           padding: EdgeInsets.fromLTRB(
-                              horizontalPadding, 24, horizontalPadding, 24),
-                          child: _buildForm(registerGreen),
+                            horizontalPadding,
+                            24,
+                            horizontalPadding,
+                            24,
+                          ),
+                          child: AbsorbPointer(
+                            absorbing: _isLoading,
+                            child: _buildForm(registerGreen),
+                          ),
                         ),
                       ),
                     ),
@@ -632,16 +599,16 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             child: Row(
               children: [
-                Icon(Icons.security_rounded,
-                    color: Colors.blue.shade700, size: 20),
+                Icon(
+                  Icons.security_rounded,
+                  color: Colors.blue.shade700,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Password must be 8+ characters with uppercase, lowercase, number, and special character.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.blue.shade700,
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
                   ),
                 ),
               ],
@@ -718,7 +685,8 @@ class _RegisterPageState extends State<RegisterPage> {
             controller: _confirmPasswordController,
             isObscured: _obscureConfirmPassword,
             onToggle: () => setState(
-                () => _obscureConfirmPassword = !_obscureConfirmPassword),
+              () => _obscureConfirmPassword = !_obscureConfirmPassword,
+            ),
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Confirm your password.';
@@ -742,18 +710,23 @@ class _RegisterPageState extends State<RegisterPage> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: _isLoading
                   ? const SizedBox.square(
                       dimension: 22,
                       child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.6),
+                        color: Colors.white,
+                        strokeWidth: 2.6,
+                      ),
                     )
                   : const Text(
                       'Create Account',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
             ),
           ),
@@ -817,8 +790,10 @@ class _RegisterPageState extends State<RegisterPage> {
             hintStyle: const TextStyle(color: Colors.black38),
             filled: true,
             fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
@@ -888,8 +863,10 @@ class _RegisterPageState extends State<RegisterPage> {
           validator: validator,
           onFieldSubmitted: onFieldSubmitted,
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.lock_outline_rounded,
-                color: Color(0xFF4D89FF)),
+            prefixIcon: const Icon(
+              Icons.lock_outline_rounded,
+              color: Color(0xFF4D89FF),
+            ),
             suffixIcon: IconButton(
               icon: Icon(
                 isObscured
@@ -905,8 +882,10 @@ class _RegisterPageState extends State<RegisterPage> {
             hintStyle: const TextStyle(color: Colors.black38),
             filled: true,
             fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: Color(0xFFC7D3EA), width: 2),
@@ -958,22 +937,11 @@ class _RegisterPageState extends State<RegisterPage> {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    await FirebaseFirestore.instance.collection('users').doc(uid).set(data);
-    await FirebaseFirestore.instance.collection('students').doc(uid).set(data);
-
-    if (lrn.isNotEmpty) {
-      await FirebaseFirestore.instance
-          .collection('lrn_master_list')
-          .doc(lrn)
-          .update({
-        'isRegistered': true,
-        'registeredAt': FieldValue.serverTimestamp(),
-        'registeredUid': uid,
-      });
-    }
-
-    // Use debugPrint instead of print
-    debugPrint('✅ User profile saved to both users and students collections');
+    await RegistrationInvitationService().claim(
+      uid: uid,
+      lrn: lrn,
+      profile: data,
+    );
     return true;
   }
 }
